@@ -2,12 +2,18 @@
 
 namespace hv {
 
+class vcpu;
+
 // virtualize the current system
 bool start();
 
+// temporary (sorta)
+void stop();
+
 // only one instance of the hypervisor may be running on the system
 struct hypervisor {
-  size_t vcpu_count;
+  unsigned long vcpu_count;
+  vcpu* vcpus;
 };
 
 // get a pointer to the global hypervisor

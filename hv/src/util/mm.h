@@ -11,7 +11,7 @@ void* alloc(size_t size, POOL_TYPE type = NonPagedPoolNx);
 // note, this does not construct the object
 template <typename T>
 T* alloc(POOL_TYPE const type = NonPagedPoolNx) {
-  return reinterpret_cast<T*>(alloc_aligned(sizeof(T), alignof(T), type));
+  return static_cast<T*>(alloc_aligned(sizeof(T), alignof(T), type));
 }
 
 // allocate aligned system memory

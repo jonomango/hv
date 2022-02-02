@@ -28,12 +28,18 @@
     <ClCompile Include="src\util\mm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\vcpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\hv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\util\mm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\vcpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
