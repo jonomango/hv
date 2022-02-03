@@ -31,6 +31,9 @@
     <ClCompile Include="src\core\vcpu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\vmcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\hv.h">
@@ -42,5 +45,16 @@
     <ClInclude Include="src\core\vcpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\vmcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\util\arch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="src\util\arch.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

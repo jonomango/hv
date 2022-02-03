@@ -25,4 +25,16 @@ void free(void* const address) {
   ExFreePoolWithTag(address, 'frog');
 }
 
+// translate a virtual address to its physical address
+uint64_t get_physical(void* const virt_addr) {
+  return MmGetPhysicalAddress(virt_addr).QuadPart;
+}
+
+// translate a physical address to its virtual address
+void* get_virtual(uint64_t const phys_addr) {
+  PHYSICAL_ADDRESS phys;
+  phys.QuadPart = phys_addr;
+  return MmGetVirtualForPhysical(phys);
+}
+
 } // namespace hv

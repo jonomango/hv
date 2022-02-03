@@ -21,14 +21,23 @@ bool start() {
 
   global_hypervisor->vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
+  // size of the vcpu array
+  auto const arr_size = sizeof(vcpu) * global_hypervisor->vcpu_count;
+
   // allocate an array of vcpus
   global_hypervisor->vcpus = static_cast<vcpu*>(
-    alloc_aligned(sizeof(vcpu) * global_hypervisor->vcpu_count, alignof(vcpu)));
+    alloc_aligned(arr_size, alignof(vcpu)));
 
   if (!global_hypervisor->vcpus) {
     free(global_hypervisor);
     return false;
   }
+
+  memset(global_hypervisor->vcpus, 0, arr_size);
+
+  // we need to be running at an irql below DISPATCH_LEVEL so
+  // that KeSetSystemAffinityThreadEx takes effect immediately
+  NT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
 
   // virtualize every cpu
   for (unsigned long i = 0; i < global_hypervisor->vcpu_count; ++i) {
@@ -39,6 +48,7 @@ bool start() {
 
     if (!cpu.virtualize()) {
       // TODO: handle this bruh -_-
+      KeRevertToUserAffinityThreadEx(orig_affinity);
       return false;
     }
 
