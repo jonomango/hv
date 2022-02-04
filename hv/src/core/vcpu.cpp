@@ -24,18 +24,23 @@ bool vcpu::virtualize() {
   }
 
   // 3.28.3.3.4
-  __invept(invept_all_context, {});
+  __vmx_invept(invept_all_context, {});
 
   DbgPrint("[hv] entered vmx operation.");
 
-  if (!prepare_vmcs(vmcs_)) {
+  if (!set_vmcs_pointer()) {
     // TODO: cleanup
 
     __vmx_off();
     return false;
   }
 
-  DbgPrint("[hv] prepared the vmcs.");
+  DbgPrint("[hv] set vmcs pointer.");
+
+  // initialize the vmcs fields
+  write_host_vmcs_fields();
+
+  DbgPrint("[hv] initialized vmcs fields.");
 
   // launch the virtual machine
   if (auto const status = __vmx_vmlaunch(); status != 0) {
