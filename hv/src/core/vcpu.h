@@ -17,11 +17,11 @@ private:
   // perform certain actions that are required before entering vmx operation
   void enable_vmx_operation();
 
-private:
-  // functions defined in vmcs.cpp
-
   // set the working-vmcs pointer to point to our vmcs structure
   bool set_vmcs_pointer();
+
+private:
+  // functions defined in vmcs.cpp
 
   // initialize exit, entry, and execution control fields in the vmcs
   void write_ctrl_vmcs_fields();

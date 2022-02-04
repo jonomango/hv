@@ -38,7 +38,9 @@ bool vcpu::virtualize() {
   DbgPrint("[hv] set vmcs pointer.");
 
   // initialize the vmcs fields
+  write_ctrl_vmcs_fields();
   write_host_vmcs_fields();
+  write_guest_vmcs_fields();
 
   DbgPrint("[hv] initialized vmcs fields.");
 
@@ -106,6 +108,27 @@ void vcpu::enable_vmx_operation() {
   // 3.24.11.5
   vmxon_.revision_id = vmx_basic.vmcs_revision_id;
   vmxon_.must_be_zero = 0;
+}
+
+// set the working-vmcs pointer to point to our vmcs structure
+bool vcpu::set_vmcs_pointer() {
+  ia32_vmx_basic_register vmx_basic;
+  vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
+
+  // 3.24.2
+  vmcs_.revision_id = vmx_basic.vmcs_revision_id;
+  vmcs_.shadow_vmcs_indicator = 0;
+
+  auto vmcs_phys = get_physical(&vmcs_);
+  NT_ASSERT(vmcs_phys % 0x1000 == 0);
+
+  if (__vmx_vmclear(&vmcs_phys) != 0)
+    return false;
+
+  if (__vmx_vmptrld(&vmcs_phys) != 0)
+    return false;
+
+  return true;
 }
 
 } // namespace hv
