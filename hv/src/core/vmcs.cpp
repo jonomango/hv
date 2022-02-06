@@ -26,6 +26,7 @@ void vcpu::write_ctrl_vmcs_fields() {
   proc_based_ctrl.cr3_store_exiting           = 1;
   proc_based_ctrl.use_msr_bitmaps             = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
+  proc_based_ctrl.hlt_exiting = 1;
   write_ctrl_proc_based(proc_based_ctrl);
 
   // 3.24.6.2
@@ -141,7 +142,83 @@ void vcpu::write_host_vmcs_fields() {
 
 // initialize guest-state fields in the vmcs
 void vcpu::write_guest_vmcs_fields() {
+  // 3.24.4
   // 3.26.3
+
+  __vmx_vmwrite(VMCS_GUEST_CR0, __readcr0());
+  __vmx_vmwrite(VMCS_GUEST_CR3, __readcr3());
+  __vmx_vmwrite(VMCS_GUEST_CR4, __readcr4());
+
+  __vmx_vmwrite(VMCS_GUEST_DR7, __readdr(7));
+
+  auto const rip = alloc(0x10, NonPagedPoolExecute);
+  memset(rip, 0xF4, 0x10);
+
+  // RIP and RSP are set elsewhere
+  __vmx_vmwrite(VMCS_GUEST_RSP, 0);
+  __vmx_vmwrite(VMCS_GUEST_RIP, reinterpret_cast<size_t>(rip));
+  __vmx_vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
+
+  // TODO: don't hardcode the segment selectors idiot...
+
+  __vmx_vmwrite(VMCS_GUEST_CS_SELECTOR,   0x10);
+  __vmx_vmwrite(VMCS_GUEST_SS_SELECTOR,   0x18);
+  __vmx_vmwrite(VMCS_GUEST_DS_SELECTOR,   0x2B);
+  __vmx_vmwrite(VMCS_GUEST_ES_SELECTOR,   0x2B);
+  __vmx_vmwrite(VMCS_GUEST_FS_SELECTOR,   0x53);
+  __vmx_vmwrite(VMCS_GUEST_GS_SELECTOR,   0x2B);
+  __vmx_vmwrite(VMCS_GUEST_TR_SELECTOR,   0x40);
+  __vmx_vmwrite(VMCS_GUEST_LDTR_SELECTOR, 0x00);
+
+  segment_descriptor_register_64 gdtr, idtr;
+  _sgdt(&gdtr);
+  __sidt(&idtr);
+
+  __vmx_vmwrite(VMCS_GUEST_CS_BASE,   segment_base(gdtr, 0x10));
+  __vmx_vmwrite(VMCS_GUEST_SS_BASE,   segment_base(gdtr, 0x18));
+  __vmx_vmwrite(VMCS_GUEST_DS_BASE,   segment_base(gdtr, 0x2B));
+  __vmx_vmwrite(VMCS_GUEST_ES_BASE,   segment_base(gdtr, 0x2B));
+  __vmx_vmwrite(VMCS_GUEST_FS_BASE,   __readmsr(IA32_FS_BASE));
+  __vmx_vmwrite(VMCS_GUEST_GS_BASE,   __readmsr(IA32_GS_BASE));
+  __vmx_vmwrite(VMCS_GUEST_TR_BASE,   segment_base(gdtr, 0x40));
+  __vmx_vmwrite(VMCS_GUEST_LDTR_BASE, segment_base(gdtr, 0x00));
+
+  __vmx_vmwrite(VMCS_GUEST_CS_LIMIT,   __segmentlimit(0x10));
+  __vmx_vmwrite(VMCS_GUEST_SS_LIMIT,   __segmentlimit(0x18));
+  __vmx_vmwrite(VMCS_GUEST_DS_LIMIT,   __segmentlimit(0x2B));
+  __vmx_vmwrite(VMCS_GUEST_ES_LIMIT,   __segmentlimit(0x2B));
+  __vmx_vmwrite(VMCS_GUEST_FS_LIMIT,   __segmentlimit(0x53));
+  __vmx_vmwrite(VMCS_GUEST_GS_LIMIT,   __segmentlimit(0x2B));
+  __vmx_vmwrite(VMCS_GUEST_TR_LIMIT,   __segmentlimit(0x40));
+  __vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, __segmentlimit(0x00));
+
+  __vmx_vmwrite(VMCS_GUEST_CS_LIMIT,   segment_access(gdtr, 0x10).flags);
+  __vmx_vmwrite(VMCS_GUEST_SS_LIMIT,   segment_access(gdtr, 0x18).flags);
+  __vmx_vmwrite(VMCS_GUEST_DS_LIMIT,   segment_access(gdtr, 0x2B).flags);
+  __vmx_vmwrite(VMCS_GUEST_ES_LIMIT,   segment_access(gdtr, 0x2B).flags);
+  __vmx_vmwrite(VMCS_GUEST_FS_LIMIT,   segment_access(gdtr, 0x53).flags);
+  __vmx_vmwrite(VMCS_GUEST_GS_LIMIT,   segment_access(gdtr, 0x2B).flags);
+  __vmx_vmwrite(VMCS_GUEST_TR_LIMIT,   segment_access(gdtr, 0x40).flags);
+  __vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, segment_access(gdtr, 0x00).flags);
+
+  __vmx_vmwrite(VMCS_GUEST_GDTR_BASE, gdtr.base_address);
+  __vmx_vmwrite(VMCS_GUEST_IDTR_BASE, idtr.base_address);
+
+  __vmx_vmwrite(VMCS_GUEST_GDTR_LIMIT, gdtr.limit);
+  __vmx_vmwrite(VMCS_GUEST_IDTR_LIMIT, idtr.limit);
+
+  __vmx_vmwrite(VMCS_GUEST_DEBUGCTL,     __readmsr(IA32_DEBUGCTL));
+  __vmx_vmwrite(VMCS_GUEST_SYSENTER_CS,  __readmsr(IA32_SYSENTER_CS));
+  __vmx_vmwrite(VMCS_GUEST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
+  __vmx_vmwrite(VMCS_GUEST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
+
+  __vmx_vmwrite(VMCS_GUEST_ACTIVITY_STATE, vmx_active);
+
+  __vmx_vmwrite(VMCS_GUEST_INTERRUPTIBILITY_STATE, 0);
+
+  __vmx_vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
+
+  __vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, 0xFFFFFFFF'FFFFFFFFull);
 }
 
 // helper function that adjusts vmcs control
