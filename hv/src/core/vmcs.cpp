@@ -3,8 +3,12 @@
 
 #include "../util/mm.h"
 #include "../util/arch.h"
+#include "../util/segment.h"
 
 namespace hv {
+
+// defined in vm-exit.asm
+extern void __vm_exit();
 
 // initialize exit, entry, and execution control fields in the vmcs
 void vcpu::write_ctrl_vmcs_fields() {
@@ -55,33 +59,33 @@ void vcpu::write_ctrl_vmcs_fields() {
 
   // set up the pagefault mask and match in such a way so
   // that a vm-exit is never triggered for a pagefault
-  __vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MASK, 0);
+  __vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MASK,  0);
   __vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MATCH, 0);
 
   // 3.24.6.6
   __vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0);
-  __vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW,     0);
   __vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0);
-  __vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW,     0);
 
   // 3.24.6.7
-  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT,   0);
   __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, 0);
   __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_1, 0);
   __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_2, 0);
   __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_3, 0);
 
   // 3.24.6.9
-  __vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, 0);
+  __vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&msr_bitmap_));
 
   // 3.24.7.2
-  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT,   0);
   __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS, 0);
-  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_COUNT, 0);
-  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_ADDRESS, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_COUNT,    0);
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_ADDRESS,  0);
 
   // 3.24.8.2
-  __vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT,   0);
   __vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_ADDRESS, 0);
 
   // 3.24.8.3
@@ -105,23 +109,27 @@ void vcpu::write_host_vmcs_fields() {
     host_stack_) + host_stack_size) & ~0b1111ull) - 8;
 
   __vmx_vmwrite(VMCS_HOST_RSP, rsp);
-  __vmx_vmwrite(VMCS_HOST_RIP, 0);
+  __vmx_vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(__vm_exit));
+
+  segment_descriptor_register_64 gdtr, idtr;
+  _sgdt(&gdtr);
+  __sidt(&idtr);
 
   // TODO: we should be using our own segment selectors (CS, FS, GS, TR)
-  __vmx_vmwrite(VMCS_HOST_CS_SELECTOR, 0);
-  __vmx_vmwrite(VMCS_HOST_SS_SELECTOR, 0);
-  __vmx_vmwrite(VMCS_HOST_DS_SELECTOR, 0);
-  __vmx_vmwrite(VMCS_HOST_ES_SELECTOR, 0);
-  __vmx_vmwrite(VMCS_HOST_FS_SELECTOR, 0);
-  __vmx_vmwrite(VMCS_HOST_GS_SELECTOR, 0);
-  __vmx_vmwrite(VMCS_HOST_TR_SELECTOR, 0);
+  __vmx_vmwrite(VMCS_HOST_CS_SELECTOR, 0x10);
+  __vmx_vmwrite(VMCS_HOST_SS_SELECTOR, 0x18);
+  __vmx_vmwrite(VMCS_HOST_DS_SELECTOR, 0x28);
+  __vmx_vmwrite(VMCS_HOST_ES_SELECTOR, 0x28);
+  __vmx_vmwrite(VMCS_HOST_FS_SELECTOR, 0x50);
+  __vmx_vmwrite(VMCS_HOST_GS_SELECTOR, 0x28);
+  __vmx_vmwrite(VMCS_HOST_TR_SELECTOR, 0x40);
 
   // TODO: we should be using our own tss/gdt/idt
   __vmx_vmwrite(VMCS_HOST_FS_BASE,   _readfsbase_u64());
   __vmx_vmwrite(VMCS_HOST_GS_BASE,   _readgsbase_u64());
-  __vmx_vmwrite(VMCS_HOST_TR_BASE,   0);
-  __vmx_vmwrite(VMCS_HOST_GDTR_BASE, 0);
-  __vmx_vmwrite(VMCS_HOST_IDTR_BASE, 0);
+  __vmx_vmwrite(VMCS_HOST_TR_BASE,   segment_base(gdtr, 0x40));
+  __vmx_vmwrite(VMCS_HOST_GDTR_BASE, gdtr.base_address);
+  __vmx_vmwrite(VMCS_HOST_IDTR_BASE, idtr.base_address);
 
   // these dont matter to us since the host never executes any syscalls
   // TODO: i believe these can be 0, since the only

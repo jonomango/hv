@@ -39,6 +39,9 @@ private:
   // 4 KiB vmcs region
   alignas(0x1000) vmcs vmcs_;
 
+  // 4 KiB msr bitmap
+  alignas(0x1000) vmx_msr_bitmap msr_bitmap_;
+
   // host stack used for handling vm-exits
   static constexpr size_t host_stack_size = 0x6000;
   alignas(0x10) uint8_t host_stack_[host_stack_size];

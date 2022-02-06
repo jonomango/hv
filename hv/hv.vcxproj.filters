@@ -34,6 +34,9 @@
     <ClCompile Include="src\core\vmcs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\util\segment.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\hv.h">
@@ -51,9 +54,15 @@
     <ClInclude Include="src\util\arch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\util\segment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\util\arch.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="src\core\vm-exit.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

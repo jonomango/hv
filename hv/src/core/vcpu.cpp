@@ -37,6 +37,9 @@ bool vcpu::virtualize() {
 
   DbgPrint("[hv] set vmcs pointer.");
 
+  // we dont want to break on any msr access
+  memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
+
   // initialize the vmcs fields
   write_ctrl_vmcs_fields();
   write_host_vmcs_fields();

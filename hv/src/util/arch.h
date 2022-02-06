@@ -6,16 +6,15 @@
 extern "C" {
 
 // https://docs.microsoft.com/en-us/cpp/intrinsics/x64-amd64-intrinsics-list
-void _sgdt(int*);
-void _lgdt(void*);
+void _sgdt(segment_descriptor_register_64* gdtr);
+void _lgdt(segment_descriptor_register_64* gdtr);
 
 } // extern "C"
 
 namespace hv {
 
-//
-// definately not safe to name these with a double underscore prefix but... whatever.
-//
+// it's definately not safe to name these functions
+// with a double underscore prefix but... whatever.
 
 void __vmx_invept(invept_type type, invept_descriptor const& descriptor);
 

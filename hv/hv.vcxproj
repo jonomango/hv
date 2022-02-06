@@ -116,6 +116,7 @@
     <ClCompile Include="src\core\vcpu.cpp" />
     <ClCompile Include="src\core\vmcs.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\util\segment.cpp" />
     <ClCompile Include="src\util\mm.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -124,8 +125,10 @@
     <ClInclude Include="src\core\vmcs.h" />
     <ClInclude Include="src\util\arch.h" />
     <ClInclude Include="src\util\mm.h" />
+    <ClInclude Include="src\util\segment.h" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="src\core\vm-exit.asm" />
     <MASM Include="src\util\arch.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
