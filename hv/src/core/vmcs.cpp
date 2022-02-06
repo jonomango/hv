@@ -49,6 +49,45 @@ void vcpu::write_ctrl_vmcs_fields() {
   entry_ctrl.ia32e_mode_guest    = 1;
   entry_ctrl.conceal_vmx_from_pt = 1;
   write_ctrl_entry(entry_ctrl);
+
+  // 3.24.6.3
+  __vmx_vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
+
+  // set up the pagefault mask and match in such a way so
+  // that a vm-exit is never triggered for a pagefault
+  __vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MASK, 0);
+  __vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MATCH, 0);
+
+  // 3.24.6.6
+  __vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, 0);
+
+  // 3.24.6.7
+  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_1, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_2, 0);
+  __vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_3, 0);
+
+  // 3.24.6.9
+  __vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, 0);
+
+  // 3.24.7.2
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_ADDRESS, 0);
+
+  // 3.24.8.2
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_ADDRESS, 0);
+
+  // 3.24.8.3
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, 0);
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE,           0);
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_INSTRUCTION_LENGTH,             0);
 }
 
 // initialize host-state fields in the vmcs
