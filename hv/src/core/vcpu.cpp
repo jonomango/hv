@@ -1,5 +1,6 @@
 #include "vcpu.h"
 #include "vmcs.h"
+#include "guest-context.h"
 
 #include "../util/mm.h"
 #include "../util/arch.h"
@@ -132,6 +133,11 @@ bool vcpu::set_vmcs_pointer() {
     return false;
 
   return true;
+}
+
+// function that is called on every vm-exit
+void vcpu::handle_vm_exit(struct guest_context* ctx) {
+  DbgPrint("[hv] Hello world! ctx=%p\n", ctx);
 }
 
 } // namespace hv

@@ -120,6 +120,7 @@
     <ClCompile Include="src\util\mm.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\core\guest-context.h" />
     <ClInclude Include="src\core\hv.h" />
     <ClInclude Include="src\core\vcpu.h" />
     <ClInclude Include="src\core\vmcs.h" />

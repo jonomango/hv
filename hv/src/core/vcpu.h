@@ -20,6 +20,9 @@ private:
   // set the working-vmcs pointer to point to our vmcs structure
   bool set_vmcs_pointer();
 
+  // function that is called on every vm-exit
+  static void handle_vm_exit(struct guest_context* ctx);
+
 private:
   // functions defined in vmcs.cpp
 

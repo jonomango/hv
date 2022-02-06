@@ -57,6 +57,9 @@
     <ClInclude Include="src\util\segment.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\guest-context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\util\arch.asm">

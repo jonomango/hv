@@ -10,6 +10,67 @@ namespace hv {
 // defined in vm-exit.asm
 extern void __vm_exit();
 
+// helper function that adjusts vmcs control
+// fields according to their capability
+inline void write_vmcs_ctrl_field(size_t value,
+    unsigned long const ctrl_field,
+    unsigned long const cap_msr,
+    unsigned long const true_cap_msr) {
+
+  ia32_vmx_basic_register vmx_basic;
+  vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
+
+  // read the "true" capability msr if it is supported
+  auto const cap = __readmsr(vmx_basic.vmx_controls ? true_cap_msr : cap_msr);
+
+  // adjust the control according to the capability msr
+  value &= cap >> 32;
+  value |= cap & 0xFFFFFFFF;
+
+  // write to the vmcs field
+  __vmx_vmwrite(ctrl_field, value);
+}
+
+// write to the pin-based vm-execution controls
+void write_ctrl_pin_based(ia32_vmx_pinbased_ctls_register const value) {
+  write_vmcs_ctrl_field(value.flags,
+    VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS,
+    IA32_VMX_PINBASED_CTLS,
+    IA32_VMX_TRUE_PINBASED_CTLS);
+}
+
+// write to the processor-based vm-execution controls
+void write_ctrl_proc_based(ia32_vmx_procbased_ctls_register const value) {
+  write_vmcs_ctrl_field(value.flags,
+    VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS,
+    IA32_VMX_PROCBASED_CTLS,
+    IA32_VMX_TRUE_PROCBASED_CTLS);
+}
+
+// write to the secondary processor-based vm-execution controls
+void write_ctrl_proc_based2(ia32_vmx_procbased_ctls2_register const value) {
+  write_vmcs_ctrl_field(value.flags,
+    VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS,
+    IA32_VMX_PROCBASED_CTLS2,
+    IA32_VMX_PROCBASED_CTLS2);
+}
+
+// write to the vm-exit controls
+void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
+  write_vmcs_ctrl_field(value.flags,
+    VMCS_CTRL_VMEXIT_CONTROLS,
+    IA32_VMX_EXIT_CTLS,
+    IA32_VMX_TRUE_EXIT_CTLS);
+}
+
+// write to the vm-entry controls
+void write_ctrl_entry(ia32_vmx_entry_ctls_register const value) {
+  write_vmcs_ctrl_field(value.flags,
+    VMCS_CTRL_VMENTRY_CONTROLS,
+    IA32_VMX_ENTRY_CTLS,
+    IA32_VMX_TRUE_ENTRY_CTLS);
+}
+
 // initialize exit, entry, and execution control fields in the vmcs
 void vcpu::write_ctrl_vmcs_fields() {
   // 3.26.2
@@ -219,67 +280,6 @@ void vcpu::write_guest_vmcs_fields() {
   __vmx_vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
 
   __vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, 0xFFFFFFFF'FFFFFFFFull);
-}
-
-// helper function that adjusts vmcs control
-// fields according to their capability
-inline void write_vmcs_ctrl_field(size_t value,
-    unsigned long const ctrl_field,
-    unsigned long const cap_msr,
-    unsigned long const true_cap_msr) {
-
-  ia32_vmx_basic_register vmx_basic;
-  vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
-
-  // read the "true" capability msr if it is supported
-  auto const cap = __readmsr(vmx_basic.vmx_controls ? true_cap_msr : cap_msr);
-
-  // adjust the control according to the capability msr
-  value &= cap >> 32;
-  value |= cap & 0xFFFFFFFF;
-
-  // write to the vmcs field
-  __vmx_vmwrite(ctrl_field, value);
-}
-
-// write to the pin-based vm-execution controls
-void write_ctrl_pin_based(ia32_vmx_pinbased_ctls_register const value) {
-  write_vmcs_ctrl_field(value.flags,
-    VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS,
-    IA32_VMX_PINBASED_CTLS,
-    IA32_VMX_TRUE_PINBASED_CTLS);
-}
-
-// write to the processor-based vm-execution controls
-void write_ctrl_proc_based(ia32_vmx_procbased_ctls_register const value) {
-  write_vmcs_ctrl_field(value.flags,
-    VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS,
-    IA32_VMX_PROCBASED_CTLS,
-    IA32_VMX_TRUE_PROCBASED_CTLS);
-}
-
-// write to the secondary processor-based vm-execution controls
-void write_ctrl_proc_based2(ia32_vmx_procbased_ctls2_register const value) {
-  write_vmcs_ctrl_field(value.flags,
-    VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS,
-    IA32_VMX_PROCBASED_CTLS2,
-    IA32_VMX_PROCBASED_CTLS2);
-}
-
-// write to the vm-exit controls
-void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
-  write_vmcs_ctrl_field(value.flags,
-    VMCS_CTRL_VMEXIT_CONTROLS,
-    IA32_VMX_EXIT_CTLS,
-    IA32_VMX_TRUE_EXIT_CTLS);
-}
-
-// write to the vm-entry controls
-void write_ctrl_entry(ia32_vmx_entry_ctls_register const value) {
-  write_vmcs_ctrl_field(value.flags,
-    VMCS_CTRL_VMENTRY_CONTROLS,
-    IA32_VMX_ENTRY_CTLS,
-    IA32_VMX_TRUE_ENTRY_CTLS);
 }
 
 } // namespace hv
