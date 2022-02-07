@@ -58,17 +58,6 @@ bool start() {
   return true;
 }
 
-// temporary (sorta)
-void stop() {
-  if (!global_hypervisor)
-    return;
-
-  free(global_hypervisor->vcpus);
-  free(global_hypervisor);
-
-  global_hypervisor = nullptr;
-}
-
 // get a pointer to the global hypervisor
 hypervisor* ghv() {
   return global_hypervisor;

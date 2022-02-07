@@ -7,6 +7,9 @@
 
 namespace hv {
 
+// defined in vm-launch.asm
+extern bool __vm_launch();
+
 // virtualize the current cpu
 // note, this assumes that execution is already restricted to the desired cpu
 bool vcpu::virtualize() {
@@ -49,11 +52,8 @@ bool vcpu::virtualize() {
   DbgPrint("[hv] initialized vmcs fields.\n");
 
   // launch the virtual machine
-  if (auto const status = __vmx_vmlaunch(); status != 0) {
-    if (status == 1)
-      DbgPrint("[hv] vmlaunch failed, error = %lli.\n", __vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
-    else
-      DbgPrint("[hv] vmlaunch failed.\n");
+  if (!__vm_launch()) {
+    DbgPrint("[hv] vmlaunch failed, error = %lli.\n", __vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
 
     // TODO: cleanup
 
@@ -61,7 +61,7 @@ bool vcpu::virtualize() {
     return false;
   }
 
-  __vmx_off();
+  DbgPrint("[hv] virtualized cpu #%i\n", KeGetCurrentProcessorIndex());
 
   return true;
 }
@@ -140,7 +140,85 @@ void vcpu::handle_vm_exit(struct guest_context* ctx) {
   vmx_vmexit_reason exit_reason;
   exit_reason.flags = static_cast<uint32_t>(__vmx_vmread(VMCS_EXIT_REASON));
 
+  if (exit_reason.basic_exit_reason == VMX_EXIT_REASON_MOV_CR) {
+    vmx_exit_qualification_mov_cr qf;
+    qf.flags = __vmx_vmread(VMCS_EXIT_QUALIFICATION);
+
+    if (qf.access_type == VMX_EXIT_QUALIFICATION_ACCESS_MOV_TO_CR) {
+      NT_ASSERT(qf.control_register == 3);
+      switch (qf.general_purpose_register) {
+      case VMX_EXIT_QUALIFICATION_GENREG_RAX: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rax & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RCX: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rcx & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RDX: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rdx & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RBX: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rbx & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RSP: __vmx_vmwrite(VMCS_GUEST_CR3, __vmx_vmread(VMCS_GUEST_RSP) & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RBP: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rbp & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RSI: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rsi & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RDI: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->rdi & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R8:  __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r8 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R9:  __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r9 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R10: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r10 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R11: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r11 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R12: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r12 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R13: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r13 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R14: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r14 & ~(1ull << 63)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R15: __vmx_vmwrite(VMCS_GUEST_CR3, ctx->r15 & ~(1ull << 63)); break;
+      }
+
+      __vmx_vmwrite(VMCS_GUEST_RIP, __vmx_vmread(VMCS_GUEST_RIP) + __vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH));
+      return;
+    } else if (qf.access_type == VMX_EXIT_QUALIFICATION_ACCESS_MOV_FROM_CR) {
+      NT_ASSERT(qf.control_register == 3);
+      switch (qf.general_purpose_register) {
+      case VMX_EXIT_QUALIFICATION_GENREG_RAX: ctx->rax = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RCX: ctx->rcx = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RDX: ctx->rdx = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RBX: ctx->rbx = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RSP: __vmx_vmwrite(VMCS_GUEST_RSP, __vmx_vmread(VMCS_GUEST_CR3)); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RBP: ctx->rbp = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RSI: ctx->rsi = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_RDI: ctx->rdi = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R8:  ctx->r8 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R9:  ctx->r9 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R10: ctx->r10 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R11: ctx->r11 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R12: ctx->r12 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R13: ctx->r13 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R14: ctx->r14 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      case VMX_EXIT_QUALIFICATION_GENREG_R15: ctx->r15 = __vmx_vmread(VMCS_GUEST_CR3); break;
+      }
+
+      __vmx_vmwrite(VMCS_GUEST_RIP, __vmx_vmread(VMCS_GUEST_RIP) + __vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH));
+      return;
+    }
+  } else if (exit_reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_CPUID) {
+    int regs[4];
+
+    __cpuidex(regs, ctx->eax, ctx->ecx);
+
+    ctx->eax = regs[0];
+    ctx->ebx = regs[1];
+    ctx->ecx = regs[2];
+    ctx->edx = regs[3];
+
+    __vmx_vmwrite(VMCS_GUEST_RIP, __vmx_vmread(VMCS_GUEST_RIP) + __vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH));
+    return;
+  } else if (exit_reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_RDMSR || exit_reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_WRMSR) {
+    vmentry_interrupt_information interrupt_info{};
+    interrupt_info.flags            = 0;
+    interrupt_info.vector           = 3;
+    interrupt_info.interruption_type = hardware_exception;
+    interrupt_info.deliver_error_code = 1;
+    interrupt_info.valid            = 1;
+
+    __vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
+    __vmx_vmwrite(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE, 0);
+
+    return;
+  }
+
   DbgPrint("[hv] vm-exit occurred.\n");
+  DbgPrint("[hv]   rip         = 0x%p\n", __vmx_vmread(VMCS_GUEST_RIP));
   DbgPrint("[hv]   exit_reason = 0x%p\n", &exit_reason);
   DbgPrint("[hv]   ctx         = 0x%p\n", ctx);
 

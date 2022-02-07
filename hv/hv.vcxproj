@@ -130,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <MASM Include="core\vm-exit.asm" />
+    <MASM Include="core\vm-launch.asm" />
     <MASM Include="util\arch.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

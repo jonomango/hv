@@ -87,7 +87,6 @@ void vcpu::write_ctrl_vmcs_fields() {
   proc_based_ctrl.cr3_store_exiting           = 1;
   proc_based_ctrl.use_msr_bitmaps             = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
-  proc_based_ctrl.hlt_exiting = 1;
   write_ctrl_proc_based(proc_based_ctrl);
 
   // 3.24.6.2
@@ -212,12 +211,9 @@ void vcpu::write_guest_vmcs_fields() {
 
   __vmx_vmwrite(VMCS_GUEST_DR7, __readdr(7));
 
-  auto const rip = alloc(0x10, NonPagedPoolExecute);
-  memset(rip, 0xF4, 0x10);
-
-  // RIP and RSP are set elsewhere
-  __vmx_vmwrite(VMCS_GUEST_RSP, reinterpret_cast<size_t>(rip));
-  __vmx_vmwrite(VMCS_GUEST_RIP, reinterpret_cast<size_t>(rip));
+  // RIP and RSP are set in vm-launch.asm
+  __vmx_vmwrite(VMCS_GUEST_RSP, 0);
+  __vmx_vmwrite(VMCS_GUEST_RIP, 0);
   __vmx_vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
 
   // TODO: don't hardcode the segment selectors idiot...

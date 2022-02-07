@@ -68,5 +68,8 @@
     <MASM Include="util\arch.asm">
       <Filter>Source Files</Filter>
     </MASM>
+    <MASM Include="core\vm-launch.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>
