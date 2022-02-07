@@ -19,53 +19,53 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\hv.cpp">
+    <ClCompile Include="core\hv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\util\mm.cpp">
+    <ClCompile Include="core\vcpu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\vcpu.cpp">
+    <ClCompile Include="core\vmcs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\vmcs.cpp">
+    <ClCompile Include="util\mm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\util\segment.cpp">
+    <ClCompile Include="util\segment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\core\hv.h">
+    <ClInclude Include="core\guest-context.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\util\mm.h">
+    <ClInclude Include="core\hv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\vcpu.h">
+    <ClInclude Include="core\vcpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\vmcs.h">
+    <ClInclude Include="core\vmcs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\util\arch.h">
+    <ClInclude Include="util\arch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\util\segment.h">
+    <ClInclude Include="util\mm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\guest-context.h">
+    <ClInclude Include="util\segment.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="src\util\arch.asm">
+    <MASM Include="core\vm-exit.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="src\core\vm-exit.asm">
+    <MASM Include="util\arch.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

@@ -12,7 +12,7 @@ extern void __vm_exit();
 
 // helper function that adjusts vmcs control
 // fields according to their capability
-inline void write_vmcs_ctrl_field(size_t value,
+static inline void write_vmcs_ctrl_field(size_t value,
     unsigned long const ctrl_field,
     unsigned long const cap_msr,
     unsigned long const true_cap_msr) {
@@ -216,7 +216,7 @@ void vcpu::write_guest_vmcs_fields() {
   memset(rip, 0xF4, 0x10);
 
   // RIP and RSP are set elsewhere
-  __vmx_vmwrite(VMCS_GUEST_RSP, 0);
+  __vmx_vmwrite(VMCS_GUEST_RSP, reinterpret_cast<size_t>(rip));
   __vmx_vmwrite(VMCS_GUEST_RIP, reinterpret_cast<size_t>(rip));
   __vmx_vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
 
@@ -253,14 +253,14 @@ void vcpu::write_guest_vmcs_fields() {
   __vmx_vmwrite(VMCS_GUEST_TR_LIMIT,   __segmentlimit(0x40));
   __vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, __segmentlimit(0x00));
 
-  __vmx_vmwrite(VMCS_GUEST_CS_LIMIT,   segment_access(gdtr, 0x10).flags);
-  __vmx_vmwrite(VMCS_GUEST_SS_LIMIT,   segment_access(gdtr, 0x18).flags);
-  __vmx_vmwrite(VMCS_GUEST_DS_LIMIT,   segment_access(gdtr, 0x2B).flags);
-  __vmx_vmwrite(VMCS_GUEST_ES_LIMIT,   segment_access(gdtr, 0x2B).flags);
-  __vmx_vmwrite(VMCS_GUEST_FS_LIMIT,   segment_access(gdtr, 0x53).flags);
-  __vmx_vmwrite(VMCS_GUEST_GS_LIMIT,   segment_access(gdtr, 0x2B).flags);
-  __vmx_vmwrite(VMCS_GUEST_TR_LIMIT,   segment_access(gdtr, 0x40).flags);
-  __vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, segment_access(gdtr, 0x00).flags);
+  __vmx_vmwrite(VMCS_GUEST_CS_ACCESS_RIGHTS,   segment_access(gdtr, 0x10).flags);
+  __vmx_vmwrite(VMCS_GUEST_SS_ACCESS_RIGHTS,   segment_access(gdtr, 0x18).flags);
+  __vmx_vmwrite(VMCS_GUEST_DS_ACCESS_RIGHTS,   segment_access(gdtr, 0x2B).flags);
+  __vmx_vmwrite(VMCS_GUEST_ES_ACCESS_RIGHTS,   segment_access(gdtr, 0x2B).flags);
+  __vmx_vmwrite(VMCS_GUEST_FS_ACCESS_RIGHTS,   segment_access(gdtr, 0x53).flags);
+  __vmx_vmwrite(VMCS_GUEST_GS_ACCESS_RIGHTS,   segment_access(gdtr, 0x2B).flags);
+  __vmx_vmwrite(VMCS_GUEST_TR_ACCESS_RIGHTS,   segment_access(gdtr, 0x40).flags);
+  __vmx_vmwrite(VMCS_GUEST_LDTR_ACCESS_RIGHTS, segment_access(gdtr, 0x00).flags);
 
   __vmx_vmwrite(VMCS_GUEST_GDTR_BASE, gdtr.base_address);
   __vmx_vmwrite(VMCS_GUEST_IDTR_BASE, idtr.base_address);

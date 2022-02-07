@@ -27,7 +27,7 @@ bool vcpu::virtualize() {
   // 3.28.3.3.4
   __vmx_invept(invept_all_context, {});
 
-  DbgPrint("[hv] entered vmx operation.");
+  DbgPrint("[hv] entered vmx operation.\n");
 
   if (!set_vmcs_pointer()) {
     // TODO: cleanup
@@ -36,7 +36,7 @@ bool vcpu::virtualize() {
     return false;
   }
 
-  DbgPrint("[hv] set vmcs pointer.");
+  DbgPrint("[hv] set vmcs pointer.\n");
 
   // we dont want to break on any msr access
   memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
@@ -46,14 +46,14 @@ bool vcpu::virtualize() {
   write_host_vmcs_fields();
   write_guest_vmcs_fields();
 
-  DbgPrint("[hv] initialized vmcs fields.");
+  DbgPrint("[hv] initialized vmcs fields.\n");
 
   // launch the virtual machine
   if (auto const status = __vmx_vmlaunch(); status != 0) {
     if (status == 1)
-      DbgPrint("[hv] vmlaunch failed, error = %lli.", __vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
+      DbgPrint("[hv] vmlaunch failed, error = %lli.\n", __vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
     else
-      DbgPrint("[hv] vmlaunch failed.");
+      DbgPrint("[hv] vmlaunch failed.\n");
 
     // TODO: cleanup
 
@@ -137,7 +137,14 @@ bool vcpu::set_vmcs_pointer() {
 
 // function that is called on every vm-exit
 void vcpu::handle_vm_exit(struct guest_context* ctx) {
-  DbgPrint("[hv] Hello world! ctx=%p\n", ctx);
+  vmx_vmexit_reason exit_reason;
+  exit_reason.flags = static_cast<uint32_t>(__vmx_vmread(VMCS_EXIT_REASON));
+
+  DbgPrint("[hv] vm-exit occurred.\n");
+  DbgPrint("[hv]   exit_reason = 0x%p\n", &exit_reason);
+  DbgPrint("[hv]   ctx         = 0x%p\n", ctx);
+
+  __debugbreak();
 }
 
 } // namespace hv
