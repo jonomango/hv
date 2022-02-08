@@ -19,5 +19,14 @@ void write_ctrl_exit(ia32_vmx_exit_ctls_register value);
 // write to the vm-entry controls
 void write_ctrl_entry(ia32_vmx_entry_ctls_register value);
 
+// increment the instruction pointer after emulating an instruction
+void skip_instruction();
+
+// inject a vectored exception into the guest
+void inject_hw_exception(uint32_t vector);
+
+// inject a vectored exception into the guest (with an error code)
+void inject_hw_exception(uint32_t vector, uint32_t error);
+
 } // namespace hv
 

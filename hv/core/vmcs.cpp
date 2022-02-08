@@ -16,7 +16,6 @@ static inline void write_vmcs_ctrl_field(size_t value,
     unsigned long const ctrl_field,
     unsigned long const cap_msr,
     unsigned long const true_cap_msr) {
-
   ia32_vmx_basic_register vmx_basic;
   vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
 
@@ -71,6 +70,61 @@ void write_ctrl_entry(ia32_vmx_entry_ctls_register const value) {
     IA32_VMX_TRUE_ENTRY_CTLS);
 }
 
+// increment the instruction pointer after emulating an instruction
+void skip_instruction() {
+  // increment rip
+  __vmx_vmwrite(VMCS_GUEST_RIP, __vmx_vmread(VMCS_GUEST_RIP)
+    + __vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH));
+
+  // if we're currently blocking interrupts (due to mov ss or sti)
+  // then we should unblock them since we just emulated an instruction
+  vmx_interruptibility_state int_state;
+  int_state.flags = static_cast<uint32_t>(__vmx_vmread(VMCS_GUEST_INTERRUPTIBILITY_STATE));
+  int_state.blocking_by_mov_ss = 0;
+  int_state.blocking_by_sti    = 0;
+  __vmx_vmwrite(VMCS_GUEST_INTERRUPTIBILITY_STATE, int_state.flags);
+
+  ia32_debugctl_register debugctl;
+  debugctl.flags = __vmx_vmread(VMCS_GUEST_DEBUGCTL);
+
+  rflags rflags;
+  rflags.flags = __vmx_vmread(VMCS_GUEST_RFLAGS);
+
+  // if we're single-stepping, inject a debug exception
+  // just like normal instruction execution would
+  if (rflags.trap_flag && !debugctl.btf) {
+    vmx_pending_debug_exceptions dbg_exception;
+    dbg_exception.flags = __vmx_vmread(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS);
+    dbg_exception.bs    = 1;
+    __vmx_vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, dbg_exception.flags);
+  }
+}
+
+// inject a vectored exception into the guest
+void inject_hw_exception(uint32_t const vector) {
+  vmentry_interrupt_information interrupt_info{};
+  interrupt_info.flags              = 0;
+  interrupt_info.vector             = vector;
+  interrupt_info.interruption_type  = hardware_exception;
+  interrupt_info.deliver_error_code = 0;
+  interrupt_info.valid              = 1;
+
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
+}
+
+// inject a vectored exception into the guest (with an error code)
+void inject_hw_exception(uint32_t const vector, uint32_t const error) {
+  vmentry_interrupt_information interrupt_info{};
+  interrupt_info.flags              = 0;
+  interrupt_info.vector             = vector;
+  interrupt_info.interruption_type  = hardware_exception;
+  interrupt_info.deliver_error_code = 1;
+  interrupt_info.valid              = 1;
+
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
+  __vmx_vmwrite(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE, error);
+}
+
 // initialize exit, entry, and execution control fields in the vmcs
 void vcpu::write_ctrl_vmcs_fields() {
   // 3.26.2
@@ -83,8 +137,8 @@ void vcpu::write_ctrl_vmcs_fields() {
   // 3.24.6.2
   ia32_vmx_procbased_ctls_register proc_based_ctrl;
   proc_based_ctrl.flags                       = 0;
-  proc_based_ctrl.cr3_load_exiting            = 1;
-  proc_based_ctrl.cr3_store_exiting           = 1;
+  // proc_based_ctrl.cr3_load_exiting            = 1;
+  // proc_based_ctrl.cr3_store_exiting           = 1;
   proc_based_ctrl.use_msr_bitmaps             = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
   write_ctrl_proc_based(proc_based_ctrl);

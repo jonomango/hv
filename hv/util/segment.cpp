@@ -6,6 +6,10 @@ namespace hv {
 uint64_t segment_base(
     segment_descriptor_register_64 const& gdtr,
     segment_selector const selector) {
+  // null selector
+  if (selector.index == 0)
+    return 0;
+
   // fetch the segment descriptor from the gdtr
   auto const descriptor = (segment_descriptor_64*)(
     gdtr.base_address + (uint64_t)selector.index * 8);

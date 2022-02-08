@@ -37,6 +37,9 @@
     <ClCompile Include="util\segment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\exit-handlers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\guest-context.h">
@@ -58,6 +61,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="util\segment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\exit-handlers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

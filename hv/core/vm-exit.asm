@@ -7,6 +7,9 @@ guest_context struct
   $rcx qword ?
   $rdx qword ?
   $rbx qword ?
+
+  qword ?
+
   $rbp qword ?
   $rsi qword ?
   $rdi qword ?
@@ -36,7 +39,7 @@ extern ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z : proc
 ; execution starts here after a vm-exit
 ?__vm_exit@hv@@YAXXZ proc
   ; allocate space on the stack to store the guest context
-  sub rsp, 0B0h
+  sub rsp, 0C0h
 
   ; general-purpose registers
   mov guest_context.$rax[rsp], rax

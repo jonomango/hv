@@ -18,7 +18,7 @@
     <Configuration>Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <RootNamespace>hv</RootNamespace>
-    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -112,6 +112,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="core\exit-handlers.cpp" />
     <ClCompile Include="core\hv.cpp" />
     <ClCompile Include="core\vcpu.cpp" />
     <ClCompile Include="core\vmcs.cpp" />
@@ -120,6 +121,7 @@
     <ClCompile Include="util\segment.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="core\exit-handlers.h" />
     <ClInclude Include="core\guest-context.h" />
     <ClInclude Include="core\hv.h" />
     <ClInclude Include="core\vcpu.h" />
