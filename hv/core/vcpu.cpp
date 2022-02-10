@@ -1,11 +1,12 @@
 #include "vcpu.h"
 #include "vmcs.h"
-#include "guest-context.h"
 #include "exit-handlers.h"
 
 #include "../util/mm.h"
 #include "../util/vmx.h"
 #include "../util/arch.h"
+#include "../util/trap-frame.h"
+#include "../util/guest-context.h"
 
 namespace hv {
 
@@ -48,7 +49,8 @@ bool vcpu::virtualize() {
   // we dont want to vm-exit on any msr access
   memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
 
-  prepare_gdt(gdt_);
+  prepare_host_idt(host_idt_);
+  prepare_host_gdt(host_gdt_);
 
   // initialize the vmcs fields
   write_ctrl_vmcs_fields();
@@ -141,8 +143,8 @@ bool vcpu::set_vmcs_pointer() {
   return true;
 }
 
-// function that is called on every vm-exit
-void vcpu::handle_vm_exit(guest_context* ctx) {
+// called for every vm-exit
+void vcpu::handle_vm_exit(guest_context* const ctx) {
   vmx_vmexit_reason exit_reason;
   exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
@@ -159,9 +161,27 @@ void vcpu::handle_vm_exit(guest_context* ctx) {
   case VMX_EXIT_REASON_EXECUTE_WRMSR:
     emulate_wrmsr(ctx);
     break;
+  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:
+    handle_exception_or_nmi(ctx);
+    break;
+  case VMX_EXIT_REASON_NMI_WINDOW:
+    handle_nmi_window(ctx);
+    break;
   default:
-    DbgPrint("[hv] vm-exit occurred. RIP=0x%zX.\n", vmx_vmread(VMCS_GUEST_RIP));
     __debugbreak();
+    DbgPrint("[hv] vm-exit occurred. RIP=0x%zX.\n", vmx_vmread(VMCS_GUEST_RIP));
+    break;
+  }
+}
+
+// called for every host interrupt
+void vcpu::handle_host_interrupt(trap_frame* const frame) {
+  switch (frame->vector) {
+  // host NMIs
+  case nmi:
+    auto ctrl = read_ctrl_proc_based();
+    ctrl.nmi_window_exiting = 1;
+    write_ctrl_proc_based(ctrl);
     break;
   }
 }

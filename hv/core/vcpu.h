@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gdt.h"
+#include "idt.h"
 
 #include <ia32.hpp>
 
@@ -22,8 +23,11 @@ private:
   // set the working-vmcs pointer to point to our vmcs structure
   bool set_vmcs_pointer();
 
-  // function that is called on every vm-exit
+  // called for every vm-exit
   static void handle_vm_exit(struct guest_context* ctx);
+
+  // called for every host interrupt
+  static void handle_host_interrupt(struct trap_frame* frame);
 
 private:
   // functions defined in vmcs.cpp
@@ -52,7 +56,10 @@ private:
   alignas(0x10) uint8_t host_stack_[host_stack_size];
 
   // host global descriptor table
-  gdt gdt_;
+  host_gdt host_gdt_;
+  
+  // host interrupt descriptor table
+  host_idt host_idt_;
 };
 
 } // namespace hv

@@ -7,9 +7,7 @@ guest_context struct
   $rcx qword ?
   $rdx qword ?
   $rbx qword ?
-
-  qword ?
-
+  qword ? ; padding
   $rbp qword ?
   $rsi qword ?
   $rdi qword ?

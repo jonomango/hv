@@ -119,7 +119,7 @@ struct alignas(16) guest_context {
   uint64_t dr3;
   uint64_t dr6;
 
-  // SSE registers...
+  // TODO: SSE registers...
 };
 
 // remember to update this value in vm-exit.asm

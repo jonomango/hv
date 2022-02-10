@@ -20,5 +20,9 @@ void emulate_lmsw(guest_context* ctx);
 
 void handle_mov_cr(guest_context* ctx);
 
+void handle_nmi_window(guest_context* ctx);
+
+void handle_exception_or_nmi(guest_context* ctx);
+
 } // namespace hv
 

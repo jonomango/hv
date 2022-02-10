@@ -43,9 +43,12 @@
     <ClCompile Include="core\gdt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\idt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="core\guest-context.h">
+    <ClInclude Include="util\guest-context.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="core\hv.h">
@@ -75,6 +78,15 @@
     <ClInclude Include="util\vmx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="core\idt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\interrupt-handlers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="util\trap-frame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="core\vm-exit.asm">
@@ -84,6 +96,9 @@
       <Filter>Source Files</Filter>
     </MASM>
     <MASM Include="util\vmx.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="core\interrupt-handlers.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

@@ -58,8 +58,10 @@ inline uint64_t vmx_vmread(uint64_t const field) {
   return value;
 }
 
+
+
 // write to the pin-based vm-execution controls
-inline void write_ctrl_pin_based(ia32_vmx_pinbased_ctls_register const value) {
+inline void write_ctrl_pin_based_safe(ia32_vmx_pinbased_ctls_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
     VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS,
     IA32_VMX_PINBASED_CTLS,
@@ -67,7 +69,7 @@ inline void write_ctrl_pin_based(ia32_vmx_pinbased_ctls_register const value) {
 }
 
 // write to the processor-based vm-execution controls
-inline void write_ctrl_proc_based(ia32_vmx_procbased_ctls_register const value) {
+inline void write_ctrl_proc_based_safe(ia32_vmx_procbased_ctls_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
     VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS,
     IA32_VMX_PROCBASED_CTLS,
@@ -75,7 +77,7 @@ inline void write_ctrl_proc_based(ia32_vmx_procbased_ctls_register const value) 
 }
 
 // write to the secondary processor-based vm-execution controls
-inline void write_ctrl_proc_based2(ia32_vmx_procbased_ctls2_register const value) {
+inline void write_ctrl_proc_based2_safe(ia32_vmx_procbased_ctls2_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
     VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS,
     IA32_VMX_PROCBASED_CTLS2,
@@ -83,7 +85,7 @@ inline void write_ctrl_proc_based2(ia32_vmx_procbased_ctls2_register const value
 }
 
 // write to the vm-exit controls
-inline void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
+inline void write_ctrl_exit_safe(ia32_vmx_exit_ctls_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
     VMCS_CTRL_VMEXIT_CONTROLS,
     IA32_VMX_EXIT_CTLS,
@@ -91,13 +93,79 @@ inline void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
 }
 
 // write to the vm-entry controls
-inline void write_ctrl_entry(ia32_vmx_entry_ctls_register const value) {
+inline void write_ctrl_entry_safe(ia32_vmx_entry_ctls_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
     VMCS_CTRL_VMENTRY_CONTROLS,
     IA32_VMX_ENTRY_CTLS,
     IA32_VMX_TRUE_ENTRY_CTLS);
 }
 
+
+
+// write to the pin-based vm-execution controls
+inline void write_ctrl_pin_based(ia32_vmx_pinbased_ctls_register const value) {
+  vmx_vmwrite(VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS, value.flags);
+}
+
+// write to the processor-based vm-execution controls
+inline void write_ctrl_proc_based(ia32_vmx_procbased_ctls_register const value) {
+  vmx_vmwrite(VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, value.flags);
+}
+
+// write to the secondary processor-based vm-execution controls
+inline void write_ctrl_proc_based2(ia32_vmx_procbased_ctls2_register const value) {
+  vmx_vmwrite(VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, value.flags);
+}
+
+// write to the vm-exit controls
+inline void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
+  vmx_vmwrite(VMCS_CTRL_VMEXIT_CONTROLS, value.flags);
+}
+
+// write to the vm-entry controls
+inline void write_ctrl_entry(ia32_vmx_entry_ctls_register const value) {
+  vmx_vmwrite(VMCS_CTRL_VMENTRY_CONTROLS, value.flags);
+}
+
+
+
+// read the pin-based vm-execution controls
+inline ia32_vmx_pinbased_ctls_register read_ctrl_pin_based() {
+  ia32_vmx_pinbased_ctls_register value;
+  value.flags = vmx_vmread(VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS);
+  return value;
+}
+
+// read the processor-based vm-execution controls
+inline ia32_vmx_procbased_ctls_register read_ctrl_proc_based() {
+  ia32_vmx_procbased_ctls_register value;
+  value.flags = vmx_vmread(VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS);
+  return value;
+}
+
+// read the secondary processor-based vm-execution controls
+inline ia32_vmx_procbased_ctls2_register read_ctrl_proc_based2() {
+  ia32_vmx_procbased_ctls2_register value;
+  value.flags = vmx_vmread(VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS);
+  return value;
+}
+
+// read the vm-exit controls
+inline ia32_vmx_exit_ctls_register read_ctrl_exit() {
+  ia32_vmx_exit_ctls_register value;
+  value.flags = vmx_vmread(VMCS_CTRL_VMEXIT_CONTROLS);
+  return value;
+}
+
+// read the vm-entry controls
+inline ia32_vmx_entry_ctls_register read_ctrl_entry() {
+  ia32_vmx_entry_ctls_register value;
+  value.flags = vmx_vmread(VMCS_CTRL_VMENTRY_CONTROLS);
+  return value;
+}
+
+
+// TODO: this should not be defined here!!!!
 // increment the instruction pointer after emulating an instruction
 inline void skip_instruction() {
   // increment rip
@@ -128,9 +196,23 @@ inline void skip_instruction() {
   }
 }
 
+
+
+// inject an NMI into the guest
+inline void inject_nmi() {
+  vmentry_interrupt_information interrupt_info;
+  interrupt_info.flags              = 0;
+  interrupt_info.vector             = nmi;
+  interrupt_info.interruption_type  = non_maskable_interrupt;
+  interrupt_info.deliver_error_code = 0;
+  interrupt_info.valid              = 1;
+
+  vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
+}
+
 // inject a vectored exception into the guest
 inline void inject_hw_exception(uint32_t const vector) {
-  vmentry_interrupt_information interrupt_info{};
+  vmentry_interrupt_information interrupt_info;
   interrupt_info.flags              = 0;
   interrupt_info.vector             = vector;
   interrupt_info.interruption_type  = hardware_exception;
@@ -142,7 +224,7 @@ inline void inject_hw_exception(uint32_t const vector) {
 
 // inject a vectored exception into the guest (with an error code)
 inline void inject_hw_exception(uint32_t const vector, uint32_t const error) {
-  vmentry_interrupt_information interrupt_info{};
+  vmentry_interrupt_information interrupt_info;
   interrupt_info.flags              = 0;
   interrupt_info.vector             = vector;
   interrupt_info.interruption_type  = hardware_exception;

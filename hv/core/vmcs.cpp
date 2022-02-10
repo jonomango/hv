@@ -16,8 +16,10 @@ void vcpu::write_ctrl_vmcs_fields() {
 
   // 3.24.6.1
   ia32_vmx_pinbased_ctls_register pin_based_ctrl;
-  pin_based_ctrl.flags = 0;
-  write_ctrl_pin_based(pin_based_ctrl);
+  pin_based_ctrl.flags       = 0;
+  pin_based_ctrl.virtual_nmi = 1;
+  pin_based_ctrl.nmi_exiting = 1;
+  write_ctrl_pin_based_safe(pin_based_ctrl);
 
   // 3.24.6.2
   ia32_vmx_procbased_ctls_register proc_based_ctrl;
@@ -28,7 +30,7 @@ void vcpu::write_ctrl_vmcs_fields() {
 #endif
   proc_based_ctrl.use_msr_bitmaps             = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
-  write_ctrl_proc_based(proc_based_ctrl);
+  write_ctrl_proc_based_safe(proc_based_ctrl);
 
   // 3.24.6.2
   ia32_vmx_procbased_ctls2_register proc_based_ctrl2;
@@ -38,7 +40,7 @@ void vcpu::write_ctrl_vmcs_fields() {
   proc_based_ctrl2.enable_xsaves          = 1;
   proc_based_ctrl2.enable_user_wait_pause = 1;
   proc_based_ctrl2.conceal_vmx_from_pt    = 1;
-  write_ctrl_proc_based2(proc_based_ctrl2);
+  write_ctrl_proc_based2_safe(proc_based_ctrl2);
 
   // 3.24.7
   ia32_vmx_exit_ctls_register exit_ctrl;
@@ -46,7 +48,7 @@ void vcpu::write_ctrl_vmcs_fields() {
   exit_ctrl.save_debug_controls     = 1;
   exit_ctrl.host_address_space_size = 1;
   exit_ctrl.conceal_vmx_from_pt     = 1;
-  write_ctrl_exit(exit_ctrl);
+  write_ctrl_exit_safe(exit_ctrl);
 
   // 3.24.8
   ia32_vmx_entry_ctls_register entry_ctrl;
@@ -54,7 +56,7 @@ void vcpu::write_ctrl_vmcs_fields() {
   entry_ctrl.load_debug_controls = 1;
   entry_ctrl.ia32e_mode_guest    = 1;
   entry_ctrl.conceal_vmx_from_pt = 1;
-  write_ctrl_entry(entry_ctrl);
+  write_ctrl_entry_safe(entry_ctrl);
 
   // 3.24.6.3
   vmx_vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
@@ -133,8 +135,9 @@ void vcpu::write_host_vmcs_fields() {
   vmx_vmwrite(VMCS_HOST_GS_BASE,   _readgsbase_u64());
   vmx_vmwrite(VMCS_HOST_TR_BASE,   segment_base(gdtr, 0x40));
   //vmx_vmwrite(VMCS_HOST_GDTR_BASE, gdtr.base_address);
-  vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&gdt_.descriptors));
-  vmx_vmwrite(VMCS_HOST_IDTR_BASE, idtr.base_address);
+  vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&host_gdt_.descriptors));
+  //vmx_vmwrite(VMCS_HOST_IDTR_BASE, idtr.base_address);
+  vmx_vmwrite(VMCS_HOST_IDTR_BASE, reinterpret_cast<size_t>(&host_idt_.descriptors));
 
   // these dont matter to us since the host never executes any syscalls
   // TODO: i believe these can be 0, since the only

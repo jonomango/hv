@@ -6,6 +6,7 @@
 
 namespace hv {
 
+// TODO: use this or segment_descriptor_64?
 struct tss_descriptor_64 {
   uint64_t segment_limit_low : 16; // 0-15
   uint64_t base_address_low : 16; // 16-31
@@ -26,7 +27,7 @@ struct tss_descriptor_64 {
 };
 
 // initialize the host GDT and populate every descriptor
-void prepare_gdt(gdt& gdt) {
+void prepare_host_gdt(host_gdt& gdt) {
   memset(gdt.descriptors, 0, sizeof(gdt.descriptors));
 
   // base-address fields dont need to be set since they are not used in
