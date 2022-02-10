@@ -1,8 +1,8 @@
 #include "exit-handlers.h"
 #include "guest-context.h"
-#include "vmcs.h"
 
 #include "../util/arch.h"
+#include "../util/vmx.h"
 
 namespace hv {
 
@@ -28,33 +28,37 @@ void emulate_wrmsr(guest_context*) {
 
 void emulate_mov_to_cr(guest_context* const ctx) {
   vmx_exit_qualification_mov_cr qualification;
-  qualification.flags = __vmx_vmread(VMCS_EXIT_QUALIFICATION);
+  qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
 
   cr3 new_cr3;
 
+  // TODO: cleanup
+
   // read the new value of cr3 from the general-purpose register
   if (qualification.general_purpose_register == VMX_EXIT_QUALIFICATION_GENREG_RSP)
-    new_cr3.flags = __vmx_vmread(VMCS_GUEST_RSP);
+    new_cr3.flags = vmx_vmread(VMCS_GUEST_RSP);
   else
     new_cr3.flags = ctx->gp_regs[qualification.general_purpose_register];
 
   new_cr3.flags &= ~(1ull << 63);
 
-  __vmx_vmwrite(VMCS_GUEST_CR3, new_cr3.flags);
+  vmx_vmwrite(VMCS_GUEST_CR3, new_cr3.flags);
 
   skip_instruction();
 }
 
 void emulate_mov_from_cr(guest_context* const ctx) {
   vmx_exit_qualification_mov_cr qualification;
-  qualification.flags = __vmx_vmread(VMCS_EXIT_QUALIFICATION);
+  qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
 
+  // TODO: cleanup
+  
   cr3 current_cr3;
-  current_cr3.flags = __vmx_vmread(VMCS_GUEST_CR3);
+  current_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
 
   // write current value of cr3 to the general-purpose register
   if (qualification.general_purpose_register == VMX_EXIT_QUALIFICATION_GENREG_RSP)
-    __vmx_vmwrite(VMCS_GUEST_RSP, current_cr3.flags);
+    vmx_vmwrite(VMCS_GUEST_RSP, current_cr3.flags);
   else
     ctx->gp_regs[qualification.general_purpose_register] = current_cr3.flags;
 
@@ -71,7 +75,7 @@ void emulate_lmsw(guest_context* const) {
 
 void handle_mov_cr(guest_context* const ctx) {
   vmx_exit_qualification_mov_cr qualification;
-  qualification.flags = __vmx_vmread(VMCS_EXIT_QUALIFICATION);
+  qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
 
   switch (qualification.access_type) {
   case VMX_EXIT_QUALIFICATION_ACCESS_MOV_TO_CR:   emulate_mov_to_cr(ctx);   break;
@@ -82,3 +86,4 @@ void handle_mov_cr(guest_context* const ctx) {
 }
 
 } // namespace hv
+

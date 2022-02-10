@@ -4,6 +4,7 @@
 #include "exit-handlers.h"
 
 #include "../util/mm.h"
+#include "../util/vmx.h"
 #include "../util/arch.h"
 
 namespace hv {
@@ -19,31 +20,35 @@ bool vcpu::virtualize() {
 
   enable_vmx_operation();
 
+  DbgPrint("[hv] enabled vmx operation.\n");
+
   auto vmxon_phys = get_physical(&vmxon_);
   NT_ASSERT(vmxon_phys % 0x1000 == 0);
 
   // enter vmx operation
-  if (__vmx_on(&vmxon_phys) != 0) {
+  if (!vmx_vmxon(vmxon_phys)) {
     // TODO: cleanup
     return false;
   }
 
   // 3.28.3.3.4
-  __vmx_invept(invept_all_context, {});
+  vmx_invept(invept_all_context, {});
 
   DbgPrint("[hv] entered vmx operation.\n");
 
   if (!set_vmcs_pointer()) {
     // TODO: cleanup
 
-    __vmx_off();
+    vmx_vmxoff();
     return false;
   }
 
   DbgPrint("[hv] set vmcs pointer.\n");
 
-  // we dont want to break on any msr access
+  // we dont want to vm-exit on any msr access
   memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
+
+  prepare_gdt(gdt_);
 
   // initialize the vmcs fields
   write_ctrl_vmcs_fields();
@@ -54,11 +59,11 @@ bool vcpu::virtualize() {
 
   // launch the virtual machine
   if (!__vm_launch()) {
-    DbgPrint("[hv] vmlaunch failed, error = %lli.\n", __vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
+    DbgPrint("[hv] vmlaunch failed, error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
 
     // TODO: cleanup
 
-    __vmx_off();
+    vmx_vmxoff();
     return false;
   }
 
@@ -127,19 +132,19 @@ bool vcpu::set_vmcs_pointer() {
   auto vmcs_phys = get_physical(&vmcs_);
   NT_ASSERT(vmcs_phys % 0x1000 == 0);
 
-  if (__vmx_vmclear(&vmcs_phys) != 0)
+  if (!vmx_vmclear(vmcs_phys))
     return false;
 
-  if (__vmx_vmptrld(&vmcs_phys) != 0)
+  if (!vmx_vmptrld(vmcs_phys))
     return false;
 
   return true;
 }
 
 // function that is called on every vm-exit
-void vcpu::handle_vm_exit(struct guest_context* ctx) {
+void vcpu::handle_vm_exit(guest_context* ctx) {
   vmx_vmexit_reason exit_reason;
-  exit_reason.flags = static_cast<uint32_t>(__vmx_vmread(VMCS_EXIT_REASON));
+  exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
   switch (exit_reason.basic_exit_reason) {
   case VMX_EXIT_REASON_MOV_CR:
@@ -155,8 +160,7 @@ void vcpu::handle_vm_exit(struct guest_context* ctx) {
     emulate_wrmsr(ctx);
     break;
   default:
-    DbgPrint("[hv] vm-exit occurred. rip = 0x%p.\n",
-      static_cast<uint64_t>(__vmx_vmread(VMCS_GUEST_RIP)));
+    DbgPrint("[hv] vm-exit occurred. RIP=0x%zX.\n", vmx_vmread(VMCS_GUEST_RIP));
     __debugbreak();
     break;
   }

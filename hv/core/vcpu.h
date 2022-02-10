@@ -1,5 +1,7 @@
 #pragma once
 
+#include "gdt.h"
+
 #include <ia32.hpp>
 
 namespace hv {
@@ -48,6 +50,9 @@ private:
   // host stack used for handling vm-exits
   static constexpr size_t host_stack_size = 0x6000;
   alignas(0x10) uint8_t host_stack_[host_stack_size];
+
+  // host global descriptor table
+  gdt gdt_;
 };
 
 } // namespace hv

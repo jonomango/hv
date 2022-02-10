@@ -94,6 +94,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <DisableSpecificWarnings>4201;5040;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EntryPointSymbol>driver_entry</EntryPointSymbol>
@@ -113,6 +114,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core\exit-handlers.cpp" />
+    <ClCompile Include="core\gdt.cpp" />
     <ClCompile Include="core\hv.cpp" />
     <ClCompile Include="core\vcpu.cpp" />
     <ClCompile Include="core\vmcs.cpp" />
@@ -122,10 +124,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\exit-handlers.h" />
+    <ClInclude Include="core\gdt.h" />
     <ClInclude Include="core\guest-context.h" />
     <ClInclude Include="core\hv.h" />
     <ClInclude Include="core\vcpu.h" />
     <ClInclude Include="core\vmcs.h" />
+    <ClInclude Include="util\vmx.h" />
     <ClInclude Include="util\arch.h" />
     <ClInclude Include="util\mm.h" />
     <ClInclude Include="util\segment.h" />
@@ -133,7 +137,10 @@
   <ItemGroup>
     <MASM Include="core\vm-exit.asm" />
     <MASM Include="core\vm-launch.asm" />
-    <MASM Include="util\arch.asm" />
+    <MASM Include="util\vmx.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="util\vmx.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

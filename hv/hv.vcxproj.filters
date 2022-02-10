@@ -40,6 +40,9 @@
     <ClCompile Include="core\exit-handlers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\gdt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\guest-context.h">
@@ -66,16 +69,27 @@
     <ClInclude Include="core\exit-handlers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="core\gdt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="util\vmx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="core\vm-exit.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="util\arch.asm">
-      <Filter>Source Files</Filter>
-    </MASM>
     <MASM Include="core\vm-launch.asm">
       <Filter>Source Files</Filter>
     </MASM>
+    <MASM Include="util\vmx.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="util\vmx.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

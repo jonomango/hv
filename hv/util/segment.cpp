@@ -11,8 +11,8 @@ uint64_t segment_base(
     return 0;
 
   // fetch the segment descriptor from the gdtr
-  auto const descriptor = (segment_descriptor_64*)(
-    gdtr.base_address + (uint64_t)selector.index * 8);
+  auto const descriptor = reinterpret_cast<segment_descriptor_64*>(
+    gdtr.base_address + static_cast<uint64_t>(selector.index) * 8);
 
   // 3.3.4.5
   // calculate the segment base address
@@ -42,8 +42,8 @@ vmx_segment_access_rights segment_access(
     segment_descriptor_register_64 const& gdtr,
     segment_selector const selector) {
   // fetch the segment descriptor from the gdtr
-  auto const descriptor = (segment_descriptor_64*)(
-    gdtr.base_address + (uint64_t)selector.index * 8);
+  auto const descriptor = reinterpret_cast<segment_descriptor_64*>(
+    gdtr.base_address + static_cast<uint64_t>(selector.index) * 8);
 
   vmx_segment_access_rights access;
   access.flags = 0;

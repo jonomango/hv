@@ -7,9 +7,10 @@ void driver_unload(PDRIVER_OBJECT) {
 }
 
 NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
-  DbgPrint("[hv] driver loaded.\n");
+  if (driver)
+    driver->DriverUnload = driver_unload;
 
-  driver->DriverUnload = driver_unload;
+  DbgPrint("[hv] driver loaded.\n");
 
   if (!hv::start())
     DbgPrint("[hv] failed to virtualize system.\n");
