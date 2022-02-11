@@ -1,11 +1,24 @@
 #pragma once
 
-#include "gdt.h"
 #include "idt.h"
+#include "tss.h"
 
 #include <ia32.hpp>
 
 namespace hv {
+
+// selectors for the host GDT
+inline constexpr segment_selector host_cs_selector = { 0, 0, 1 };
+inline constexpr segment_selector host_tr_selector = { 0, 0, 2 };
+
+// number of available descriptor slots in the host GDT
+inline constexpr size_t host_gdt_descriptor_count = 4;
+
+// number of available descriptor slots in the host IDT
+inline constexpr size_t host_idt_descriptor_count = 256;
+
+// size of the host stack for handling vm-exits
+inline constexpr size_t host_stack_size = 0x6000;
 
 class vcpu {
 public:
@@ -52,14 +65,16 @@ private:
   alignas(0x1000) vmx_msr_bitmap msr_bitmap_;
 
   // host stack used for handling vm-exits
-  static constexpr size_t host_stack_size = 0x6000;
-  alignas(0x10) uint8_t host_stack_[host_stack_size];
+  alignas(0x1000) uint8_t host_stack_[host_stack_size];
+
+  // host task state segment
+  alignas(0x1000) task_state_segment_64 host_tss_;
+
+  // host interrupt descriptor table
+  alignas(8) interrupt_gate_descriptor_64 host_idt_[host_idt_descriptor_count];
 
   // host global descriptor table
-  host_gdt host_gdt_;
-  
-  // host interrupt descriptor table
-  host_idt host_idt_;
+  alignas(8) segment_descriptor_32 host_gdt_[host_gdt_descriptor_count];
 };
 
 } // namespace hv

@@ -134,6 +134,7 @@
     <ClInclude Include="core\gdt.h" />
     <ClInclude Include="core\idt.h" />
     <ClInclude Include="core\interrupt-handlers.h" />
+    <ClInclude Include="core\tss.h" />
     <ClInclude Include="util\guest-context.h" />
     <ClInclude Include="core\hv.h" />
     <ClInclude Include="core\vcpu.h" />

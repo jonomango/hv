@@ -119,32 +119,23 @@ void vcpu::write_host_vmcs_fields() {
   _sgdt(&gdtr);
   __sidt(&idtr);
 
-  // TODO: we should be using our own segment selectors (CS, FS, GS, TR)
-  vmx_vmwrite(VMCS_HOST_CS_SELECTOR, 0x10);
-  //vmx_vmwrite(VMCS_HOST_CS_SELECTOR, host_cs_selector.flags);
+  vmx_vmwrite(VMCS_HOST_CS_SELECTOR, host_cs_selector.flags);
   vmx_vmwrite(VMCS_HOST_SS_SELECTOR, 0x00);
   vmx_vmwrite(VMCS_HOST_DS_SELECTOR, 0x00);
   vmx_vmwrite(VMCS_HOST_ES_SELECTOR, 0x00);
   vmx_vmwrite(VMCS_HOST_FS_SELECTOR, 0x00);
   vmx_vmwrite(VMCS_HOST_GS_SELECTOR, 0x00);
-  //vmx_vmwrite(VMCS_HOST_TR_SELECTOR, host_tr_selector.flags);
-  vmx_vmwrite(VMCS_HOST_TR_SELECTOR, 0x40);
+  vmx_vmwrite(VMCS_HOST_TR_SELECTOR, host_tr_selector.flags);
 
-  // TODO: we should be using our own tss/gdt/idt
-  vmx_vmwrite(VMCS_HOST_FS_BASE,   _readfsbase_u64());
-  vmx_vmwrite(VMCS_HOST_GS_BASE,   _readgsbase_u64());
-  vmx_vmwrite(VMCS_HOST_TR_BASE,   segment_base(gdtr, 0x40));
-  //vmx_vmwrite(VMCS_HOST_GDTR_BASE, gdtr.base_address);
-  vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&host_gdt_.descriptors));
-  //vmx_vmwrite(VMCS_HOST_IDTR_BASE, idtr.base_address);
-  vmx_vmwrite(VMCS_HOST_IDTR_BASE, reinterpret_cast<size_t>(&host_idt_.descriptors));
+  vmx_vmwrite(VMCS_HOST_FS_BASE,   0);
+  vmx_vmwrite(VMCS_HOST_GS_BASE,   0);
+  vmx_vmwrite(VMCS_HOST_TR_BASE,   reinterpret_cast<size_t>(&host_tss_));
+  vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&host_gdt_));
+  vmx_vmwrite(VMCS_HOST_IDTR_BASE, reinterpret_cast<size_t>(&host_idt_));
 
-  // these dont matter to us since the host never executes any syscalls
-  // TODO: i believe these can be 0, since the only
-  //   requirement is that they contain a conanical address
-  vmx_vmwrite(VMCS_HOST_SYSENTER_CS,  __readmsr(IA32_SYSENTER_CS));
-  vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
-  vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
+  vmx_vmwrite(VMCS_HOST_SYSENTER_CS,  0);
+  vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, 0);
+  vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, 0);
 }
 
 // initialize guest-state fields in the vmcs

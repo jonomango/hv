@@ -30,6 +30,7 @@ void emulate_mov_to_cr(guest_context* const ctx) {
   // TODO: cache this value somehow...
   vmx_exit_qualification_mov_cr qualification;
   qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
+  auto const gpr_idx = qualification.general_purpose_register;
 
   cr3 new_cr3;
 
@@ -87,17 +88,17 @@ void handle_mov_cr(guest_context* const ctx) {
 
 void handle_nmi_window(guest_context*) {
   auto ctrl = read_ctrl_proc_based();
-  ctrl.nmi_window_exiting = 1;
-  write_ctrl_proc_based(ctrl);
-}
-
-void handle_exception_or_nmi(guest_context*) {
-  auto ctrl = read_ctrl_proc_based();
   ctrl.nmi_window_exiting = 0;
   write_ctrl_proc_based(ctrl);
 
   // reflect the NMI back into the guest
   inject_nmi();
+}
+
+void handle_exception_or_nmi(guest_context*) {
+  auto ctrl = read_ctrl_proc_based();
+  ctrl.nmi_window_exiting = 1;
+  write_ctrl_proc_based(ctrl);
 }
 
 } // namespace hv

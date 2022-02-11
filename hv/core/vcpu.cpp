@@ -1,5 +1,6 @@
 #include "vcpu.h"
 #include "vmcs.h"
+#include "gdt.h"
 #include "exit-handlers.h"
 
 #include "../util/mm.h"
@@ -46,11 +47,16 @@ bool vcpu::virtualize() {
 
   DbgPrint("[hv] set vmcs pointer.\n");
 
-  // we dont want to vm-exit on any msr access
+  // setup the msr bitmap so that we don't vm-exit on any msr access
   memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
 
+  // we don't care about anything that is in the TSS
+  memset(&host_tss_, 0, sizeof(host_tss_));
+
   prepare_host_idt(host_idt_);
-  prepare_host_gdt(host_gdt_);
+  prepare_host_gdt(host_gdt_, reinterpret_cast<uint64_t>(&host_tss_));
+
+  DbgPrint("[hv] initialized external host structures.\n");
 
   // initialize the vmcs fields
   write_ctrl_vmcs_fields();

@@ -27,6 +27,14 @@ uint64_t vmx_vmread(uint64_t field);
 
 
 
+// write to the guest interruptibility state
+void write_interruptibility_state(vmx_interruptibility_state value);
+
+// read the guest interruptibility state
+vmx_interruptibility_state read_interruptibility_state();
+
+
+
 // write to the pin-based vm-execution controls
 void write_ctrl_pin_based_safe(ia32_vmx_pinbased_ctls_register value);
 

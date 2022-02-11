@@ -4,6 +4,7 @@
 
 namespace hv {
 
+// TODO: move this into ia32
 // 3.6.14.1
 struct interrupt_gate_descriptor_64 {
   union {
@@ -29,13 +30,8 @@ struct interrupt_gate_descriptor_64 {
   };
 };
 
-// represents the host interrupt descriptor table
-struct host_idt {
-  alignas(8) interrupt_gate_descriptor_64 descriptors[256];
-};
-
 // initialize the host IDT and populate every descriptor
-void prepare_host_idt(host_idt& idt);
+void prepare_host_idt(interrupt_gate_descriptor_64* idt);
 
 } // namespace hv
 

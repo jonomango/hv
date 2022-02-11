@@ -60,6 +60,20 @@ inline uint64_t vmx_vmread(uint64_t const field) {
 
 
 
+// write to the guest interruptibility state
+inline void write_interruptibility_state(vmx_interruptibility_state const value) {
+  vmx_vmwrite(VMCS_GUEST_INTERRUPTIBILITY_STATE, value.flags);
+}
+
+// read the guest interruptibility state
+inline vmx_interruptibility_state read_interruptibility_state() {
+  vmx_interruptibility_state value;
+  value.flags = static_cast<uint32_t>(vmx_vmread(VMCS_GUEST_INTERRUPTIBILITY_STATE));
+  return value;
+}
+
+
+
 // write to the pin-based vm-execution controls
 inline void write_ctrl_pin_based_safe(ia32_vmx_pinbased_ctls_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
@@ -174,11 +188,10 @@ inline void skip_instruction() {
 
   // if we're currently blocking interrupts (due to mov ss or sti)
   // then we should unblock them since we just emulated an instruction
-  vmx_interruptibility_state int_state;
-  int_state.flags = static_cast<uint32_t>(vmx_vmread(VMCS_GUEST_INTERRUPTIBILITY_STATE));
-  int_state.blocking_by_mov_ss = 0;
-  int_state.blocking_by_sti    = 0;
-  vmx_vmwrite(VMCS_GUEST_INTERRUPTIBILITY_STATE, int_state.flags);
+  auto interrupt_state = read_interruptibility_state();
+  interrupt_state.blocking_by_mov_ss = 0;
+  interrupt_state.blocking_by_sti    = 0;
+  write_interruptibility_state(interrupt_state);
 
   ia32_debugctl_register debugctl;
   debugctl.flags = vmx_vmread(VMCS_GUEST_DEBUGCTL);
@@ -206,7 +219,6 @@ inline void inject_nmi() {
   interrupt_info.interruption_type  = non_maskable_interrupt;
   interrupt_info.deliver_error_code = 0;
   interrupt_info.valid              = 1;
-
   vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
 }
 
@@ -218,7 +230,6 @@ inline void inject_hw_exception(uint32_t const vector) {
   interrupt_info.interruption_type  = hardware_exception;
   interrupt_info.deliver_error_code = 0;
   interrupt_info.valid              = 1;
-
   vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
 }
 
@@ -230,7 +241,6 @@ inline void inject_hw_exception(uint32_t const vector, uint32_t const error) {
   interrupt_info.interruption_type  = hardware_exception;
   interrupt_info.deliver_error_code = 1;
   interrupt_info.valid              = 1;
-
   vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, interrupt_info.flags);
   vmx_vmwrite(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE, error);
 }
