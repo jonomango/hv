@@ -1,6 +1,7 @@
 #include "vcpu.h"
 #include "gdt.h"
 #include "idt.h"
+#include "hv.h"
 #include "exit-handlers.h"
 
 #include "../util/mm.h"
@@ -31,7 +32,7 @@ bool vcpu::virtualize() {
 
   DbgPrint("[hv] entered vmx operation.\n");
 
-  if (!set_vmcs_pointer()) {
+  if (!load_vmcs_pointer()) {
     // TODO: cleanup
     vmx_vmxoff();
     return false;
@@ -114,10 +115,8 @@ bool vcpu::enter_vmx_operation() {
   NT_ASSERT(vmxon_phys % 0x1000 == 0);
 
   // enter vmx operation
-  if (!vmx_vmxon(vmxon_phys)) {
-    // TODO: cleanup
+  if (!vmx_vmxon(vmxon_phys))
     return false;
-  }
 
   // 3.28.3.3.4
   vmx_invept(invept_all_context, {});
@@ -126,7 +125,7 @@ bool vcpu::enter_vmx_operation() {
 }
 
 // set the working-vmcs pointer to point to our vmcs structure
-bool vcpu::set_vmcs_pointer() {
+bool vcpu::load_vmcs_pointer() {
   ia32_vmx_basic_register vmx_basic;
   vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
 
@@ -148,15 +147,25 @@ bool vcpu::set_vmcs_pointer() {
 
 // initialize external structures
 void vcpu::prepare_external_structures() {
-  // setup the msr bitmap so that we don't vm-exit on any msr access
+  // zero-out the MSR bitmap so that MSR accesses don't cause vm-exits
   memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
 
-  // we don't care about anything that is in the TSS
+  // we don't care about anything that's in the TSS
   memset(&host_tss_, 0, sizeof(host_tss_));
 
   prepare_host_idt(host_idt_);
-
   prepare_host_gdt(host_gdt_, reinterpret_cast<uint64_t>(&host_tss_));
+  prepare_host_page_tables(host_page_tables_);
+
+  // setup the host CR3 to point to our own page tables
+  host_cr3_.flags = 0;
+  host_cr3_.page_level_cache_disable = 0;
+  host_cr3_.page_level_write_through = 0;
+  host_cr3_.address_of_page_directory = get_physical(&host_page_tables_.pml4) >> 12;
+
+  // TODO: use our own CR0/CR4
+  host_cr0_.flags = __readcr0();
+  host_cr4_.flags = __readcr4();
 }
 
 // write VMCS control fields
@@ -252,10 +261,9 @@ void vcpu::write_vmcs_host_fields() {
   // 3.24.5
   // 3.26.2
 
-  // TODO: we should be using our own control registers (even for cr0/cr4)
-  vmx_vmwrite(VMCS_HOST_CR0, __readcr0());
-  vmx_vmwrite(VMCS_HOST_CR3, __readcr3());
-  vmx_vmwrite(VMCS_HOST_CR4, __readcr4());
+  vmx_vmwrite(VMCS_HOST_CR0, host_cr0_.flags);
+  vmx_vmwrite(VMCS_HOST_CR3, host_cr3_.flags);
+  vmx_vmwrite(VMCS_HOST_CR4, host_cr4_.flags);
 
   // ensure that rsp is NOT aligned to 16 bytes when execution starts
   auto const rsp = ((reinterpret_cast<size_t>(

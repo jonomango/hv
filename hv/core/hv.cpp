@@ -5,10 +5,13 @@
 
 namespace hv {
 
-static hypervisor global_hypervisor;
+namespace {
 
-// virtualize the current system
-bool start() {
+// yucky global variables :(
+hypervisor global_hypervisor;
+
+// allocate and initialize various hypervisor structures before virtualizing
+bool prepare_hv() {
   // hypervisor is already running -_-
   if (global_hypervisor.vcpus)
     return false;
@@ -25,9 +28,27 @@ bool start() {
   if (!global_hypervisor.vcpus)
     return false;
 
+  DbgPrint("[hv] allocated %u VCPUs (0x%zX bytes).\n",
+    global_hypervisor.vcpu_count, arr_size);
+
+  // zero-initialize the vcpu array
   memset(global_hypervisor.vcpus, 0, arr_size);
 
-  // we need to be running at an irql below DISPATCH_LEVEL so
+  // store the System cr3 value (found in the System EPROCESS structure)
+  global_hypervisor.system_cr3 = *reinterpret_cast<cr3*>(
+    reinterpret_cast<uint8_t*>(PsInitialSystemProcess) + 0x28);
+
+  return true;
+}
+
+} // namespace
+
+// virtualize the current system
+bool start() {
+  if (!prepare_hv())
+    return false;
+
+  // we need to be running at an IRQL below DISPATCH_LEVEL so
   // that KeSetSystemAffinityThreadEx takes effect immediately
   NT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
 

@@ -43,6 +43,9 @@
     <ClCompile Include="core\gdt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\page-tables.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util\guest-context.h">
@@ -79,6 +82,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="core\gdt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\page-tables.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

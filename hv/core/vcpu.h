@@ -1,5 +1,7 @@
 #pragma once
 
+#include "page-tables.h"
+
 #include <ia32.hpp>
 
 namespace hv {
@@ -31,7 +33,7 @@ private:
   bool enter_vmx_operation();
 
   // set the working-vmcs pointer to point to our vmcs structure
-  bool set_vmcs_pointer();
+  bool load_vmcs_pointer();
 
   // initialize external structures
   void prepare_external_structures();
@@ -68,11 +70,19 @@ private:
   // host task state segment
   alignas(0x1000) task_state_segment_64 host_tss_;
 
+  // host page tables
+  alignas(0x1000) host_page_tables host_page_tables_;
+
   // host interrupt descriptor table
-  alignas(8) segment_descriptor_interrupt_gate_64 host_idt_[host_idt_descriptor_count];
+  segment_descriptor_interrupt_gate_64 host_idt_[host_idt_descriptor_count];
 
   // host global descriptor table
-  alignas(8) segment_descriptor_32 host_gdt_[host_gdt_descriptor_count];
+  segment_descriptor_32 host_gdt_[host_gdt_descriptor_count];
+
+  // host control registers
+  cr0 host_cr0_;
+  cr3 host_cr3_;
+  cr4 host_cr4_;
 };
 
 } // namespace hv

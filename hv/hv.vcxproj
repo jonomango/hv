@@ -123,6 +123,7 @@
     <ClCompile Include="core\gdt.cpp" />
     <ClCompile Include="core\hv.cpp" />
     <ClCompile Include="core\idt.cpp" />
+    <ClCompile Include="core\page-tables.cpp" />
     <ClCompile Include="core\vcpu.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="util\mm.cpp" />
@@ -133,6 +134,7 @@
     <ClInclude Include="core\gdt.h" />
     <ClInclude Include="core\idt.h" />
     <ClInclude Include="core\interrupt-handlers.h" />
+    <ClInclude Include="core\page-tables.h" />
     <ClInclude Include="util\guest-context.h" />
     <ClInclude Include="core\hv.h" />
     <ClInclude Include="core\vcpu.h" />
