@@ -124,7 +124,6 @@
     <ClCompile Include="core\hv.cpp" />
     <ClCompile Include="core\idt.cpp" />
     <ClCompile Include="core\vcpu.cpp" />
-    <ClCompile Include="core\vmcs.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="util\mm.cpp" />
     <ClCompile Include="util\segment.cpp" />
@@ -134,11 +133,9 @@
     <ClInclude Include="core\gdt.h" />
     <ClInclude Include="core\idt.h" />
     <ClInclude Include="core\interrupt-handlers.h" />
-    <ClInclude Include="core\tss.h" />
     <ClInclude Include="util\guest-context.h" />
     <ClInclude Include="core\hv.h" />
     <ClInclude Include="core\vcpu.h" />
-    <ClInclude Include="core\vmcs.h" />
     <ClInclude Include="util\trap-frame.h" />
     <ClInclude Include="util\vmx.h" />
     <ClInclude Include="util\arch.h" />

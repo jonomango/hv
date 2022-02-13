@@ -1,8 +1,5 @@
 #pragma once
 
-#include "idt.h"
-#include "tss.h"
-
 #include <ia32.hpp>
 
 namespace hv {
@@ -27,32 +24,33 @@ public:
   bool virtualize();
 
 private:
-  // check if VMX operation is supported
-  bool check_vmx_capabilities() const;
-
   // perform certain actions that are required before entering vmx operation
-  void enable_vmx_operation();
+  bool enable_vmx_operation();
+
+  // enter vmx operation by executing VMXON
+  bool enter_vmx_operation();
 
   // set the working-vmcs pointer to point to our vmcs structure
   bool set_vmcs_pointer();
 
+  // initialize external structures
+  void prepare_external_structures();
+
+  // write VMCS control fields
+  void write_vmcs_ctrl_fields();
+  
+  // write VMCS host fields
+  void write_vmcs_host_fields();
+
+  // write VMCS guest fields
+  void write_vmcs_guest_fields();
+
+private:
   // called for every vm-exit
   static void handle_vm_exit(struct guest_context* ctx);
 
   // called for every host interrupt
   static void handle_host_interrupt(struct trap_frame* frame);
-
-private:
-  // functions defined in vmcs.cpp
-
-  // initialize exit, entry, and execution control fields in the vmcs
-  void write_ctrl_vmcs_fields();
-
-  // initialize host-state fields in the vmcs
-  void write_host_vmcs_fields();
-
-  // initialize guest-state fields in the vmcs
-  void write_guest_vmcs_fields();
 
 private:
   // 4 KiB vmxon region
@@ -71,7 +69,7 @@ private:
   alignas(0x1000) task_state_segment_64 host_tss_;
 
   // host interrupt descriptor table
-  alignas(8) interrupt_gate_descriptor_64 host_idt_[host_idt_descriptor_count];
+  alignas(8) segment_descriptor_interrupt_gate_64 host_idt_[host_idt_descriptor_count];
 
   // host global descriptor table
   alignas(8) segment_descriptor_32 host_gdt_[host_gdt_descriptor_count];

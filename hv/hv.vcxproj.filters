@@ -28,9 +28,6 @@
     <ClCompile Include="core\vcpu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="core\vmcs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="util\mm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -57,9 +54,6 @@
     <ClInclude Include="core\vcpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="core\vmcs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="util\arch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -82,9 +76,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="util\trap-frame.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\tss.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="core\gdt.h">

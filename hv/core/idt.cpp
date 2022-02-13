@@ -7,23 +7,27 @@
 namespace hv {
 
 // create an interrupt gate that points to the supplied interrupt handler
-static interrupt_gate_descriptor_64 create_interrupt_gate(void* const handler) {
-  interrupt_gate_descriptor_64 gate;
-  gate.flags_low                  = 0;
-  gate.flags_high                 = 0;
-  gate.segment_selector           = host_cs_selector.flags;
+static segment_descriptor_interrupt_gate_64 create_interrupt_gate(void* const handler) {
+  segment_descriptor_interrupt_gate_64 gate;
+
   gate.interrupt_stack_table      = 0;
+  gate.segment_selector           = host_cs_selector.flags;
+  gate.must_be_zero_0             = 0;
   gate.type                       = SEGMENT_DESCRIPTOR_TYPE_INTERRUPT_GATE;
+  gate.must_be_zero_1             = 0;
   gate.descriptor_privilege_level = 0;
   gate.present                    = 1;
+  gate.reserved                   = 0;
+
   gate.offset_low    = (reinterpret_cast<uint64_t>(handler) >> 0)  & 0xFFFF;
   gate.offset_middle = (reinterpret_cast<uint64_t>(handler) >> 16) & 0xFFFF;
   gate.offset_high   = (reinterpret_cast<uint64_t>(handler) >> 32) & 0xFFFFFFFF;
+
   return gate;
 }
 
 // initialize the host IDT and populate every descriptor
-void prepare_host_idt(interrupt_gate_descriptor_64* const idt) {
+void prepare_host_idt(segment_descriptor_interrupt_gate_64* const idt) {
   memset(idt, 0, host_idt_descriptor_count * sizeof(idt[0]));
   idt[0]  = create_interrupt_gate(interrupt_handler_0);
   idt[1]  = create_interrupt_gate(interrupt_handler_1);

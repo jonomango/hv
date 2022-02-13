@@ -35,8 +35,8 @@ void emulate_mov_to_cr(guest_context* const ctx) {
   cr3 new_cr3;
 
   // read the new value of cr3 from the specified general-purpose register
-  if (qualification.general_purpose_register != VMX_EXIT_QUALIFICATION_GENREG_RSP)
-    new_cr3.flags = ctx->gp_regs[qualification.general_purpose_register];
+  if (gpr_idx != VMX_EXIT_QUALIFICATION_GENREG_RSP)
+    new_cr3.flags = ctx->gp_regs[gpr_idx];
   else
     new_cr3.flags = vmx_vmread(VMCS_GUEST_RSP);
 
@@ -51,15 +51,14 @@ void emulate_mov_to_cr(guest_context* const ctx) {
 void emulate_mov_from_cr(guest_context* const ctx) {
   vmx_exit_qualification_mov_cr qualification;
   qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
+  auto const gpr_idx = qualification.general_purpose_register;
 
-  // TODO: cleanup
-  
   cr3 current_cr3;
   current_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
 
   // write current value of cr3 to the specified general-purpose register
-  if (qualification.general_purpose_register != VMX_EXIT_QUALIFICATION_GENREG_RSP)
-    ctx->gp_regs[qualification.general_purpose_register] = current_cr3.flags;
+  if (gpr_idx != VMX_EXIT_QUALIFICATION_GENREG_RSP)
+    ctx->gp_regs[gpr_idx] = current_cr3.flags;
   else
     vmx_vmwrite(VMCS_GUEST_RSP, current_cr3.flags);
 
