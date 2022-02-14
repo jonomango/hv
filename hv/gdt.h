@@ -5,7 +5,7 @@
 namespace hv {
 
 // initialize the host GDT and populate every descriptor
-void prepare_host_gdt(segment_descriptor_32* gdt, uint64_t tss_base);
+void prepare_host_gdt(segment_descriptor_32* gdt, task_state_segment_64 const* tss);
 
 } // namespace hv
 

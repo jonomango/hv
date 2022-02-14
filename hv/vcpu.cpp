@@ -1,15 +1,14 @@
 #include "vcpu.h"
+#include "hv.h"
 #include "gdt.h"
 #include "idt.h"
-#include "hv.h"
+#include "mm.h"
+#include "vmx.h"
+#include "arch.h"
+#include "segment.h"
+#include "trap-frame.h"
+#include "guest-context.h"
 #include "exit-handlers.h"
-
-#include "../util/mm.h"
-#include "../util/vmx.h"
-#include "../util/arch.h"
-#include "../util/segment.h"
-#include "../util/trap-frame.h"
-#include "../util/guest-context.h"
 
 namespace hv {
 
@@ -154,7 +153,7 @@ void vcpu::prepare_external_structures() {
   memset(&host_tss_, 0, sizeof(host_tss_));
 
   prepare_host_idt(host_idt_);
-  prepare_host_gdt(host_gdt_, reinterpret_cast<uint64_t>(&host_tss_));
+  prepare_host_gdt(host_gdt_, &host_tss_);
   prepare_host_page_tables(host_page_tables_);
 
   // setup the host CR3 to point to our own page tables
@@ -194,6 +193,7 @@ void vcpu::write_vmcs_ctrl_fields() {
   ia32_vmx_procbased_ctls2_register proc_based_ctrl2;
   proc_based_ctrl2.flags                  = 0;
   proc_based_ctrl2.enable_rdtscp          = 1;
+  proc_based_ctrl2.enable_vpid            = 1;
   proc_based_ctrl2.enable_invpcid         = 1;
   proc_based_ctrl2.enable_xsaves          = 1;
   proc_based_ctrl2.enable_user_wait_pause = 1;
@@ -231,14 +231,14 @@ void vcpu::write_vmcs_ctrl_fields() {
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW,     0);
 
   // 3.24.6.7
-  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT,   0);
-  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, 0);
-  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_1, 0);
-  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_2, 0);
-  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_3, 0);
+  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT,   1);
+  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, ghv().system_cr3.flags);
 
   // 3.24.6.9
   vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&msr_bitmap_));
+
+  // 3.24.6.12
+  vmx_vmwrite(VMCS_CTRL_VIRTUAL_PROCESSOR_IDENTIFIER, guest_vpid);
 
   // 3.24.7.2
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT,   0);

@@ -7,7 +7,7 @@ namespace hv {
 // contains state that isn't stored in guest vmcs fields
 struct alignas(16) guest_context {
   union {
-    uint64_t gp_regs[16];
+    uint64_t gpr[16];
 
     // aliases for general-purpose registers
     struct {

@@ -7,6 +7,9 @@ namespace hv {
 // INVEPT instruction
 void vmx_invept(invept_type type, invept_descriptor const& desc);
 
+//INVVPID instruction
+void vmx_invvpid(invvpid_type type, invvpid_descriptor const& desc);
+
 // VMXON instruction
 bool vmx_vmxon(uint64_t vmxon_phys_addr);
 

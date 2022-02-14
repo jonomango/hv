@@ -19,6 +19,9 @@ inline constexpr size_t host_idt_descriptor_count = 256;
 // size of the host stack for handling vm-exits
 inline constexpr size_t host_stack_size = 0x6000;
 
+// guest virtual-processor identifier
+inline constexpr uint16_t guest_vpid = 1;
+
 class vcpu {
 public:
   // virtualize the current cpu

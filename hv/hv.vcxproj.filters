@@ -19,91 +19,91 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="arch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="exit-handlers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gdt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="guest-context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="idt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="interrupt-handlers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="page-tables.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="segment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="trap-frame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vcpu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vmx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="exit-handlers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gdt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="hv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="idt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="core\hv.cpp">
+    <ClCompile Include="mm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="core\vcpu.cpp">
+    <ClCompile Include="page-tables.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="util\mm.cpp">
+    <ClCompile Include="segment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="util\segment.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="core\exit-handlers.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="core\idt.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="core\gdt.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="core\page-tables.cpp">
+    <ClCompile Include="vcpu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="util\guest-context.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\hv.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\vcpu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="util\arch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="util\mm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="util\segment.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\exit-handlers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="util\vmx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\idt.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\interrupt-handlers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="util\trap-frame.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\gdt.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\page-tables.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <MASM Include="core\vm-exit.asm">
+    <MASM Include="interrupt-handlers.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="core\vm-launch.asm">
+    <MASM Include="vm-exit.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="util\vmx.asm">
+    <MASM Include="vm-launch.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="core\interrupt-handlers.asm">
+    <MASM Include="vmx.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <None Include="util\vmx.inl">
+    <None Include="vmx.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>

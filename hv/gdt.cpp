@@ -1,12 +1,13 @@
 #include "gdt.h"
 #include "vcpu.h"
-
-#include "../util/mm.h"
+#include "mm.h"
 
 namespace hv {
 
 // initialize the host GDT and populate every descriptor
-void prepare_host_gdt(segment_descriptor_32* const gdt, uint64_t const tss_base) {
+void prepare_host_gdt(
+    segment_descriptor_32* const gdt,
+    task_state_segment_64 const* tss) {
   memset(gdt, 0, host_gdt_descriptor_count * sizeof(gdt[0]));
 
   // setup the CS segment descriptor
@@ -31,10 +32,11 @@ void prepare_host_gdt(segment_descriptor_32* const gdt, uint64_t const tss_base)
   tss_desc.segment_limit_high         = 0;
 
   // point the TSS descriptor to our TSS -_-
-  tss_desc.base_address_low    = (tss_base >> 00) & 0xFFFF;
-  tss_desc.base_address_middle = (tss_base >> 16) & 0xFF;
-  tss_desc.base_address_high   = (tss_base >> 24) & 0xFF;
-  tss_desc.base_address_upper  = (tss_base >> 32) & 0xFFFFFFFF;
+  auto const base = reinterpret_cast<uint64_t>(tss);
+  tss_desc.base_address_low    = (base >> 00) & 0xFFFF;
+  tss_desc.base_address_middle = (base >> 16) & 0xFF;
+  tss_desc.base_address_high   = (base >> 24) & 0xFF;
+  tss_desc.base_address_upper  = (base >> 32) & 0xFFFFFFFF;
 }
 
 } // namespace hv

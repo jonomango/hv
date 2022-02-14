@@ -119,39 +119,39 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="core\exit-handlers.cpp" />
-    <ClCompile Include="core\gdt.cpp" />
-    <ClCompile Include="core\hv.cpp" />
-    <ClCompile Include="core\idt.cpp" />
-    <ClCompile Include="core\page-tables.cpp" />
-    <ClCompile Include="core\vcpu.cpp" />
+    <ClInclude Include="arch.h" />
+    <ClInclude Include="exit-handlers.h" />
+    <ClInclude Include="gdt.h" />
+    <ClInclude Include="guest-context.h" />
+    <ClInclude Include="hv.h" />
+    <ClInclude Include="idt.h" />
+    <ClInclude Include="interrupt-handlers.h" />
+    <ClInclude Include="mm.h" />
+    <ClInclude Include="page-tables.h" />
+    <ClInclude Include="segment.h" />
+    <ClInclude Include="trap-frame.h" />
+    <ClInclude Include="vcpu.h" />
+    <ClInclude Include="vmx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="exit-handlers.cpp" />
+    <ClCompile Include="gdt.cpp" />
+    <ClCompile Include="hv.cpp" />
+    <ClCompile Include="idt.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="util\mm.cpp" />
-    <ClCompile Include="util\segment.cpp" />
+    <ClCompile Include="mm.cpp" />
+    <ClCompile Include="page-tables.cpp" />
+    <ClCompile Include="segment.cpp" />
+    <ClCompile Include="vcpu.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="core\exit-handlers.h" />
-    <ClInclude Include="core\gdt.h" />
-    <ClInclude Include="core\idt.h" />
-    <ClInclude Include="core\interrupt-handlers.h" />
-    <ClInclude Include="core\page-tables.h" />
-    <ClInclude Include="util\guest-context.h" />
-    <ClInclude Include="core\hv.h" />
-    <ClInclude Include="core\vcpu.h" />
-    <ClInclude Include="util\trap-frame.h" />
-    <ClInclude Include="util\vmx.h" />
-    <ClInclude Include="util\arch.h" />
-    <ClInclude Include="util\mm.h" />
-    <ClInclude Include="util\segment.h" />
+    <MASM Include="interrupt-handlers.asm" />
+    <MASM Include="vm-exit.asm" />
+    <MASM Include="vm-launch.asm" />
+    <MASM Include="vmx.asm" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="core\interrupt-handlers.asm" />
-    <MASM Include="core\vm-exit.asm" />
-    <MASM Include="core\vm-launch.asm" />
-    <MASM Include="util\vmx.asm" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="util\vmx.inl" />
+    <None Include="vmx.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
