@@ -17,12 +17,53 @@ void emulate_cpuid(guest_context* const ctx) {
   skip_instruction();
 }
 
-void emulate_rdmsr(guest_context*) {
+void emulate_rdmsr(guest_context* ctx) {
+  if (ctx->ecx == IA32_FEATURE_CONTROL) {
+    ia32_feature_control_register feature_control;
+
+    // TODO: cache this value since it can never change if the lock bit is 1.
+    feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
+
+    // spoof IA32_FEATURE_CONTROL to look like VMX is disabled
+    feature_control.lock_bit               = 1;
+    feature_control.enable_vmx_inside_smx  = 0;
+    feature_control.enable_vmx_outside_smx = 0;
+
+    ctx->rax = feature_control.flags & 0xFFFF'FFFF;
+    ctx->rdx = feature_control.flags >> 32;
+
+    skip_instruction();
+    return;
+  }
+
   inject_hw_exception(general_protection, 0);
 }
 
 void emulate_wrmsr(guest_context*) {
+  // inject a #GP(0) for every invalid MSR write + IA32_FEATURE_CONTROL
   inject_hw_exception(general_protection, 0);
+}
+
+void emulate_getsec(guest_context*) {
+  inject_hw_exception(general_protection, 0);
+}
+
+void emulate_invd(guest_context*) {
+  inject_hw_exception(general_protection, 0);
+}
+
+void emulate_xsetbv(guest_context*) {
+  inject_hw_exception(general_protection, 0);
+}
+
+void emulate_vmxon(guest_context*) {
+  // we are spoofing the value of the IA32_FEATURE_CONTROL MSR in
+  // order to convince the guest that VMX has been disabled by BIOS.
+  inject_hw_exception(general_protection, 0);
+}
+
+void emulate_vmcall(guest_context*) {
+  inject_hw_exception(invalid_opcode);
 }
 
 void emulate_mov_to_cr0(guest_context*, uint64_t) {

@@ -28,6 +28,9 @@ public:
   // note, this assumes that execution is already restricted to the desired cpu
   bool virtualize();
 
+  // toggle vm-exiting for this MSR in the MSR bitmap
+  void toggle_exiting_for_msr(uint32_t msr, bool enabled);
+
 private:
   // perform certain actions that are required before entering vmx operation
   bool enable_vmx_operation();

@@ -12,6 +12,16 @@ void emulate_rdmsr(guest_context* ctx);
 
 void emulate_wrmsr(guest_context* ctx);
 
+void emulate_getsec(guest_context* ctx);
+
+void emulate_invd(guest_context* ctx);
+
+void emulate_xsetbv(guest_context* ctx);
+
+void emulate_vmxon(guest_context* ctx);
+
+void emulate_vmcall(guest_context* ctx);
+
 void emulate_mov_to_cr0(guest_context* ctx, uint64_t gpr);
 
 void emulate_mov_to_cr3(guest_context* ctx, uint64_t gpr);

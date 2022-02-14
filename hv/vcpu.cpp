@@ -63,6 +63,23 @@ bool vcpu::virtualize() {
   return true;
 }
 
+// toggle vm-exiting for this MSR in the MSR bitmap
+void vcpu::toggle_exiting_for_msr(uint32_t msr, bool const enabled) {
+  auto const bit = static_cast<uint8_t>(enabled ? 1 : 0);
+
+  if (msr <= MSR_ID_LOW_MAX) {
+    // set the bit in the low bitmap
+    msr_bitmap_.rdmsr_low[msr / 8] = (bit << (msr & 0b0111));
+    msr_bitmap_.wrmsr_low[msr / 8] = (bit << (msr & 0b0111));
+  } else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
+    msr -= MSR_ID_HIGH_MIN;
+
+    // set the bit in the high bitmap
+    msr_bitmap_.rdmsr_high[msr / 8] = (bit << (msr & 0b0111));
+    msr_bitmap_.wrmsr_high[msr / 8] = (bit << (msr & 0b0111));
+  }
+}
+
 // perform certain actions that are required before entering vmx operation
 bool vcpu::enable_vmx_operation() {
   cpuid_eax_01 cpuid_1;
@@ -146,8 +163,9 @@ bool vcpu::load_vmcs_pointer() {
 
 // initialize external structures
 void vcpu::prepare_external_structures() {
-  // zero-out the MSR bitmap so that MSR accesses don't cause vm-exits
+  // setup the MSR bitmap so that we only exit on IA32_FEATURE_CONTROL
   memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
+  toggle_exiting_for_msr(IA32_FEATURE_CONTROL, true);
 
   // we don't care about anything that's in the TSS
   memset(&host_tss_, 0, sizeof(host_tss_));
@@ -375,27 +393,32 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
   switch (exit_reason.basic_exit_reason) {
-  case VMX_EXIT_REASON_MOV_CR:
-    handle_mov_cr(ctx);
-    break;
-  case VMX_EXIT_REASON_EXECUTE_CPUID:
-    emulate_cpuid(ctx);
-    break;
-  case VMX_EXIT_REASON_EXECUTE_RDMSR:
-    emulate_rdmsr(ctx);
-    break;
-  case VMX_EXIT_REASON_EXECUTE_WRMSR:
-    emulate_wrmsr(ctx);
-    break;
-  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:
-    handle_exception_or_nmi(ctx);
-    break;
-  case VMX_EXIT_REASON_NMI_WINDOW:
-    handle_nmi_window(ctx);
-    break;
-  default:
-    __debugbreak();
-    DbgPrint("[hv] vm-exit occurred. RIP=0x%zX.\n", vmx_vmread(VMCS_GUEST_RIP));
+  case VMX_EXIT_REASON_EXCEPTION_OR_NMI: handle_exception_or_nmi(ctx); break;
+  case VMX_EXIT_REASON_EXECUTE_GETSEC:   emulate_getsec(ctx);          break;
+  case VMX_EXIT_REASON_EXECUTE_INVD:     emulate_invd(ctx);            break;
+  case VMX_EXIT_REASON_NMI_WINDOW:       handle_nmi_window(ctx);       break;
+  case VMX_EXIT_REASON_EXECUTE_CPUID:    emulate_cpuid(ctx);           break;
+  case VMX_EXIT_REASON_MOV_CR:           handle_mov_cr(ctx);           break;
+  case VMX_EXIT_REASON_EXECUTE_RDMSR:    emulate_rdmsr(ctx);           break;
+  case VMX_EXIT_REASON_EXECUTE_WRMSR:    emulate_wrmsr(ctx);           break;
+  case VMX_EXIT_REASON_EXECUTE_XSETBV:   emulate_xsetbv(ctx);          break;
+  case VMX_EXIT_REASON_EXECUTE_VMXON:    emulate_vmxon(ctx);           break;
+  case VMX_EXIT_REASON_EXECUTE_VMCALL:   emulate_vmcall(ctx);          break;
+
+  // inject #UD for every VMX instruction since we
+  // don't allow the guest to ever enter VMX operation.
+  case VMX_EXIT_REASON_EXECUTE_INVEPT:
+  case VMX_EXIT_REASON_EXECUTE_INVVPID:
+  case VMX_EXIT_REASON_EXECUTE_VMCLEAR:
+  case VMX_EXIT_REASON_EXECUTE_VMLAUNCH:
+  case VMX_EXIT_REASON_EXECUTE_VMPTRLD:
+  case VMX_EXIT_REASON_EXECUTE_VMPTRST:
+  case VMX_EXIT_REASON_EXECUTE_VMREAD:
+  case VMX_EXIT_REASON_EXECUTE_VMRESUME:
+  case VMX_EXIT_REASON_EXECUTE_VMWRITE:
+  case VMX_EXIT_REASON_EXECUTE_VMXOFF:
+  case VMX_EXIT_REASON_EXECUTE_VMFUNC:
+    inject_hw_exception(invalid_opcode);
     break;
   }
 }
