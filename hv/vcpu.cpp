@@ -7,7 +7,6 @@
 #include "arch.h"
 #include "segment.h"
 #include "trap-frame.h"
-#include "guest-context.h"
 #include "exit-handlers.h"
 
 namespace hv {
@@ -21,15 +20,19 @@ extern void __vm_exit();
 // virtualize the current cpu
 // note, this assumes that execution is already restricted to the desired cpu
 bool vcpu::virtualize() {
+  cache_vcpu_data();
+
+  DbgPrint("[hv] Cached VCPU data.\n");
+
   if (!enable_vmx_operation())
     return false;
 
-  DbgPrint("[hv] enabled vmx operation.\n");
+  DbgPrint("[hv] Enabled VMX operation.\n");
 
   if (!enter_vmx_operation())
     return false;
 
-  DbgPrint("[hv] entered vmx operation.\n");
+  DbgPrint("[hv] Entered VMX operation.\n");
 
   if (!load_vmcs_pointer()) {
     // TODO: cleanup
@@ -37,28 +40,28 @@ bool vcpu::virtualize() {
     return false;
   }
 
-  DbgPrint("[hv] set vmcs pointer.\n");
+  DbgPrint("[hv] Set VMCS pointer.\n");
 
   prepare_external_structures();
 
-  DbgPrint("[hv] initialized external host structures.\n");
+  DbgPrint("[hv] Initialized external structures.\n");
 
   write_vmcs_ctrl_fields();
   write_vmcs_host_fields();
   write_vmcs_guest_fields();
 
-  DbgPrint("[hv] initialized the vmcs.\n");
+  DbgPrint("[hv] Initialized VMCS fields.\n");
 
   // launch the virtual machine
   if (!__vm_launch()) {
-    DbgPrint("[hv] vmlaunch failed, error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
+    DbgPrint("[hv] VMLAUNCH failed, error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
 
     // TODO: cleanup
     vmx_vmxoff();
     return false;
   }
 
-  DbgPrint("[hv] virtualized cpu #%i\n", KeGetCurrentProcessorIndex());
+  DbgPrint("[hv] Launched VCPU #%i.\n", KeGetCurrentProcessorIndex());
 
   return true;
 }
@@ -78,6 +81,19 @@ void vcpu::toggle_exiting_for_msr(uint32_t msr, bool const enabled) {
     msr_bitmap_.rdmsr_high[msr / 8] = (bit << (msr & 0b0111));
     msr_bitmap_.wrmsr_high[msr / 8] = (bit << (msr & 0b0111));
   }
+}
+
+// cache certain values that will be used during vmx operation
+void vcpu::cache_vcpu_data() {
+  cpuid_eax_80000008 cpuid_80000008;
+  __cpuid(reinterpret_cast<int*>(&cpuid_80000008), 0x80000008);
+
+  cached_.max_phys_addr = cpuid_80000008.eax.number_of_physical_address_bits;
+
+  cached_.vmx_cr0_fixed0 = __readmsr(IA32_VMX_CR0_FIXED0);
+  cached_.vmx_cr0_fixed1 = __readmsr(IA32_VMX_CR0_FIXED1);
+  cached_.vmx_cr4_fixed0 = __readmsr(IA32_VMX_CR4_FIXED0);
+  cached_.vmx_cr4_fixed1 = __readmsr(IA32_VMX_CR4_FIXED1);
 }
 
 // perform certain actions that are required before entering vmx operation
@@ -105,10 +121,10 @@ bool vcpu::enable_vmx_operation() {
   cr4 |= CR4_VMX_ENABLE_FLAG;
 
   // 3.23.8
-  cr0 |= __readmsr(IA32_VMX_CR0_FIXED0);
-  cr0 &= __readmsr(IA32_VMX_CR0_FIXED1);
-  cr4 |= __readmsr(IA32_VMX_CR4_FIXED0);
-  cr4 &= __readmsr(IA32_VMX_CR4_FIXED1);
+  cr0 |= cached_.vmx_cr0_fixed0;
+  cr0 &= cached_.vmx_cr0_fixed1;
+  cr4 |= cached_.vmx_cr4_fixed0;
+  cr4 &= cached_.vmx_cr4_fixed1;
 
   __writecr0(cr0);
   __writecr4(cr4);
@@ -237,18 +253,28 @@ void vcpu::write_vmcs_ctrl_fields() {
   // 3.24.6.3
   vmx_vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
 
-  // set up the pagefault mask and match in such a way so
+  // set up the mask and match in such a way so
   // that a vm-exit is never triggered for a pagefault
   vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MASK,  0);
   vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MATCH, 0);
 
   // 3.24.6.6
-  vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0);
-  vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW,     0);
-  vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0);
-  vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW,     0);
+#ifdef NDEBUG
+  // only vm-exit when guest tries to change a reserved bit
+  vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK,
+    cached_.vmx_cr0_fixed0 | ~cached_data.vmx_cr0_fixed1);
+  vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK,
+    cached_.vmx_cr4_fixed0 | ~cached_data.vmx_cr4_fixed1);
+#else
+  // vm-exit on every CR0/CR4 modification
+  vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0xFFFFFFFF'FFFFFFFF);
+  vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0xFFFFFFFF'FFFFFFFF);
+#endif
+  vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, __readcr0());
+  vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, __readcr4());
 
   // 3.24.6.7
+  // try to trigger the least amount of CR3 exits as possible
   vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT,   1);
   vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, ghv().system_cr3.flags);
 
@@ -298,7 +324,7 @@ void vcpu::write_vmcs_host_fields() {
   vmx_vmwrite(VMCS_HOST_GS_SELECTOR, 0x00);
   vmx_vmwrite(VMCS_HOST_TR_SELECTOR, host_tr_selector.flags);
 
-  vmx_vmwrite(VMCS_HOST_FS_BASE,   0);
+  vmx_vmwrite(VMCS_HOST_FS_BASE,   reinterpret_cast<size_t>(this));
   vmx_vmwrite(VMCS_HOST_GS_BASE,   0);
   vmx_vmwrite(VMCS_HOST_TR_BASE,   reinterpret_cast<size_t>(&host_tss_));
   vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&host_gdt_));
@@ -314,8 +340,9 @@ void vcpu::write_vmcs_guest_fields() {
   // 3.24.4
   // 3.26.3
 
-  vmx_vmwrite(VMCS_GUEST_CR0, __readcr0());
   vmx_vmwrite(VMCS_GUEST_CR3, __readcr3());
+
+  vmx_vmwrite(VMCS_GUEST_CR0, __readcr0());
   vmx_vmwrite(VMCS_GUEST_CR4, __readcr4());
 
   vmx_vmwrite(VMCS_GUEST_DR7, __readdr(7));
@@ -392,18 +419,22 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   vmx_vmexit_reason exit_reason;
   exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
+  // get the current vcpu
+  auto const cpu = current_vcpu();
+  cpu->guest_ctx_ = ctx;
+
   switch (exit_reason.basic_exit_reason) {
-  case VMX_EXIT_REASON_EXCEPTION_OR_NMI: handle_exception_or_nmi(ctx); break;
-  case VMX_EXIT_REASON_EXECUTE_GETSEC:   emulate_getsec(ctx);          break;
-  case VMX_EXIT_REASON_EXECUTE_INVD:     emulate_invd(ctx);            break;
-  case VMX_EXIT_REASON_NMI_WINDOW:       handle_nmi_window(ctx);       break;
-  case VMX_EXIT_REASON_EXECUTE_CPUID:    emulate_cpuid(ctx);           break;
-  case VMX_EXIT_REASON_MOV_CR:           handle_mov_cr(ctx);           break;
-  case VMX_EXIT_REASON_EXECUTE_RDMSR:    emulate_rdmsr(ctx);           break;
-  case VMX_EXIT_REASON_EXECUTE_WRMSR:    emulate_wrmsr(ctx);           break;
-  case VMX_EXIT_REASON_EXECUTE_XSETBV:   emulate_xsetbv(ctx);          break;
-  case VMX_EXIT_REASON_EXECUTE_VMXON:    emulate_vmxon(ctx);           break;
-  case VMX_EXIT_REASON_EXECUTE_VMCALL:   emulate_vmcall(ctx);          break;
+  case VMX_EXIT_REASON_EXCEPTION_OR_NMI: handle_exception_or_nmi(cpu); break;
+  case VMX_EXIT_REASON_EXECUTE_GETSEC:   emulate_getsec(cpu);          break;
+  case VMX_EXIT_REASON_EXECUTE_INVD:     emulate_invd(cpu);            break;
+  case VMX_EXIT_REASON_NMI_WINDOW:       handle_nmi_window(cpu);       break;
+  case VMX_EXIT_REASON_EXECUTE_CPUID:    emulate_cpuid(cpu);           break;
+  case VMX_EXIT_REASON_MOV_CR:           handle_mov_cr(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_RDMSR:    emulate_rdmsr(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_WRMSR:    emulate_wrmsr(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_XSETBV:   emulate_xsetbv(cpu);          break;
+  case VMX_EXIT_REASON_EXECUTE_VMXON:    emulate_vmxon(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_VMCALL:   emulate_vmcall(cpu);          break;
 
   // inject #UD for every VMX instruction since we
   // don't allow the guest to ever enter VMX operation.

@@ -4,45 +4,41 @@
 
 namespace hv {
 
-struct guest_context;
+class vcpu;
 
-void emulate_cpuid(guest_context* ctx);
+void emulate_cpuid(vcpu* cpu);
 
-void emulate_rdmsr(guest_context* ctx);
+void emulate_rdmsr(vcpu* cpu);
 
-void emulate_wrmsr(guest_context* ctx);
+void emulate_wrmsr(vcpu* cpu);
 
-void emulate_getsec(guest_context* ctx);
+void emulate_getsec(vcpu* cpu);
 
-void emulate_invd(guest_context* ctx);
+void emulate_invd(vcpu* cpu);
 
-void emulate_xsetbv(guest_context* ctx);
+void emulate_xsetbv(vcpu* cpu);
 
-void emulate_vmxon(guest_context* ctx);
+void emulate_vmxon(vcpu* cpu);
 
-void emulate_vmcall(guest_context* ctx);
+void emulate_vmcall(vcpu* cpu);
 
-void emulate_mov_to_cr0(guest_context* ctx, uint64_t gpr);
+void emulate_mov_to_cr0(vcpu* cpu);
 
-void emulate_mov_to_cr3(guest_context* ctx, uint64_t gpr);
+void emulate_mov_to_cr3(vcpu* cpu);
 
-void emulate_mov_to_cr4(guest_context* ctx, uint64_t gpr);
+void emulate_mov_to_cr4(vcpu* cpu);
 
-void emulate_mov_from_cr0(guest_context* ctx, uint64_t gpr);
+void emulate_mov_from_cr3(vcpu* cpu);
 
-void emulate_mov_from_cr3(guest_context* ctx, uint64_t gpr);
+void emulate_clts(vcpu* cpu);
 
-void emulate_mov_from_cr4(guest_context* ctx, uint64_t gpr);
+void emulate_lmsw(vcpu* cpu);
 
-void emulate_clts(guest_context* ctx);
+void handle_mov_cr(vcpu* cpu);
 
-void emulate_lmsw(guest_context* ctx);
+void handle_nmi_window(vcpu* cpu);
 
-void handle_mov_cr(guest_context* ctx);
-
-void handle_nmi_window(guest_context* ctx);
-
-void handle_exception_or_nmi(guest_context* ctx);
+void handle_exception_or_nmi(vcpu* cpu);
 
 } // namespace hv
 

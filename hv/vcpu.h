@@ -1,6 +1,7 @@
 #pragma once
 
 #include "page-tables.h"
+#include "guest-context.h"
 
 #include <ia32.hpp>
 
@@ -22,6 +23,17 @@ inline constexpr size_t host_stack_size = 0x6000;
 // guest virtual-processor identifier
 inline constexpr uint16_t guest_vpid = 1;
 
+struct cached_vcpu_data {
+  // maximum number of bits in a physical address (MAXPHYSADDR)
+  uint64_t max_phys_addr;
+
+  // reserved bits in CR0/CR44
+  uint64_t vmx_cr0_fixed0;
+  uint64_t vmx_cr0_fixed1;
+  uint64_t vmx_cr4_fixed0;
+  uint64_t vmx_cr4_fixed1;
+};
+
 class vcpu {
 public:
   // virtualize the current cpu
@@ -31,7 +43,16 @@ public:
   // toggle vm-exiting for this MSR in the MSR bitmap
   void toggle_exiting_for_msr(uint32_t msr, bool enabled);
 
+  // get the current guest context
+  guest_context* ctx() const { return guest_ctx_; }
+
+  // get data that is cached per-vcpu
+  cached_vcpu_data const* cdata() const { return &cached_; }
+
 private:
+  // cache certain values that will be used during vmx operation
+  void cache_vcpu_data();
+
   // perform certain actions that are required before entering vmx operation
   bool enable_vmx_operation();
 
@@ -77,6 +98,7 @@ private:
   alignas(0x1000) task_state_segment_64 host_tss_;
 
   // host page tables
+  // TODO: make per-hv not per-vcpu
   alignas(0x1000) host_page_tables host_page_tables_;
 
   // host interrupt descriptor table
@@ -89,6 +111,12 @@ private:
   cr0 host_cr0_;
   cr3 host_cr3_;
   cr4 host_cr4_;
+
+  // pointer to the current guest context, set in exit-handler
+  guest_context* guest_ctx_;
+
+  // cached values that are assumed to NEVER change
+  cached_vcpu_data cached_;
 };
 
 } // namespace hv

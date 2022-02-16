@@ -1,6 +1,7 @@
 #include "hv.h"
 #include "vcpu.h"
 #include "mm.h"
+#include "arch.h"
 
 namespace hv {
 
@@ -27,7 +28,7 @@ bool prepare_hv() {
   if (!global_hypervisor.vcpus)
     return false;
 
-  DbgPrint("[hv] allocated %u VCPUs (0x%zX bytes).\n",
+  DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n",
     global_hypervisor.vcpu_count, arr_size);
 
   // zero-initialize the vcpu array
@@ -73,6 +74,11 @@ bool start() {
 // get the global hypervisor
 hypervisor const& ghv() {
   return global_hypervisor;
+}
+
+// get the current vcpu
+vcpu* current_vcpu() {
+  return (vcpu*)_readfsbase_u64();
 }
 
 } // namespace hv

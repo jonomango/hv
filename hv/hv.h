@@ -20,4 +20,7 @@ struct hypervisor {
 // get the global hypervisor
 hypervisor const& ghv();
 
+// get the current vcpu
+class vcpu* current_vcpu();
+
 } // namespace hv
