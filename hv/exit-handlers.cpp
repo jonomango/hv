@@ -86,10 +86,58 @@ void emulate_vmcall(vcpu*) {
 }
 
 void emulate_mov_to_cr0(vcpu* const vcpu, uint64_t const gpr) {
+  // 2.4.3
+  // 3.2.5
+  // 3.26.3.2.1
+
   cr0 new_cr0;
   new_cr0.flags = read_guest_gpr(vcpu, gpr);
 
-  // TODO: check for exceptions
+  // CR0[15:6] is always 0
+  new_cr0.reserved1 = 0;
+
+  // CR0[17] is always 0
+  new_cr0.reserved2 = 0;
+
+  // CR0[28:19] is always 0
+  new_cr0.reserved3 = 0;
+
+  // CR0.ET is always 1
+  new_cr0.extension_type = 1;
+
+  // #GP(0) if setting any reserved bits in CR0[63:32]
+  if (new_cr0.reserved4) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  // #GP(0) if setting CR0.PG while CR0.PE is clear
+  if (new_cr0.paging_enable && !new_cr0.protection_enable) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  // #GP(0) if invalid bit combination
+  if (!new_cr0.cache_disable && new_cr0.not_write_through) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  // #GP(0) if if an attempt is made to clear CR0.PG
+  if (!new_cr0.paging_enable) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  cr0 host_cr0;
+  host_cr0.flags = vmx_vmread(VMCS_HOST_CR0);
+
+  if (new_cr0.cache_disable != host_cr0.cache_disable ||
+      new_cr0.not_write_through != host_cr0.not_write_through) {
+    // if CR0.CD or CR0.NW is modified, we need to update the host CR0
+    // since these bits are shared by the guest AND the host... i think?
+    // 3.26.3.2.1
+  }
 
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, new_cr0.flags);
 

@@ -262,9 +262,9 @@ void vcpu::write_vmcs_ctrl_fields() {
 #ifdef NDEBUG
   // only vm-exit when guest tries to change a reserved bit
   vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK,
-    cached_.vmx_cr0_fixed0 | ~cached_data.vmx_cr0_fixed1);
+    cached_.vmx_cr0_fixed0 | ~cached_.vmx_cr0_fixed1);
   vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK,
-    cached_.vmx_cr4_fixed0 | ~cached_data.vmx_cr4_fixed1);
+    cached_.vmx_cr4_fixed0 | ~cached_.vmx_cr4_fixed1);
 #else
   // vm-exit on every CR0/CR4 modification
   vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0xFFFFFFFF'FFFFFFFF);
