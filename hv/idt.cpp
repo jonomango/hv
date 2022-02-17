@@ -18,9 +18,10 @@ static segment_descriptor_interrupt_gate_64 create_interrupt_gate(void* const ha
   gate.present                    = 1;
   gate.reserved                   = 0;
 
-  gate.offset_low    = (reinterpret_cast<uint64_t>(handler) >> 0)  & 0xFFFF;
-  gate.offset_middle = (reinterpret_cast<uint64_t>(handler) >> 16) & 0xFFFF;
-  gate.offset_high   = (reinterpret_cast<uint64_t>(handler) >> 32) & 0xFFFFFFFF;
+  auto const offset = reinterpret_cast<uint64_t>(handler);
+  gate.offset_low    = (offset >> 0)  & 0xFFFF;
+  gate.offset_middle = (offset >> 16) & 0xFFFF;
+  gate.offset_high   = (offset >> 32) & 0xFFFFFFFF;
 
   return gate;
 }

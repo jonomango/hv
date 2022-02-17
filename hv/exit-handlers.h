@@ -22,13 +22,13 @@ void emulate_vmxon(vcpu* cpu);
 
 void emulate_vmcall(vcpu* cpu);
 
-void emulate_mov_to_cr0(vcpu* cpu);
+void emulate_mov_to_cr0(vcpu* cpu, uint64_t gpr);
 
-void emulate_mov_to_cr3(vcpu* cpu);
+void emulate_mov_to_cr3(vcpu* cpu, uint64_t gpr);
 
-void emulate_mov_to_cr4(vcpu* cpu);
+void emulate_mov_to_cr4(vcpu* cpu, uint64_t gpr);
 
-void emulate_mov_from_cr3(vcpu* cpu);
+void emulate_mov_from_cr3(vcpu* cpu, uint64_t gpr);
 
 void emulate_clts(vcpu* cpu);
 

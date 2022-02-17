@@ -7,7 +7,7 @@ namespace hv {
 // initialize the host GDT and populate every descriptor
 void prepare_host_gdt(
     segment_descriptor_32* const gdt,
-    task_state_segment_64 const* tss) {
+    task_state_segment_64 const* const tss) {
   memset(gdt, 0, host_gdt_descriptor_count * sizeof(gdt[0]));
 
   // setup the CS segment descriptor
