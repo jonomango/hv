@@ -279,7 +279,7 @@ void vcpu::write_vmcs_ctrl_fields() {
   vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0xFFFFFFFF'FFFFFFFF);
 #endif
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, __readcr0());
-  vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, __readcr4());
+  vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, __readcr4() & ~CR4_VMX_ENABLE_FLAG);
 
   // 3.24.6.7
   // try to trigger the least amount of CR3 exits as possible
@@ -358,6 +358,7 @@ void vcpu::write_vmcs_guest_fields() {
   // RIP and RSP are set in vm-launch.asm
   vmx_vmwrite(VMCS_GUEST_RSP, 0);
   vmx_vmwrite(VMCS_GUEST_RIP, 0);
+
   vmx_vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
 
   // TODO: don't hardcode the segment selectors idiot...
