@@ -101,6 +101,8 @@ void vcpu::cache_vcpu_data() {
   // features in XCR0 that are supported
   cached_.xcr0_unsupported_mask = ~((static_cast<uint64_t>(
     cpuid_0d.edx.flags) << 32) | cpuid_0d.eax.flags);
+
+  cached_.feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
 }
 
 // perform certain actions that are required before entering vmx operation
@@ -112,8 +114,7 @@ bool vcpu::enable_vmx_operation() {
   if (!cpuid_1.cpuid_feature_information_ecx.virtual_machine_extensions)
     return false;
 
-  ia32_feature_control_register feature_control;
-  feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
+  auto const feature_control = cached_.feature_control;
 
   // 3.23.7
   if (!feature_control.lock_bit || !feature_control.enable_vmx_outside_smx)

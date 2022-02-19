@@ -38,10 +38,7 @@ void emulate_cpuid(vcpu* const vcpu) {
 
 void emulate_rdmsr(vcpu* const vcpu) {
   if (vcpu->ctx()->ecx == IA32_FEATURE_CONTROL) {
-    ia32_feature_control_register feature_control;
-
-    // TODO: cache this value since it can never change if the lock bit is 1.
-    feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
+    auto feature_control = vcpu->cdata()->feature_control;
 
     // spoof IA32_FEATURE_CONTROL to look like VMX is disabled
     feature_control.lock_bit = 1;

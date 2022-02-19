@@ -35,6 +35,9 @@ struct cached_vcpu_data {
 
   // mask of unsupported processor state components for XCR0
   uint64_t xcr0_unsupported_mask;
+
+  // IA32_FEATURE_CONTROL MSR
+  ia32_feature_control_register feature_control;
 };
 
 class vcpu {
