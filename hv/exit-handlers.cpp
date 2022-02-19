@@ -8,14 +8,14 @@ namespace hv {
 namespace {
 
 uint64_t read_guest_gpr(vcpu* const vcpu,
-    uint64_t const gpr) {
+  uint64_t const gpr) {
   if (gpr == VMX_EXIT_QUALIFICATION_GENREG_RSP)
     return vmx_vmread(VMCS_GUEST_RSP);
   return vcpu->ctx()->gpr[gpr];
 }
 
 void write_guest_gpr(vcpu* const vcpu,
-    uint64_t const gpr, uint64_t const value) {
+  uint64_t const gpr, uint64_t const value) {
   if (gpr == VMX_EXIT_QUALIFICATION_GENREG_RSP)
     vmx_vmwrite(VMCS_GUEST_RSP, value);
   else
@@ -44,8 +44,8 @@ void emulate_rdmsr(vcpu* const vcpu) {
     feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
 
     // spoof IA32_FEATURE_CONTROL to look like VMX is disabled
-    feature_control.lock_bit               = 1;
-    feature_control.enable_vmx_inside_smx  = 0;
+    feature_control.lock_bit = 1;
+    feature_control.enable_vmx_inside_smx = 0;
     feature_control.enable_vmx_outside_smx = 0;
 
     vcpu->ctx()->rax = feature_control.flags & 0xFFFF'FFFF;
@@ -71,8 +71,78 @@ void emulate_invd(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-void emulate_xsetbv(vcpu*) {
-  inject_hw_exception(general_protection, 0);
+// TODO: add to ia32
+union xcr0 {
+  struct {
+    uint64_t X87 : 1; // 0
+    uint64_t SSE : 1; // 1
+    uint64_t AVX : 1; // 2
+    uint64_t BNDREG : 1; // 3
+    uint64_t BNDCSR : 1; // 4
+    uint64_t opmask : 1; // 5
+    uint64_t ZMM_Hi256 : 1; // 6
+    uint64_t Hi16_ZMM : 1; // 7
+    uint64_t reserved1 : 1;
+    uint64_t PKRU : 1; // 9
+  };
+
+  uint64_t flags;
+};
+
+void emulate_xsetbv(vcpu* const vcpu) {
+  // 3.2.6
+
+  xcr0 new_xcr0;
+  new_xcr0.flags = (vcpu->ctx()->rdx << 32) | vcpu->ctx()->eax;
+
+  cr4 curr_cr4;
+  curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
+
+  // only XCR0 is supported
+  if (vcpu->ctx()->ecx != 0) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  // #GP(0) if trying to set an unsupported bit
+  if (new_xcr0.flags & vcpu->cdata()->xcr0_unsupported_mask) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  // #GP(0) if clearing XCR0.X87
+  if (!new_xcr0.X87) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  // #GP(0) if XCR0.AVX is 1 while XCRO.SSE is cleared
+  if (new_xcr0.AVX && !new_xcr0.SSE) {
+    inject_hw_exception(general_protection);
+    return;
+  }
+
+  // #GP(0) if XCR0.AVX is clear and XCR0.opmask, XCR0.ZMM_Hi256, or XCR0.Hi16_ZMM is set
+  if (!new_xcr0.AVX && (new_xcr0.opmask || new_xcr0.ZMM_Hi256 || new_xcr0.Hi16_ZMM)) {
+    inject_hw_exception(general_protection);
+    return;
+  }
+
+  // #GP(0) if setting XCR0.BNDREG or XCR0.BNDCSR while not setting the other
+  if (new_xcr0.BNDREG != new_xcr0.BNDCSR) {
+    inject_hw_exception(general_protection);
+    return;
+  }
+
+  // #GP(0) if setting XCR0.opmask, XCR0.ZMM_Hi256, or XCR0.Hi16_ZMM while not setting all of them
+  if (new_xcr0.opmask != new_xcr0.ZMM_Hi256 || new_xcr0.ZMM_Hi256 != new_xcr0.Hi16_ZMM) {
+    inject_hw_exception(general_protection);
+    return;
+  }
+
+  _xsetbv(vcpu->ctx()->ecx, new_xcr0.flags);
+
+  skip_instruction();
 }
 
 void emulate_vmxon(vcpu*) {

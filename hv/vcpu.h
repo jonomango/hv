@@ -27,11 +27,14 @@ struct cached_vcpu_data {
   // maximum number of bits in a physical address (MAXPHYSADDR)
   uint64_t max_phys_addr;
 
-  // reserved bits in CR0/CR44
+  // reserved bits in CR0/CR4
   uint64_t vmx_cr0_fixed0;
   uint64_t vmx_cr0_fixed1;
   uint64_t vmx_cr4_fixed0;
   uint64_t vmx_cr4_fixed1;
+
+  // mask of unsupported processor state components for XCR0
+  uint64_t xcr0_unsupported_mask;
 };
 
 class vcpu {

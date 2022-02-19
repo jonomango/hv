@@ -94,6 +94,13 @@ void vcpu::cache_vcpu_data() {
   cached_.vmx_cr0_fixed1 = __readmsr(IA32_VMX_CR0_FIXED1);
   cached_.vmx_cr4_fixed0 = __readmsr(IA32_VMX_CR4_FIXED0);
   cached_.vmx_cr4_fixed1 = __readmsr(IA32_VMX_CR4_FIXED1);
+
+  cpuid_eax_0d_ecx_00 cpuid_0d;
+  __cpuidex(reinterpret_cast<int*>(&cpuid_0d), 0x0D, 0x00);
+  
+  // features in XCR0 that are supported
+  cached_.xcr0_unsupported_mask = ~((static_cast<uint64_t>(
+    cpuid_0d.edx.flags) << 32) | cpuid_0d.eax.flags);
 }
 
 // perform certain actions that are required before entering vmx operation
@@ -276,7 +283,7 @@ void vcpu::write_vmcs_ctrl_fields() {
   // 3.24.6.7
   // try to trigger the least amount of CR3 exits as possible
   vmx_vmwrite(VMCS_CTRL_CR3_TARGET_COUNT,   1);
-  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, ghv().system_cr3.flags);
+  vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, ghv.system_cr3.flags);
 
   // 3.24.6.9
   vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&msr_bitmap_));
@@ -418,9 +425,9 @@ void vcpu::write_vmcs_guest_fields() {
 void vcpu::handle_vm_exit(guest_context* const ctx) {
   vmx_vmexit_reason exit_reason;
   exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
-
+  
   // get the current vcpu
-  auto const cpu = current_vcpu();
+  auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
   cpu->guest_ctx_ = ctx;
 
   switch (exit_reason.basic_exit_reason) {

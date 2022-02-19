@@ -4,10 +4,6 @@
 
 namespace hv {
 
-// virtualize the current system
-bool start();
-
-// only one instance of the hypervisor may be running on the system
 struct hypervisor {
   // dynamically allocated array of vcpus
   unsigned long vcpu_count = 0;
@@ -17,10 +13,10 @@ struct hypervisor {
   cr3 system_cr3;
 };
 
-// get the global hypervisor
-hypervisor const& ghv();
+// global instance of the hypervisor
+extern hypervisor ghv;
 
-// get the current vcpu
-class vcpu* current_vcpu();
+// virtualize the current system
+bool start();
 
 } // namespace hv

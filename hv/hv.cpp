@@ -5,43 +5,36 @@
 
 namespace hv {
 
-namespace {
-
-// yucky global variables :(
-hypervisor global_hypervisor;
+hypervisor ghv;
 
 // allocate and initialize various hypervisor structures before virtualizing
-bool prepare_hv() {
+static bool prepare_hv() {
   // hypervisor is already running -_-
-  if (global_hypervisor.vcpus)
+  if (ghv.vcpus)
     return false;
 
-  global_hypervisor.vcpu_count = KeQueryActiveProcessorCount(nullptr);
+  ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
   // size of the vcpu array
-  auto const arr_size = sizeof(vcpu) * global_hypervisor.vcpu_count;
+  auto const arr_size = sizeof(vcpu) * ghv.vcpu_count;
 
   // allocate an array of vcpus
-  global_hypervisor.vcpus = static_cast<vcpu*>(
-    alloc_aligned(arr_size, alignof(vcpu)));
+  ghv.vcpus = static_cast<vcpu*>(alloc_aligned(arr_size, alignof(vcpu)));
 
-  if (!global_hypervisor.vcpus)
+  if (!ghv.vcpus)
     return false;
 
-  DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n",
-    global_hypervisor.vcpu_count, arr_size);
+  DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n", ghv.vcpu_count, arr_size);
 
   // zero-initialize the vcpu array
-  memset(global_hypervisor.vcpus, 0, arr_size);
+  memset(ghv.vcpus, 0, arr_size);
 
   // store the System cr3 value (found in the System EPROCESS structure)
-  global_hypervisor.system_cr3 = *reinterpret_cast<cr3*>(
+  ghv.system_cr3 = *reinterpret_cast<cr3*>(
     reinterpret_cast<uint8_t*>(PsInitialSystemProcess) + 0x28);
 
   return true;
 }
-
-} // namespace
 
 // virtualize the current system
 bool start() {
@@ -53,13 +46,11 @@ bool start() {
   NT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
 
   // virtualize every cpu
-  for (unsigned long i = 0; i < global_hypervisor.vcpu_count; ++i) {
-    vcpu& cpu = global_hypervisor.vcpus[i];
-
+  for (unsigned long i = 0; i < ghv.vcpu_count; ++i) {
     // restrict execution to the specified cpu
     auto const orig_affinity = KeSetSystemAffinityThreadEx(1ull << i);
 
-    if (!cpu.virtualize()) {
+    if (!ghv.vcpus[i].virtualize()) {
       // TODO: handle this bruh -_-
       KeRevertToUserAffinityThreadEx(orig_affinity);
       return false;
@@ -69,16 +60,6 @@ bool start() {
   }
 
   return true;
-}
-
-// get the global hypervisor
-hypervisor const& ghv() {
-  return global_hypervisor;
-}
-
-// get the current vcpu
-vcpu* current_vcpu() {
-  return (vcpu*)_readfsbase_u64();
 }
 
 } // namespace hv
