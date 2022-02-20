@@ -1,4 +1,5 @@
 #include "page-tables.h"
+#include "vcpu.h"
 #include "hv.h"
 #include "mm.h"
 

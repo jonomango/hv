@@ -7,6 +7,8 @@
 
 namespace hv {
 
+// TODO: why are all these constants defined in vcpu.h?
+
 // selectors for the host GDT
 inline constexpr segment_selector host_cs_selector = { 0, 0, 1 };
 inline constexpr segment_selector host_tr_selector = { 0, 0, 2 };
@@ -19,6 +21,9 @@ inline constexpr size_t host_idt_descriptor_count = 256;
 
 // size of the host stack for handling vm-exits
 inline constexpr size_t host_stack_size = 0x6000;
+
+// the first 128GB of physical memory is mapped to this pml4 entry
+constexpr inline uint64_t host_physical_memory_pml4_idx = 255;
 
 // guest virtual-processor identifier
 inline constexpr uint16_t guest_vpid = 1;
@@ -38,6 +43,9 @@ struct cached_vcpu_data {
 
   // IA32_FEATURE_CONTROL MSR
   ia32_feature_control_register feature_control;
+  
+  // CPUID 0x01
+  cpuid_eax_01 cpuid_01;
 };
 
 class vcpu {

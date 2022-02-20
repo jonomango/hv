@@ -40,10 +40,15 @@ void emulate_rdmsr(vcpu* const vcpu) {
   if (vcpu->ctx()->ecx == IA32_FEATURE_CONTROL) {
     auto feature_control = vcpu->cdata()->feature_control;
 
-    // spoof IA32_FEATURE_CONTROL to look like VMX is disabled
-    feature_control.lock_bit = 1;
-    feature_control.enable_vmx_inside_smx = 0;
+    feature_control.lock_bit               = 1;
+
+    // disable VMX
+    feature_control.enable_vmx_inside_smx  = 0;
     feature_control.enable_vmx_outside_smx = 0;
+
+    // disable SMX
+    feature_control.senter_local_function_enables = 0;
+    feature_control.senter_global_enable          = 0;
 
     vcpu->ctx()->rax = feature_control.flags & 0xFFFF'FFFF;
     vcpu->ctx()->rdx = feature_control.flags >> 32;
@@ -61,6 +66,7 @@ void emulate_wrmsr(vcpu*) {
 }
 
 void emulate_getsec(vcpu*) {
+  // inject a #GP(0) since SMX is disabled in the IA32_FEATURE_CONTROL MSR
   inject_hw_exception(general_protection, 0);
 }
 
@@ -252,6 +258,7 @@ void emulate_mov_to_cr3(vcpu* const vcpu, uint64_t const gpr) {
 
 void emulate_mov_to_cr4(vcpu* const vcpu, uint64_t const gpr) {
   // 2.4.3
+  // 2.6.2.1
   // 3.2.5
   // 3.4.10.1
   // 3.4.10.4.1
@@ -267,6 +274,13 @@ void emulate_mov_to_cr4(vcpu* const vcpu, uint64_t const gpr) {
 
   cr0 curr_cr0;
   curr_cr0.flags = vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW);
+
+  // #GP(0) if an attempt is made to set CR4.SMXE when SMX is not supported
+  if (!vcpu->cdata()->cpuid_01.cpuid_feature_information_ecx.safer_mode_extensions
+      && new_cr4.smx_enable) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
 
   // #GP(0) if an attempt is made to write a 1 to any reserved bits
   if (new_cr4.reserved1 || new_cr4.reserved2) {

@@ -103,6 +103,8 @@ void vcpu::cache_vcpu_data() {
     cpuid_0d.edx.flags) << 32) | cpuid_0d.eax.flags);
 
   cached_.feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
+
+  __cpuid(reinterpret_cast<int*>(&cached_.cpuid_01), 0x01);
 }
 
 // perform certain actions that are required before entering vmx operation
