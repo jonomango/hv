@@ -68,24 +68,6 @@ void emulate_invd(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-// TODO: add to ia32
-union xcr0 {
-  struct {
-    uint64_t X87 : 1; // 0
-    uint64_t SSE : 1; // 1
-    uint64_t AVX : 1; // 2
-    uint64_t BNDREG : 1; // 3
-    uint64_t BNDCSR : 1; // 4
-    uint64_t opmask : 1; // 5
-    uint64_t ZMM_Hi256 : 1; // 6
-    uint64_t Hi16_ZMM : 1; // 7
-    uint64_t reserved1 : 1;
-    uint64_t PKRU : 1; // 9
-  };
-
-  uint64_t flags;
-};
-
 void emulate_xsetbv(vcpu* const vcpu) {
   // 3.2.6
 
@@ -108,31 +90,31 @@ void emulate_xsetbv(vcpu* const vcpu) {
   }
 
   // #GP(0) if clearing XCR0.X87
-  if (!new_xcr0.X87) {
+  if (!new_xcr0.x87) {
     inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if XCR0.AVX is 1 while XCRO.SSE is cleared
-  if (new_xcr0.AVX && !new_xcr0.SSE) {
+  if (new_xcr0.avx && !new_xcr0.sse) {
     inject_hw_exception(general_protection);
     return;
   }
 
   // #GP(0) if XCR0.AVX is clear and XCR0.opmask, XCR0.ZMM_Hi256, or XCR0.Hi16_ZMM is set
-  if (!new_xcr0.AVX && (new_xcr0.opmask || new_xcr0.ZMM_Hi256 || new_xcr0.Hi16_ZMM)) {
+  if (!new_xcr0.avx && (new_xcr0.opmask || new_xcr0.zmm_hi256 || new_xcr0.zmm_hi16)) {
     inject_hw_exception(general_protection);
     return;
   }
 
   // #GP(0) if setting XCR0.BNDREG or XCR0.BNDCSR while not setting the other
-  if (new_xcr0.BNDREG != new_xcr0.BNDCSR) {
+  if (new_xcr0.bndreg != new_xcr0.bndcsr) {
     inject_hw_exception(general_protection);
     return;
   }
 
   // #GP(0) if setting XCR0.opmask, XCR0.ZMM_Hi256, or XCR0.Hi16_ZMM while not setting all of them
-  if (new_xcr0.opmask != new_xcr0.ZMM_Hi256 || new_xcr0.ZMM_Hi256 != new_xcr0.Hi16_ZMM) {
+  if (new_xcr0.opmask != new_xcr0.zmm_hi256 || new_xcr0.zmm_hi256 != new_xcr0.zmm_hi16) {
     inject_hw_exception(general_protection);
     return;
   }

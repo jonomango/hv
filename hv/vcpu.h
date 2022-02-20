@@ -114,6 +114,7 @@ private:
   segment_descriptor_32 host_gdt_[host_gdt_descriptor_count];
 
   // host control registers
+  // TODO: these don't need to be stored...
   cr0 host_cr0_;
   cr3 host_cr3_;
   cr4 host_cr4_;
