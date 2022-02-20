@@ -352,8 +352,34 @@ void emulate_clts(vcpu*) {
   skip_instruction();
 }
 
-void emulate_lmsw(vcpu*) {
-  inject_hw_exception(general_protection, 0);
+void emulate_lmsw(vcpu*, uint16_t const value) {
+  // 3.25.1.3
+
+  cr0 new_cr0;
+  new_cr0.flags = value;
+
+  // update the guest CR0 read shadow
+  cr0 shadow_cr0;
+  shadow_cr0.flags = vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW);
+  shadow_cr0.protection_enable   = new_cr0.protection_enable;
+  shadow_cr0.monitor_coprocessor = new_cr0.monitor_coprocessor;
+  shadow_cr0.emulate_fpu         = new_cr0.emulate_fpu;
+  shadow_cr0.task_switched       = new_cr0.task_switched;
+  vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, shadow_cr0.flags);
+
+  // update the real guest CR0.
+  // we don't have to worry about VMX reserved bits since CR0.PE (the only
+  // reserved bit) can't be cleared to 0 by the LMSW instruction while in
+  // protected mode.
+  cr0 real_cr0;
+  real_cr0.flags = vmx_vmread(VMCS_GUEST_CR0);
+  real_cr0.protection_enable   = new_cr0.protection_enable;
+  real_cr0.monitor_coprocessor = new_cr0.monitor_coprocessor;
+  real_cr0.emulate_fpu         = new_cr0.emulate_fpu;
+  real_cr0.task_switched       = new_cr0.task_switched;
+  vmx_vmwrite(VMCS_GUEST_CR0, real_cr0.flags);
+
+  skip_instruction();
 }
 
 void handle_mov_cr(vcpu* const cpu) {
@@ -386,7 +412,7 @@ void handle_mov_cr(vcpu* const cpu) {
     break;
   // LMSW XXX
   case VMX_EXIT_QUALIFICATION_ACCESS_LMSW:
-    emulate_lmsw(cpu);
+    emulate_lmsw(cpu, qualification.lmsw_source_data);
     break;
   }
 }

@@ -32,7 +32,7 @@ void emulate_mov_from_cr3(vcpu* cpu, uint64_t gpr);
 
 void emulate_clts(vcpu* cpu);
 
-void emulate_lmsw(vcpu* cpu);
+void emulate_lmsw(vcpu* cpu, uint16_t value);
 
 void handle_mov_cr(vcpu* cpu);
 
