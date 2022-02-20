@@ -20,7 +20,7 @@ void emulate_xsetbv(vcpu* cpu);
 
 void emulate_vmxon(vcpu* cpu);
 
-void emulate_vmcall(vcpu* cpu);
+void handle_vmcall(vcpu* cpu);
 
 void emulate_mov_to_cr0(vcpu* cpu, uint64_t gpr);
 
@@ -39,6 +39,8 @@ void handle_mov_cr(vcpu* cpu);
 void handle_nmi_window(vcpu* cpu);
 
 void handle_exception_or_nmi(vcpu* cpu);
+
+void handle_vmx_instruction(vcpu* cpu);
 
 } // namespace hv
 

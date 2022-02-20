@@ -441,10 +441,9 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   case VMX_EXIT_REASON_EXECUTE_WRMSR:    emulate_wrmsr(cpu);           break;
   case VMX_EXIT_REASON_EXECUTE_XSETBV:   emulate_xsetbv(cpu);          break;
   case VMX_EXIT_REASON_EXECUTE_VMXON:    emulate_vmxon(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_VMCALL:   emulate_vmcall(cpu);          break;
+  case VMX_EXIT_REASON_EXECUTE_VMCALL:   handle_vmcall(cpu);           break;
 
-  // inject #UD for every VMX instruction since we
-  // don't allow the guest to ever enter VMX operation.
+  // every VMX instruction (besides VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:
   case VMX_EXIT_REASON_EXECUTE_VMCLEAR:
@@ -455,9 +454,7 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   case VMX_EXIT_REASON_EXECUTE_VMRESUME:
   case VMX_EXIT_REASON_EXECUTE_VMWRITE:
   case VMX_EXIT_REASON_EXECUTE_VMXOFF:
-  case VMX_EXIT_REASON_EXECUTE_VMFUNC:
-    inject_hw_exception(invalid_opcode);
-    break;
+  case VMX_EXIT_REASON_EXECUTE_VMFUNC:   handle_vmx_instruction(cpu);  break;
   }
 }
 

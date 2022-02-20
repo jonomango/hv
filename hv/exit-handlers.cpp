@@ -7,38 +7,38 @@ namespace hv {
 
 namespace {
 
-uint64_t read_guest_gpr(vcpu* const vcpu,
+uint64_t read_guest_gpr(vcpu* const cpu,
   uint64_t const gpr) {
   if (gpr == VMX_EXIT_QUALIFICATION_GENREG_RSP)
     return vmx_vmread(VMCS_GUEST_RSP);
-  return vcpu->ctx()->gpr[gpr];
+  return cpu->ctx()->gpr[gpr];
 }
 
-void write_guest_gpr(vcpu* const vcpu,
+void write_guest_gpr(vcpu* const cpu,
   uint64_t const gpr, uint64_t const value) {
   if (gpr == VMX_EXIT_QUALIFICATION_GENREG_RSP)
     vmx_vmwrite(VMCS_GUEST_RSP, value);
   else
-    vcpu->ctx()->gpr[gpr] = value;
+    cpu->ctx()->gpr[gpr] = value;
 }
 
 } // namespace
 
-void emulate_cpuid(vcpu* const vcpu) {
+void emulate_cpuid(vcpu* const cpu) {
   int regs[4];
-  __cpuidex(regs, vcpu->ctx()->eax, vcpu->ctx()->ecx);
+  __cpuidex(regs, cpu->ctx()->eax, cpu->ctx()->ecx);
 
-  vcpu->ctx()->rax = regs[0];
-  vcpu->ctx()->rbx = regs[1];
-  vcpu->ctx()->rcx = regs[2];
-  vcpu->ctx()->rdx = regs[3];
+  cpu->ctx()->rax = regs[0];
+  cpu->ctx()->rbx = regs[1];
+  cpu->ctx()->rcx = regs[2];
+  cpu->ctx()->rdx = regs[3];
 
   skip_instruction();
 }
 
-void emulate_rdmsr(vcpu* const vcpu) {
-  if (vcpu->ctx()->ecx == IA32_FEATURE_CONTROL) {
-    auto feature_control = vcpu->cdata()->feature_control;
+void emulate_rdmsr(vcpu* const cpu) {
+  if (cpu->ctx()->ecx == IA32_FEATURE_CONTROL) {
+    auto feature_control = cpu->cdata()->feature_control;
 
     feature_control.lock_bit               = 1;
 
@@ -50,8 +50,8 @@ void emulate_rdmsr(vcpu* const vcpu) {
     feature_control.senter_local_function_enables = 0;
     feature_control.senter_global_enable          = 0;
 
-    vcpu->ctx()->rax = feature_control.flags & 0xFFFF'FFFF;
-    vcpu->ctx()->rdx = feature_control.flags >> 32;
+    cpu->ctx()->rax = feature_control.flags & 0xFFFF'FFFF;
+    cpu->ctx()->rdx = feature_control.flags >> 32;
 
     skip_instruction();
     return;
@@ -74,23 +74,23 @@ void emulate_invd(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-void emulate_xsetbv(vcpu* const vcpu) {
+void emulate_xsetbv(vcpu* const cpu) {
   // 3.2.6
 
   xcr0 new_xcr0;
-  new_xcr0.flags = (vcpu->ctx()->rdx << 32) | vcpu->ctx()->eax;
+  new_xcr0.flags = (cpu->ctx()->rdx << 32) | cpu->ctx()->eax;
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
 
   // only XCR0 is supported
-  if (vcpu->ctx()->ecx != 0) {
+  if (cpu->ctx()->ecx != 0) {
     inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if trying to set an unsupported bit
-  if (new_xcr0.flags & vcpu->cdata()->xcr0_unsupported_mask) {
+  if (new_xcr0.flags & cpu->cdata()->xcr0_unsupported_mask) {
     inject_hw_exception(general_protection, 0);
     return;
   }
@@ -125,7 +125,7 @@ void emulate_xsetbv(vcpu* const vcpu) {
     return;
   }
 
-  _xsetbv(vcpu->ctx()->ecx, new_xcr0.flags);
+  _xsetbv(cpu->ctx()->ecx, new_xcr0.flags);
 
   skip_instruction();
 }
@@ -136,18 +136,18 @@ void emulate_vmxon(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-void emulate_vmcall(vcpu*) {
+void handle_vmcall(vcpu*) {
   inject_hw_exception(invalid_opcode);
 }
 
-void emulate_mov_to_cr0(vcpu* const vcpu, uint64_t const gpr) {
+void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   // 2.4.3
   // 3.2.5
   // 3.4.10.1
   // 3.26.3.2.1
 
   cr0 new_cr0;
-  new_cr0.flags = read_guest_gpr(vcpu, gpr);
+  new_cr0.flags = read_guest_gpr(cpu, gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -208,17 +208,17 @@ void emulate_mov_to_cr0(vcpu* const vcpu, uint64_t const gpr) {
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, new_cr0.flags);
 
   // make sure to account for VMX reserved bits when setting the real CR0
-  new_cr0.flags |= vcpu->cdata()->vmx_cr0_fixed0;
-  new_cr0.flags &= vcpu->cdata()->vmx_cr0_fixed1;
+  new_cr0.flags |= cpu->cdata()->vmx_cr0_fixed0;
+  new_cr0.flags &= cpu->cdata()->vmx_cr0_fixed1;
 
   vmx_vmwrite(VMCS_GUEST_CR0, new_cr0.flags);
 
   skip_instruction();
 }
 
-void emulate_mov_to_cr3(vcpu* const vcpu, uint64_t const gpr) {
+void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   cr3 new_cr3;
-  new_cr3.flags = read_guest_gpr(vcpu, gpr);
+  new_cr3.flags = read_guest_gpr(cpu, gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -232,7 +232,7 @@ void emulate_mov_to_cr3(vcpu* const vcpu, uint64_t const gpr) {
   }
 
   // a mask where bits [63:MAXPHYSADDR] are set to 1
-  auto const reserved_mask = ~((1ull << vcpu->cdata()->max_phys_addr) - 1);
+  auto const reserved_mask = ~((1ull << cpu->cdata()->max_phys_addr) - 1);
 
   // 3.2.5
   if (new_cr3.flags & reserved_mask) {
@@ -256,7 +256,7 @@ void emulate_mov_to_cr3(vcpu* const vcpu, uint64_t const gpr) {
   skip_instruction();
 }
 
-void emulate_mov_to_cr4(vcpu* const vcpu, uint64_t const gpr) {
+void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   // 2.4.3
   // 2.6.2.1
   // 3.2.5
@@ -264,7 +264,7 @@ void emulate_mov_to_cr4(vcpu* const vcpu, uint64_t const gpr) {
   // 3.4.10.4.1
 
   cr4 new_cr4;
-  new_cr4.flags = read_guest_gpr(vcpu, gpr);
+  new_cr4.flags = read_guest_gpr(cpu, gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -276,7 +276,7 @@ void emulate_mov_to_cr4(vcpu* const vcpu, uint64_t const gpr) {
   curr_cr0.flags = vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW);
 
   // #GP(0) if an attempt is made to set CR4.SMXE when SMX is not supported
-  if (!vcpu->cdata()->cpuid_01.cpuid_feature_information_ecx.safer_mode_extensions
+  if (!cpu->cdata()->cpuid_01.cpuid_feature_information_ecx.safer_mode_extensions
       && new_cr4.smx_enable) {
     inject_hw_exception(general_protection, 0);
     return;
@@ -327,16 +327,16 @@ void emulate_mov_to_cr4(vcpu* const vcpu, uint64_t const gpr) {
   vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, new_cr4.flags);
 
   // make sure to account for VMX reserved bits when setting the real CR4
-  new_cr4.flags |= vcpu->cdata()->vmx_cr4_fixed0;
-  new_cr4.flags &= vcpu->cdata()->vmx_cr4_fixed1;
+  new_cr4.flags |= cpu->cdata()->vmx_cr4_fixed0;
+  new_cr4.flags &= cpu->cdata()->vmx_cr4_fixed1;
 
   vmx_vmwrite(VMCS_GUEST_CR4, new_cr4.flags);
 
   skip_instruction();
 }
 
-void emulate_mov_from_cr3(vcpu* const vcpu, uint64_t const gpr) {
-  write_guest_gpr(vcpu, gpr, vmx_vmread(VMCS_GUEST_CR3));
+void emulate_mov_from_cr3(vcpu* const cpu, uint64_t const gpr) {
+  write_guest_gpr(cpu, gpr, vmx_vmread(VMCS_GUEST_CR3));
   skip_instruction();
 }
 
@@ -348,7 +348,7 @@ void emulate_lmsw(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-void handle_mov_cr(vcpu* const vcpu) {
+void handle_mov_cr(vcpu* const cpu) {
   vmx_exit_qualification_mov_cr qualification;
   qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
 
@@ -357,28 +357,28 @@ void handle_mov_cr(vcpu* const vcpu) {
   case VMX_EXIT_QUALIFICATION_ACCESS_MOV_TO_CR:
     switch (qualification.control_register) {
     case VMX_EXIT_QUALIFICATION_REGISTER_CR0:
-      emulate_mov_to_cr0(vcpu, qualification.general_purpose_register);
+      emulate_mov_to_cr0(cpu, qualification.general_purpose_register);
       break;
     case VMX_EXIT_QUALIFICATION_REGISTER_CR3:
-      emulate_mov_to_cr3(vcpu, qualification.general_purpose_register);
+      emulate_mov_to_cr3(cpu, qualification.general_purpose_register);
       break;
     case VMX_EXIT_QUALIFICATION_REGISTER_CR4:
-      emulate_mov_to_cr4(vcpu, qualification.general_purpose_register);
+      emulate_mov_to_cr4(cpu, qualification.general_purpose_register);
       break;
     }
     break;
   // MOV XXX, CRn
   case VMX_EXIT_QUALIFICATION_ACCESS_MOV_FROM_CR:
     // TODO: assert that we're accessing CR3 (and not CR8)
-    emulate_mov_from_cr3(vcpu, qualification.general_purpose_register);
+    emulate_mov_from_cr3(cpu, qualification.general_purpose_register);
     break;
   // CLTS
   case VMX_EXIT_QUALIFICATION_ACCESS_CLTS:
-    emulate_clts(vcpu);
+    emulate_clts(cpu);
     break;
   // LMSW XXX
   case VMX_EXIT_QUALIFICATION_ACCESS_LMSW:
-    emulate_lmsw(vcpu);
+    emulate_lmsw(cpu);
     break;
   }
 }
@@ -396,6 +396,12 @@ void handle_exception_or_nmi(vcpu*) {
   auto ctrl = read_ctrl_proc_based();
   ctrl.nmi_window_exiting = 1;
   write_ctrl_proc_based(ctrl);
+}
+
+void handle_vmx_instruction(vcpu*) {
+  // inject #UD for every VMX instruction since we
+  // don't allow the guest to ever enter VMX operation.
+  inject_hw_exception(invalid_opcode);
 }
 
 } // namespace hv
