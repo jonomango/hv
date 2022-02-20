@@ -103,21 +103,11 @@ private:
   // host task state segment
   alignas(0x1000) task_state_segment_64 host_tss_;
 
-  // host page tables
-  // TODO: make per-hv not per-vcpu
-  alignas(0x1000) host_page_tables host_page_tables_;
-
   // host interrupt descriptor table
   segment_descriptor_interrupt_gate_64 host_idt_[host_idt_descriptor_count];
 
   // host global descriptor table
   segment_descriptor_32 host_gdt_[host_gdt_descriptor_count];
-
-  // host control registers
-  // TODO: these don't need to be stored...
-  cr0 host_cr0_;
-  cr3 host_cr3_;
-  cr4 host_cr4_;
 
   // pointer to the current guest context, set in exit-handler
   guest_context* guest_ctx_;

@@ -196,17 +196,6 @@ void vcpu::prepare_external_structures() {
 
   prepare_host_idt(host_idt_);
   prepare_host_gdt(host_gdt_, &host_tss_);
-  prepare_host_page_tables(host_page_tables_);
-
-  // setup the host CR3 to point to our own page tables
-  host_cr3_.flags = 0;
-  host_cr3_.page_level_cache_disable = 0;
-  host_cr3_.page_level_write_through = 0;
-  host_cr3_.address_of_page_directory = get_physical(&host_page_tables_.pml4) >> 12;
-
-  // TODO: use our own CR0/CR4
-  host_cr0_.flags = __readcr0();
-  host_cr4_.flags = __readcr4();
 }
 
 // write VMCS control fields
@@ -313,9 +302,16 @@ void vcpu::write_vmcs_host_fields() {
   // 3.24.5
   // 3.26.2
 
-  vmx_vmwrite(VMCS_HOST_CR0, host_cr0_.flags);
-  vmx_vmwrite(VMCS_HOST_CR3, host_cr3_.flags);
-  vmx_vmwrite(VMCS_HOST_CR4, host_cr4_.flags);
+  cr3 host_cr3;
+  host_cr3.flags                     = 0;
+  host_cr3.page_level_cache_disable  = 0;
+  host_cr3.page_level_write_through  = 0;
+  host_cr3.address_of_page_directory = get_physical(&ghv.host_page_tables.pml4) >> 12;
+  vmx_vmwrite(VMCS_HOST_CR3, host_cr3.flags);
+
+  // TODO: setup our own CR0/CR4
+  vmx_vmwrite(VMCS_HOST_CR0, __readcr0());
+  vmx_vmwrite(VMCS_HOST_CR4, __readcr4());
 
   // ensure that rsp is NOT aligned to 16 bytes when execution starts
   auto const rsp = ((reinterpret_cast<size_t>(

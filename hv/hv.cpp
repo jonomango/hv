@@ -33,6 +33,8 @@ static bool prepare_hv() {
   ghv.system_cr3 = *reinterpret_cast<cr3*>(
     reinterpret_cast<uint8_t*>(PsInitialSystemProcess) + 0x28);
 
+  prepare_host_page_tables();
+
   return true;
 }
 

@@ -1,10 +1,15 @@
 #pragma once
 
+#include "page-tables.h"
+
 #include <ia32.hpp>
 
 namespace hv {
 
 struct hypervisor {
+  // host page tables that are shared between vcpus
+  host_page_tables host_page_tables;
+
   // dynamically allocated array of vcpus
   unsigned long vcpu_count = 0;
   class vcpu* vcpus = nullptr;
