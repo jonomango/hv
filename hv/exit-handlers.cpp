@@ -341,7 +341,15 @@ void emulate_mov_from_cr3(vcpu* const cpu, uint64_t const gpr) {
 }
 
 void emulate_clts(vcpu*) {
-  inject_hw_exception(general_protection, 0);
+  // clear CR0.TS in the read shadow
+  vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, 
+    vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW) & ~CR0_TASK_SWITCHED_FLAG);
+
+  // clear CR0.TS in the real CR0 register
+  vmx_vmwrite(VMCS_GUEST_CR0,
+    vmx_vmread(VMCS_GUEST_CR0) & ~CR0_TASK_SWITCHED_FLAG);
+
+  skip_instruction();
 }
 
 void emulate_lmsw(vcpu*) {
