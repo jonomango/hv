@@ -35,7 +35,7 @@ guest_context ends
 extern ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z : proc
 
 ; execution starts here after a vm-exit
-?__vm_exit@hv@@YAXXZ proc
+?vm_exit@vcpu@hv@@CAXXZ proc
   ; allocate space on the stack to store the guest context
   sub rsp, 0C0h
 
@@ -118,7 +118,7 @@ extern ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z : proc
   mov r15, guest_context.$r15[rsp]
 
   vmresume
-?__vm_exit@hv@@YAXXZ endp
+?vm_exit@vcpu@hv@@CAXXZ endp
 
 end
 

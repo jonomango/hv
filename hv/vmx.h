@@ -1,6 +1,7 @@
 #pragma once
 
 #include "arch.h"
+#include "guest-context.h"
 
 namespace hv {
 
@@ -35,6 +36,14 @@ void write_interruptibility_state(vmx_interruptibility_state value);
 
 // read the guest interruptibility state
 vmx_interruptibility_state read_interruptibility_state();
+
+
+
+// write to a guest general-purpose register
+void write_guest_gpr(guest_context* ctx, uint64_t gpr_idx, uint64_t value);
+
+// read a guest general-purpose register
+uint64_t read_guest_gpr(guest_context const* ctx, uint64_t gpr_idx);
 
 
 

@@ -5,33 +5,16 @@
 
 namespace hv {
 
-namespace {
-
-uint64_t read_guest_gpr(vcpu* const cpu,
-  uint64_t const gpr) {
-  if (gpr == VMX_EXIT_QUALIFICATION_GENREG_RSP)
-    return vmx_vmread(VMCS_GUEST_RSP);
-  return cpu->ctx()->gpr[gpr];
-}
-
-void write_guest_gpr(vcpu* const cpu,
-  uint64_t const gpr, uint64_t const value) {
-  if (gpr == VMX_EXIT_QUALIFICATION_GENREG_RSP)
-    vmx_vmwrite(VMCS_GUEST_RSP, value);
-  else
-    cpu->ctx()->gpr[gpr] = value;
-}
-
-} // namespace
-
 void emulate_cpuid(vcpu* const cpu) {
-  int regs[4];
-  __cpuidex(regs, cpu->ctx()->eax, cpu->ctx()->ecx);
+  auto const ctx = cpu->ctx();
 
-  cpu->ctx()->rax = regs[0];
-  cpu->ctx()->rbx = regs[1];
-  cpu->ctx()->rcx = regs[2];
-  cpu->ctx()->rdx = regs[3];
+  int regs[4];
+  __cpuidex(regs, ctx->eax, ctx->ecx);
+
+  ctx->rax = regs[0];
+  ctx->rbx = regs[1];
+  ctx->rcx = regs[2];
+  ctx->rdx = regs[3];
 
   skip_instruction();
 }
@@ -147,7 +130,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   // 3.26.3.2.1
 
   cr0 new_cr0;
-  new_cr0.flags = read_guest_gpr(cpu, gpr);
+  new_cr0.flags = read_guest_gpr(cpu->ctx(), gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -218,7 +201,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
 void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   cr3 new_cr3;
-  new_cr3.flags = read_guest_gpr(cpu, gpr);
+  new_cr3.flags = read_guest_gpr(cpu->ctx(), gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -264,7 +247,7 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   // 3.4.10.4.1
 
   cr4 new_cr4;
-  new_cr4.flags = read_guest_gpr(cpu, gpr);
+  new_cr4.flags = read_guest_gpr(cpu->ctx(), gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -336,13 +319,13 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
 }
 
 void emulate_mov_from_cr3(vcpu* const cpu, uint64_t const gpr) {
-  write_guest_gpr(cpu, gpr, vmx_vmread(VMCS_GUEST_CR3));
+  write_guest_gpr(cpu->ctx(), gpr, vmx_vmread(VMCS_GUEST_CR3));
   skip_instruction();
 }
 
 void emulate_clts(vcpu*) {
   // clear CR0.TS in the read shadow
-  vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, 
+  vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW,
     vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW) & ~CR0_TASK_SWITCHED_FLAG);
 
   // clear CR0.TS in the real CR0 register

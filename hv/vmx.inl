@@ -60,6 +60,25 @@ inline uint64_t vmx_vmread(uint64_t const field) {
 
 
 
+// write to a guest general-purpose register
+inline void write_guest_gpr(guest_context* const ctx,
+    uint64_t const gpr_idx, uint64_t const value) {
+  if (gpr_idx == VMX_EXIT_QUALIFICATION_GENREG_RSP)
+    vmx_vmwrite(VMCS_GUEST_RSP, value);
+  else
+    ctx->gpr[gpr_idx] = value;
+}
+
+// read a guest general-purpose register
+inline uint64_t read_guest_gpr(guest_context const* const ctx,
+    uint64_t const gpr_idx) {
+  if (gpr_idx == VMX_EXIT_QUALIFICATION_GENREG_RSP)
+    return vmx_vmread(VMCS_GUEST_RSP);
+  return ctx->gpr[gpr_idx];
+}
+
+
+
 // write to the guest interruptibility state
 inline void write_interruptibility_state(vmx_interruptibility_state const value) {
   vmx_vmwrite(VMCS_GUEST_INTERRUPTIBILITY_STATE, value.flags);
@@ -179,7 +198,7 @@ inline ia32_vmx_entry_ctls_register read_ctrl_entry() {
 }
 
 
-// TODO: this should not be defined here!!!!
+
 // increment the instruction pointer after emulating an instruction
 inline void skip_instruction() {
   // increment rip

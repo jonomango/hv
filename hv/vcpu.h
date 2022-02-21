@@ -61,10 +61,10 @@ public:
   // toggle vm-exiting for this MSR in the MSR bitmap
   void toggle_exiting_for_msr(uint32_t msr, bool enabled);
 
-  // get the current guest context
+  // the current guest context
   guest_context* ctx() const { return guest_ctx_; }
 
-  // get data that is cached per-vcpu
+  // data that is cached per-vcpu
   cached_vcpu_data const* cdata() const { return &cached_; }
 
 private:
@@ -93,6 +93,12 @@ private:
   void write_vmcs_guest_fields();
 
 private:
+  // defined in vm-launch.asm
+  static bool vm_launch();
+
+  // defined in vm-exit.asm
+  static void vm_exit();
+
   // called for every vm-exit
   static void handle_vm_exit(struct guest_context* ctx);
 

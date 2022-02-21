@@ -11,12 +11,6 @@
 
 namespace hv {
 
-// defined in vm-launch.asm
-extern bool __vm_launch();
-
-// defined in vm-exit.asm
-extern void __vm_exit();
-
 // virtualize the current cpu
 // note, this assumes that execution is already restricted to the desired cpu
 bool vcpu::virtualize() {
@@ -53,7 +47,7 @@ bool vcpu::virtualize() {
   DbgPrint("[hv] Initialized VMCS fields.\n");
 
   // launch the virtual machine
-  if (!__vm_launch()) {
+  if (!vm_launch()) {
     DbgPrint("[hv] VMLAUNCH failed, error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
 
     // TODO: cleanup
@@ -320,7 +314,7 @@ void vcpu::write_vmcs_host_fields() {
     host_stack_) + host_stack_size) & ~0b1111ull) - 8;
 
   vmx_vmwrite(VMCS_HOST_RSP, rsp);
-  vmx_vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(__vm_exit));
+  vmx_vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(vm_exit));
 
   vmx_vmwrite(VMCS_HOST_CS_SELECTOR, host_cs_selector.flags);
   vmx_vmwrite(VMCS_HOST_SS_SELECTOR, 0x00);
@@ -423,12 +417,35 @@ void vcpu::write_vmcs_guest_fields() {
 
 // called for every vm-exit
 void vcpu::handle_vm_exit(guest_context* const ctx) {
-  vmx_vmexit_reason exit_reason;
-  exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
-  
   // get the current vcpu
   auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
   cpu->guest_ctx_ = ctx;
+
+  vmx_vmexit_reason exit_reason;
+  exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
+
+  vmentry_interrupt_information vectoring_info;
+  vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
+
+  // vm-exit during event delivery
+  // 3.27.2.4
+  if (vectoring_info.valid) {
+    // an example scenario:
+    // + host injects an interrupt into the guest.
+    // + the guest IDT is marked as not readable with EPT.
+    // + EPT violation (vm-exit) occurs while injecting event (previous interrupt).
+    //
+    // to properly handle this, we should:
+    // + handle the EPT violation.
+    // + attempt to inject the previous event again.
+    //
+    // possible issues:
+    // + if the vm-exit handler tries to inject an event.
+    //   - we can't inject 2 events at once, so one will have to be lost.
+    // + if the vm-exit handler advances RIP then the event will be delivered
+    //   on the wrong instruction boundary.
+    //   - we should only re-inject for vm-exits that don't emulate instructions.
+  }
 
   switch (exit_reason.basic_exit_reason) {
   case VMX_EXIT_REASON_EXCEPTION_OR_NMI: handle_exception_or_nmi(cpu); break;
@@ -443,7 +460,7 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   case VMX_EXIT_REASON_EXECUTE_VMXON:    emulate_vmxon(cpu);           break;
   case VMX_EXIT_REASON_EXECUTE_VMCALL:   handle_vmcall(cpu);           break;
 
-  // every VMX instruction (besides VMXON and VMCALL)
+  // VMX instructions (besides VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:
   case VMX_EXIT_REASON_EXECUTE_VMCLEAR:
@@ -456,6 +473,9 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   case VMX_EXIT_REASON_EXECUTE_VMXOFF:
   case VMX_EXIT_REASON_EXECUTE_VMFUNC:   handle_vmx_instruction(cpu);  break;
   }
+
+  // guest_ctx_ != nullptr only when it is usable
+  cpu->guest_ctx_ = nullptr;
 }
 
 // called for every host interrupt
