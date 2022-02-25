@@ -154,7 +154,13 @@ void emulate_vmcall(vcpu*) {
 }
 
 void handle_vmx_preemption(vcpu*) {
-  // do nothing (for now)
+  // reset the TSC offset to 0
+  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, 0);
+
+  // disable the preemption timer
+  auto pin_based = read_ctrl_pin_based();
+  pin_based.activate_vmx_preemption_timer = 0;
+  write_ctrl_pin_based(pin_based);
 }
 
 void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
