@@ -46,9 +46,11 @@ bool vcpu::virtualize() {
 
   DbgPrint("[hv] Initialized VMCS fields.\n");
 
+  vm_exit_tsc_latency_ = 0;
+
   // launch the virtual machine
   if (!vm_launch()) {
-    DbgPrint("[hv] VMLAUNCH failed, error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
+    DbgPrint("[hv] VMLAUNCH failed. Error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
 
     // TODO: cleanup
     vmx_vmxoff();
@@ -56,6 +58,10 @@ bool vcpu::virtualize() {
   }
 
   DbgPrint("[hv] Launched VCPU #%i.\n", KeGetCurrentProcessorIndex());
+
+  measure_tsc_latency();
+
+  DbgPrint("[hv] Measured VM-exit TSC latency: %zi.\n", vm_exit_tsc_latency_);
 
   return true;
 }
@@ -103,18 +109,17 @@ void vcpu::cache_vcpu_data() {
 
 // perform certain actions that are required before entering vmx operation
 bool vcpu::enable_vmx_operation() {
-  cpuid_eax_01 cpuid_1;
-  __cpuid(reinterpret_cast<int*>(&cpuid_1), 1);
-
   // 3.23.6
-  if (!cpuid_1.cpuid_feature_information_ecx.virtual_machine_extensions)
+  if (!cached_.cpuid_01.cpuid_feature_information_ecx.virtual_machine_extensions) {
+    DbgPrint("[hv] VMX not supported by CPUID.\n");
     return false;
-
-  auto const feature_control = cached_.feature_control;
+  }
 
   // 3.23.7
-  if (!feature_control.lock_bit || !feature_control.enable_vmx_outside_smx)
+  if (!cached_.feature_control.lock_bit || !cached_.feature_control.enable_vmx_outside_smx) {
+    DbgPrint("[hv] VMX not enabled outside SMX.\n");
     return false;
+  }
 
   _disable();
 
@@ -151,8 +156,10 @@ bool vcpu::enter_vmx_operation() {
   NT_ASSERT(vmxon_phys % 0x1000 == 0);
 
   // enter vmx operation
-  if (!vmx_vmxon(vmxon_phys))
+  if (!vmx_vmxon(vmxon_phys)) {
+    DbgPrint("[hv] VMXON failed.\n");
     return false;
+  }
 
   // 3.28.3.3.4
   vmx_invept(invept_all_context, {});
@@ -172,11 +179,15 @@ bool vcpu::load_vmcs_pointer() {
   auto vmcs_phys = get_physical(&vmcs_);
   NT_ASSERT(vmcs_phys % 0x1000 == 0);
 
-  if (!vmx_vmclear(vmcs_phys))
+  if (!vmx_vmclear(vmcs_phys)) {
+    DbgPrint("[hv] VMCLEAR failed.\n");
     return false;
+  }
 
-  if (!vmx_vmptrld(vmcs_phys))
+  if (!vmx_vmptrld(vmcs_phys)) {
+    DbgPrint("[hv] VMPTRLD failed.\n");
     return false;
+  }
 
   return true;
 }
@@ -213,6 +224,7 @@ void vcpu::write_vmcs_ctrl_fields() {
   proc_based_ctrl.cr3_store_exiting           = 1;
 #endif
   proc_based_ctrl.use_msr_bitmaps             = 1;
+  proc_based_ctrl.use_tsc_offsetting          = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
   write_ctrl_proc_based_safe(proc_based_ctrl);
 
@@ -250,6 +262,9 @@ void vcpu::write_vmcs_ctrl_fields() {
   // that a vm-exit is never triggered for a pagefault
   vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MASK,  0);
   vmx_vmwrite(VMCS_CTRL_PAGEFAULT_ERROR_CODE_MATCH, 0);
+  
+  // 3.24.6.5
+  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, 0);
 
   // 3.24.6.6
 #ifdef NDEBUG
@@ -415,6 +430,39 @@ void vcpu::write_vmcs_guest_fields() {
   vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, 0xFFFFFFFF'FFFFFFFFull);
 }
 
+// calculate the vm-exit TSC latency
+void vcpu::measure_tsc_latency() {
+  uint64_t lowest_latency = MAXULONGLONG;
+
+  // we dont want to be interrupted (NMIs and SMIs can fuck off)
+  _disable();
+
+  // measure the execution time of CPUID
+  for (int i = 0; i < 10; ++i) {
+    int regs[4];
+
+    _mm_lfence();
+    auto start = __rdtsc();
+    _mm_lfence();
+
+    __cpuidex(regs, 69, 69);
+
+    _mm_lfence();
+    auto end = __rdtsc();
+    _mm_lfence();
+
+    auto const curr = end - start;
+    if (curr < lowest_latency)
+      lowest_latency = curr;
+  }
+
+  _enable();
+
+  // use the lowest execution time as our offset + a little extra
+  // to ensure that we don't cause TSC delta to go negative.
+  vm_exit_tsc_latency_ = lowest_latency - 50;
+}
+
 // called for every vm-exit
 void vcpu::handle_vm_exit(guest_context* const ctx) {
   // get the current vcpu
@@ -424,54 +472,32 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
   vmx_vmexit_reason exit_reason;
   exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
+  if (cpu->vm_exit_tsc_latency_ == 0 && ctx->eax == 69 && ctx->ecx == 69 &&
+      exit_reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_CPUID) {
+    // guest is measuring vm-exit latency, do nothing
+    skip_instruction();
+  } else {
+    // handle the vm-exit
+    dispatch_vm_exit_handler(cpu, exit_reason);
+  }
+
+  // hide vm-exit latency
+  // TODO: we should be doing this for every vm-exit...
+  if (exit_reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_CPUID) {
+    vmx_vmwrite(VMCS_CTRL_TSC_OFFSET,
+      vmx_vmread(VMCS_CTRL_TSC_OFFSET) - cpu->vm_exit_tsc_latency_);
+  } else {
+    // reset the TSC offset (jump forward in time)
+    vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, 0);
+  }
+
   vmentry_interrupt_information vectoring_info;
   vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
 
-  // vm-exit during event delivery
   // 3.27.2.4
+  // TODO: vm-exit during event delivery
   if (vectoring_info.valid) {
-    // an example scenario:
-    // + host injects an interrupt into the guest.
-    // + the guest IDT is marked as not readable with EPT.
-    // + EPT violation (vm-exit) occurs while injecting event (previous interrupt).
-    //
-    // to properly handle this, we should:
-    // + handle the EPT violation.
-    // + attempt to inject the previous event again.
-    //
-    // possible issues:
-    // + if the vm-exit handler tries to inject an event.
-    //   - we can't inject 2 events at once, so one will have to be lost.
-    // + if the vm-exit handler advances RIP then the event will be delivered
-    //   on the wrong instruction boundary.
-    //   - we should only re-inject for vm-exits that don't emulate instructions.
-  }
 
-  switch (exit_reason.basic_exit_reason) {
-  case VMX_EXIT_REASON_EXCEPTION_OR_NMI: handle_exception_or_nmi(cpu); break;
-  case VMX_EXIT_REASON_EXECUTE_GETSEC:   emulate_getsec(cpu);          break;
-  case VMX_EXIT_REASON_EXECUTE_INVD:     emulate_invd(cpu);            break;
-  case VMX_EXIT_REASON_NMI_WINDOW:       handle_nmi_window(cpu);       break;
-  case VMX_EXIT_REASON_EXECUTE_CPUID:    emulate_cpuid(cpu);           break;
-  case VMX_EXIT_REASON_MOV_CR:           handle_mov_cr(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_RDMSR:    emulate_rdmsr(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_WRMSR:    emulate_wrmsr(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_XSETBV:   emulate_xsetbv(cpu);          break;
-  case VMX_EXIT_REASON_EXECUTE_VMXON:    emulate_vmxon(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_VMCALL:   handle_vmcall(cpu);           break;
-
-  // VMX instructions (besides VMXON and VMCALL)
-  case VMX_EXIT_REASON_EXECUTE_INVEPT:
-  case VMX_EXIT_REASON_EXECUTE_INVVPID:
-  case VMX_EXIT_REASON_EXECUTE_VMCLEAR:
-  case VMX_EXIT_REASON_EXECUTE_VMLAUNCH:
-  case VMX_EXIT_REASON_EXECUTE_VMPTRLD:
-  case VMX_EXIT_REASON_EXECUTE_VMPTRST:
-  case VMX_EXIT_REASON_EXECUTE_VMREAD:
-  case VMX_EXIT_REASON_EXECUTE_VMRESUME:
-  case VMX_EXIT_REASON_EXECUTE_VMWRITE:
-  case VMX_EXIT_REASON_EXECUTE_VMXOFF:
-  case VMX_EXIT_REASON_EXECUTE_VMFUNC:   handle_vmx_instruction(cpu);  break;
   }
 
   // guest_ctx_ != nullptr only when it is usable

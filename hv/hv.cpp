@@ -9,10 +9,6 @@ hypervisor ghv;
 
 // allocate and initialize various hypervisor structures before virtualizing
 static bool prepare_hv() {
-  // hypervisor is already running -_-
-  if (ghv.vcpus)
-    return false;
-
   ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
   // size of the vcpu array
@@ -21,8 +17,10 @@ static bool prepare_hv() {
   // allocate an array of vcpus
   ghv.vcpus = static_cast<vcpu*>(alloc_aligned(arr_size, alignof(vcpu)));
 
-  if (!ghv.vcpus)
+  if (!ghv.vcpus) {
+    DbgPrint("[hv] Failed to alloocate VCPUs.\n");
     return false;
+  }
 
   DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n", ghv.vcpu_count, arr_size);
 
@@ -34,6 +32,9 @@ static bool prepare_hv() {
     reinterpret_cast<uint8_t*>(PsInitialSystemProcess) + 0x28);
 
   prepare_host_page_tables();
+  
+  DbgPrint("[hv] Mapped all of physical memory to address 0x%zX.\n",
+    reinterpret_cast<uint64_t>(host_physical_memory_base));
 
   return true;
 }

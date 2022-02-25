@@ -6,6 +6,9 @@ namespace hv {
 
 class vcpu;
 
+// calls the appropriate vm-exit handler
+void dispatch_vm_exit_handler(vcpu* cpu, vmx_vmexit_reason reason);
+
 void emulate_cpuid(vcpu* cpu);
 
 void emulate_rdmsr(vcpu* cpu);
@@ -20,7 +23,9 @@ void emulate_xsetbv(vcpu* cpu);
 
 void emulate_vmxon(vcpu* cpu);
 
-void handle_vmcall(vcpu* cpu);
+void emulate_vmcall(vcpu* cpu);
+
+void handle_vmx_preemption(vcpu* cpu);
 
 void emulate_mov_to_cr0(vcpu* cpu, uint64_t gpr);
 

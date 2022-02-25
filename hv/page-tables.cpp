@@ -19,6 +19,7 @@ static void map_physical_memory(host_page_tables& pt) {
   pml4e.page_frame_number = get_physical(&pt.phys_pdpt) >> 12;
 
   // TODO: add support for 1GB pages
+  // TODO: check if 2MB pages are supported (pretty much always are)
 
   for (uint64_t i = 0; i < 128; ++i) {
     auto& pdpte = pt.phys_pdpt[i];
@@ -56,7 +57,7 @@ void prepare_host_page_tables() {
   auto& pt = ghv.host_page_tables;
   memset(&pt, 0, sizeof(pt));
 
-  // TODO: perform a deep copy instead of a shallow one (only for the memory
+  // TODO: perform a deep copy instead of a shallow copy (for the memory
   //   ranges that our hypervisor code resides in)
 
   auto const system_pml4 = static_cast<pml4e_64*>(get_virtual(

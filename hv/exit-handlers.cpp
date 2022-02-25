@@ -5,6 +5,36 @@
 
 namespace hv {
 
+// calls the appropriate vm-exit handler
+void dispatch_vm_exit_handler(vcpu* const cpu, vmx_vmexit_reason const reason) {
+  switch (reason.basic_exit_reason) {
+  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:             handle_exception_or_nmi(cpu); break;
+  case VMX_EXIT_REASON_EXECUTE_GETSEC:               emulate_getsec(cpu);          break;
+  case VMX_EXIT_REASON_EXECUTE_INVD:                 emulate_invd(cpu);            break;
+  case VMX_EXIT_REASON_NMI_WINDOW:                   handle_nmi_window(cpu);       break;
+  case VMX_EXIT_REASON_EXECUTE_CPUID:                emulate_cpuid(cpu);           break;
+  case VMX_EXIT_REASON_MOV_CR:                       handle_mov_cr(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_RDMSR:                emulate_rdmsr(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_WRMSR:                emulate_wrmsr(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_XSETBV:               emulate_xsetbv(cpu);          break;
+  case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);          break;
+  case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);   break;
+  // VMX instructions (except for VMXON and VMCALL)
+  case VMX_EXIT_REASON_EXECUTE_INVEPT:
+  case VMX_EXIT_REASON_EXECUTE_INVVPID:
+  case VMX_EXIT_REASON_EXECUTE_VMCLEAR:
+  case VMX_EXIT_REASON_EXECUTE_VMLAUNCH:
+  case VMX_EXIT_REASON_EXECUTE_VMPTRLD:
+  case VMX_EXIT_REASON_EXECUTE_VMPTRST:
+  case VMX_EXIT_REASON_EXECUTE_VMREAD:
+  case VMX_EXIT_REASON_EXECUTE_VMRESUME:
+  case VMX_EXIT_REASON_EXECUTE_VMWRITE:
+  case VMX_EXIT_REASON_EXECUTE_VMXOFF:
+  case VMX_EXIT_REASON_EXECUTE_VMFUNC:               handle_vmx_instruction(cpu);  break;
+  }
+}
+
 void emulate_cpuid(vcpu* const cpu) {
   auto const ctx = cpu->ctx();
 
@@ -119,8 +149,12 @@ void emulate_vmxon(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-void handle_vmcall(vcpu*) {
+void emulate_vmcall(vcpu*) {
   inject_hw_exception(invalid_opcode);
+}
+
+void handle_vmx_preemption(vcpu*) {
+  // do nothing (for now)
 }
 
 void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {

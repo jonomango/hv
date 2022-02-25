@@ -92,6 +92,9 @@ private:
   // write VMCS guest fields
   void write_vmcs_guest_fields();
 
+  // calculate the vm-exit TSC latency
+  void measure_tsc_latency();
+
 private:
   // defined in vm-launch.asm
   static bool vm_launch();
@@ -132,6 +135,9 @@ private:
 
   // cached values that are assumed to NEVER change
   cached_vcpu_data cached_;
+
+  // the latency caused by world-transitions
+  uint64_t vm_exit_tsc_latency_;
 };
 
 } // namespace hv
