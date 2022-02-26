@@ -4,7 +4,7 @@
 
 namespace hv {
 
-class vcpu;
+struct vcpu;
 
 // calls the appropriate vm-exit handler
 void dispatch_vm_exit_handler(vcpu* cpu, vmx_vmexit_reason reason);

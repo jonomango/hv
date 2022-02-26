@@ -53,7 +53,7 @@ bool start() {
     // restrict execution to the specified cpu
     auto const orig_affinity = KeSetSystemAffinityThreadEx(1ull << i);
 
-    if (!ghv.vcpus[i].virtualize()) {
+    if (!virtualize_cpu(&ghv.vcpus[i])) {
       // TODO: handle this bruh -_-
       KeRevertToUserAffinityThreadEx(orig_affinity);
       return false;

@@ -32,10 +32,10 @@ guest_context struct
   $dr6 qword ?
 guest_context ends
 
-extern ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z : proc
+extern ?handle_vm_exit@hv@@YAXQEAUguest_context@1@@Z : proc
 
 ; execution starts here after a vm-exit
-?vm_exit@vcpu@hv@@CAXXZ proc
+?vm_exit@hv@@YAXXZ proc
   ; allocate space on the stack to store the guest context
   sub rsp, 0C0h
 
@@ -79,7 +79,7 @@ extern ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z : proc
 
   ; call handle_vm_exit
   sub rsp, 28h
-  call ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z
+  call ?handle_vm_exit@hv@@YAXQEAUguest_context@1@@Z
   add rsp, 28h
 
   ; debug registers
@@ -118,7 +118,7 @@ extern ?handle_vm_exit@vcpu@hv@@CAXPEAUguest_context@2@@Z : proc
   mov r15, guest_context.$r15[rsp]
 
   vmresume
-?vm_exit@vcpu@hv@@CAXXZ endp
+?vm_exit@hv@@YAXXZ endp
 
 end
 

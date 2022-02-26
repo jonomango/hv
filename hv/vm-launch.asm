@@ -1,7 +1,7 @@
 .code
 
 ; bool __vm_launch();
-?vm_launch@vcpu@hv@@CA_NXZ proc
+?vm_launch@hv@@YA_NXZ proc
   ; set VMCS_GUEST_RSP to the current value of RSP
   mov rax, 681Ch
   vmwrite rax, rsp
@@ -20,7 +20,7 @@
 successful_launch:
   mov al, 1
   ret
-?vm_launch@vcpu@hv@@CA_NXZ endp
+?vm_launch@hv@@YA_NXZ endp
 
 end
 

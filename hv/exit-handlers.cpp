@@ -36,7 +36,7 @@ void dispatch_vm_exit_handler(vcpu* const cpu, vmx_vmexit_reason const reason) {
 }
 
 void emulate_cpuid(vcpu* const cpu) {
-  auto const ctx = cpu->ctx();
+  auto const ctx = cpu->ctx;
 
   int regs[4];
   __cpuidex(regs, ctx->eax, ctx->ecx);
@@ -50,8 +50,8 @@ void emulate_cpuid(vcpu* const cpu) {
 }
 
 void emulate_rdmsr(vcpu* const cpu) {
-  if (cpu->ctx()->ecx == IA32_FEATURE_CONTROL) {
-    auto feature_control = cpu->cdata()->feature_control;
+  if (cpu->ctx->ecx == IA32_FEATURE_CONTROL) {
+    auto feature_control = cpu->cached.feature_control;
 
     feature_control.lock_bit               = 1;
 
@@ -63,8 +63,8 @@ void emulate_rdmsr(vcpu* const cpu) {
     feature_control.senter_local_function_enables = 0;
     feature_control.senter_global_enable          = 0;
 
-    cpu->ctx()->rax = feature_control.flags & 0xFFFF'FFFF;
-    cpu->ctx()->rdx = feature_control.flags >> 32;
+    cpu->ctx->rax = feature_control.flags & 0xFFFF'FFFF;
+    cpu->ctx->rdx = feature_control.flags >> 32;
 
     skip_instruction();
     return;
@@ -84,6 +84,8 @@ void emulate_getsec(vcpu*) {
 }
 
 void emulate_invd(vcpu*) {
+  // TODO: properly implement INVD (can probably make a very small stub
+  //       that flushes specific cacheline entries prior to executing INVD)
   inject_hw_exception(general_protection, 0);
 }
 
@@ -91,19 +93,19 @@ void emulate_xsetbv(vcpu* const cpu) {
   // 3.2.6
 
   xcr0 new_xcr0;
-  new_xcr0.flags = (cpu->ctx()->rdx << 32) | cpu->ctx()->eax;
+  new_xcr0.flags = (cpu->ctx->rdx << 32) | cpu->ctx->eax;
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
 
   // only XCR0 is supported
-  if (cpu->ctx()->ecx != 0) {
+  if (cpu->ctx->ecx != 0) {
     inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if trying to set an unsupported bit
-  if (new_xcr0.flags & cpu->cdata()->xcr0_unsupported_mask) {
+  if (new_xcr0.flags & cpu->cached.xcr0_unsupported_mask) {
     inject_hw_exception(general_protection, 0);
     return;
   }
@@ -138,7 +140,7 @@ void emulate_xsetbv(vcpu* const cpu) {
     return;
   }
 
-  _xsetbv(cpu->ctx()->ecx, new_xcr0.flags);
+  _xsetbv(cpu->ctx->ecx, new_xcr0.flags);
 
   skip_instruction();
 }
@@ -170,7 +172,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   // 3.26.3.2.1
 
   cr0 new_cr0;
-  new_cr0.flags = read_guest_gpr(cpu->ctx(), gpr);
+  new_cr0.flags = read_guest_gpr(cpu->ctx, gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -231,8 +233,8 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, new_cr0.flags);
 
   // make sure to account for VMX reserved bits when setting the real CR0
-  new_cr0.flags |= cpu->cdata()->vmx_cr0_fixed0;
-  new_cr0.flags &= cpu->cdata()->vmx_cr0_fixed1;
+  new_cr0.flags |= cpu->cached.vmx_cr0_fixed0;
+  new_cr0.flags &= cpu->cached.vmx_cr0_fixed1;
 
   vmx_vmwrite(VMCS_GUEST_CR0, new_cr0.flags);
 
@@ -241,7 +243,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
 void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   cr3 new_cr3;
-  new_cr3.flags = read_guest_gpr(cpu->ctx(), gpr);
+  new_cr3.flags = read_guest_gpr(cpu->ctx, gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -255,7 +257,7 @@ void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   }
 
   // a mask where bits [63:MAXPHYSADDR] are set to 1
-  auto const reserved_mask = ~((1ull << cpu->cdata()->max_phys_addr) - 1);
+  auto const reserved_mask = ~((1ull << cpu->cached.max_phys_addr) - 1);
 
   // 3.2.5
   if (new_cr3.flags & reserved_mask) {
@@ -287,7 +289,7 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   // 3.4.10.4.1
 
   cr4 new_cr4;
-  new_cr4.flags = read_guest_gpr(cpu->ctx(), gpr);
+  new_cr4.flags = read_guest_gpr(cpu->ctx, gpr);
 
   cr4 curr_cr4;
   curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
@@ -299,7 +301,7 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   curr_cr0.flags = vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW);
 
   // #GP(0) if an attempt is made to set CR4.SMXE when SMX is not supported
-  if (!cpu->cdata()->cpuid_01.cpuid_feature_information_ecx.safer_mode_extensions
+  if (!cpu->cached.cpuid_01.cpuid_feature_information_ecx.safer_mode_extensions
       && new_cr4.smx_enable) {
     inject_hw_exception(general_protection, 0);
     return;
@@ -350,8 +352,8 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, new_cr4.flags);
 
   // make sure to account for VMX reserved bits when setting the real CR4
-  new_cr4.flags |= cpu->cdata()->vmx_cr4_fixed0;
-  new_cr4.flags &= cpu->cdata()->vmx_cr4_fixed1;
+  new_cr4.flags |= cpu->cached.vmx_cr4_fixed0;
+  new_cr4.flags &= cpu->cached.vmx_cr4_fixed1;
 
   vmx_vmwrite(VMCS_GUEST_CR4, new_cr4.flags);
 
@@ -359,7 +361,7 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
 }
 
 void emulate_mov_from_cr3(vcpu* const cpu, uint64_t const gpr) {
-  write_guest_gpr(cpu->ctx(), gpr, vmx_vmread(VMCS_GUEST_CR3));
+  write_guest_gpr(cpu->ctx, gpr, vmx_vmread(VMCS_GUEST_CR3));
   skip_instruction();
 }
 

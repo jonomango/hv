@@ -11,112 +11,48 @@
 
 namespace hv {
 
-// virtualize the current cpu
-// note, this assumes that execution is already restricted to the desired cpu
-bool vcpu::virtualize() {
-  cache_vcpu_data();
+// defined in vm-launch.asm
+bool vm_launch();
 
-  DbgPrint("[hv] Cached VCPU data.\n");
+// defined in vm-exit.asm
+void vm_exit();
 
-  if (!enable_vmx_operation())
-    return false;
-
-  DbgPrint("[hv] Enabled VMX operation.\n");
-
-  if (!enter_vmx_operation())
-    return false;
-
-  DbgPrint("[hv] Entered VMX operation.\n");
-
-  if (!load_vmcs_pointer()) {
-    // TODO: cleanup
-    vmx_vmxoff();
-    return false;
-  }
-
-  DbgPrint("[hv] Set VMCS pointer.\n");
-
-  prepare_external_structures();
-
-  DbgPrint("[hv] Initialized external structures.\n");
-
-  write_vmcs_ctrl_fields();
-  write_vmcs_host_fields();
-  write_vmcs_guest_fields();
-
-  DbgPrint("[hv] Initialized VMCS fields.\n");
-
-  vm_exit_tsc_latency_ = 0;
-
-  // launch the virtual machine
-  if (!vm_launch()) {
-    DbgPrint("[hv] VMLAUNCH failed. Error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
-
-    // TODO: cleanup
-    vmx_vmxoff();
-    return false;
-  }
-
-  DbgPrint("[hv] Launched VCPU #%i.\n", KeGetCurrentProcessorIndex());
-
-  measure_tsc_latency();
-
-  DbgPrint("[hv] Measured VM-exit TSC latency: %zi.\n", vm_exit_tsc_latency_);
-
-  return true;
-}
-
-// toggle vm-exiting for this MSR in the MSR bitmap
-void vcpu::toggle_exiting_for_msr(uint32_t msr, bool const enabled) {
-  auto const bit = static_cast<uint8_t>(enabled ? 1 : 0);
-
-  if (msr <= MSR_ID_LOW_MAX) {
-    // set the bit in the low bitmap
-    msr_bitmap_.rdmsr_low[msr / 8] = (bit << (msr & 0b0111));
-    msr_bitmap_.wrmsr_low[msr / 8] = (bit << (msr & 0b0111));
-  } else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
-    msr -= MSR_ID_HIGH_MIN;
-
-    // set the bit in the high bitmap
-    msr_bitmap_.rdmsr_high[msr / 8] = (bit << (msr & 0b0111));
-    msr_bitmap_.wrmsr_high[msr / 8] = (bit << (msr & 0b0111));
-  }
-}
-
-// cache certain values that will be used during vmx operation
-void vcpu::cache_vcpu_data() {
+// cache certain fixed values (CPUID results, MSRs, etc) that are used
+// frequently during VMX operation (to speed up vm-exit handling).
+static void cache_cpu_data(vcpu_cached_data& cached) {
   cpuid_eax_80000008 cpuid_80000008;
   __cpuid(reinterpret_cast<int*>(&cpuid_80000008), 0x80000008);
 
-  cached_.max_phys_addr = cpuid_80000008.eax.number_of_physical_address_bits;
+  cached.max_phys_addr = cpuid_80000008.eax.number_of_physical_address_bits;
 
-  cached_.vmx_cr0_fixed0 = __readmsr(IA32_VMX_CR0_FIXED0);
-  cached_.vmx_cr0_fixed1 = __readmsr(IA32_VMX_CR0_FIXED1);
-  cached_.vmx_cr4_fixed0 = __readmsr(IA32_VMX_CR4_FIXED0);
-  cached_.vmx_cr4_fixed1 = __readmsr(IA32_VMX_CR4_FIXED1);
+  cached.vmx_cr0_fixed0 = __readmsr(IA32_VMX_CR0_FIXED0);
+  cached.vmx_cr0_fixed1 = __readmsr(IA32_VMX_CR0_FIXED1);
+  cached.vmx_cr4_fixed0 = __readmsr(IA32_VMX_CR4_FIXED0);
+  cached.vmx_cr4_fixed1 = __readmsr(IA32_VMX_CR4_FIXED1);
 
   cpuid_eax_0d_ecx_00 cpuid_0d;
   __cpuidex(reinterpret_cast<int*>(&cpuid_0d), 0x0D, 0x00);
   
   // features in XCR0 that are supported
-  cached_.xcr0_unsupported_mask = ~((static_cast<uint64_t>(
+  cached.xcr0_unsupported_mask = ~((static_cast<uint64_t>(
     cpuid_0d.edx.flags) << 32) | cpuid_0d.eax.flags);
 
-  cached_.feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
+  cached.feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
 
-  __cpuid(reinterpret_cast<int*>(&cached_.cpuid_01), 0x01);
+  __cpuid(reinterpret_cast<int*>(&cached.cpuid_01), 0x01);
 }
 
-// perform certain actions that are required before entering vmx operation
-bool vcpu::enable_vmx_operation() {
+// enable VMX operation prior to execution of the VMXON instruction
+static bool enable_vmx_operation(vcpu const* const cpu) {
   // 3.23.6
-  if (!cached_.cpuid_01.cpuid_feature_information_ecx.virtual_machine_extensions) {
+  if (!cpu->cached.cpuid_01.cpuid_feature_information_ecx.virtual_machine_extensions) {
     DbgPrint("[hv] VMX not supported by CPUID.\n");
     return false;
   }
 
   // 3.23.7
-  if (!cached_.feature_control.lock_bit || !cached_.feature_control.enable_vmx_outside_smx) {
+  if (!cpu->cached.feature_control.lock_bit ||
+      !cpu->cached.feature_control.enable_vmx_outside_smx) {
     DbgPrint("[hv] VMX not enabled outside SMX.\n");
     return false;
   }
@@ -130,10 +66,10 @@ bool vcpu::enable_vmx_operation() {
   cr4 |= CR4_VMX_ENABLE_FLAG;
 
   // 3.23.8
-  cr0 |= cached_.vmx_cr0_fixed0;
-  cr0 &= cached_.vmx_cr0_fixed1;
-  cr4 |= cached_.vmx_cr4_fixed0;
-  cr4 &= cached_.vmx_cr4_fixed1;
+  cr0 |= cpu->cached.vmx_cr0_fixed0;
+  cr0 &= cpu->cached.vmx_cr0_fixed1;
+  cr4 |= cpu->cached.vmx_cr4_fixed0;
+  cr4 &= cpu->cached.vmx_cr4_fixed1;
 
   __writecr0(cr0);
   __writecr4(cr4);
@@ -143,16 +79,16 @@ bool vcpu::enable_vmx_operation() {
   return true;
 }
 
-// enter vmx operation by executing VMXON
-bool vcpu::enter_vmx_operation() {
+// enter VMX operation by executing VMXON
+static bool enter_vmx_operation(vmxon& vmxon_region) {
   ia32_vmx_basic_register vmx_basic;
   vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
 
   // 3.24.11.5
-  vmxon_.revision_id = vmx_basic.vmcs_revision_id;
-  vmxon_.must_be_zero = 0;
+  vmxon_region.revision_id = vmx_basic.vmcs_revision_id;
+  vmxon_region.must_be_zero = 0;
 
-  auto vmxon_phys = get_physical(&vmxon_);
+  auto vmxon_phys = get_physical(&vmxon_region);
   NT_ASSERT(vmxon_phys % 0x1000 == 0);
 
   // enter vmx operation
@@ -167,16 +103,16 @@ bool vcpu::enter_vmx_operation() {
   return true;
 }
 
-// set the working-vmcs pointer to point to our vmcs structure
-bool vcpu::load_vmcs_pointer() {
+// load the VMCS pointer by executing VMPTRLD
+static bool load_vmcs_pointer(vmcs& vmcs_region) {
   ia32_vmx_basic_register vmx_basic;
   vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
 
   // 3.24.2
-  vmcs_.revision_id = vmx_basic.vmcs_revision_id;
-  vmcs_.shadow_vmcs_indicator = 0;
+  vmcs_region.revision_id = vmx_basic.vmcs_revision_id;
+  vmcs_region.shadow_vmcs_indicator = 0;
 
-  auto vmcs_phys = get_physical(&vmcs_);
+  auto vmcs_phys = get_physical(&vmcs_region);
   NT_ASSERT(vmcs_phys % 0x1000 == 0);
 
   if (!vmx_vmclear(vmcs_phys)) {
@@ -192,21 +128,21 @@ bool vcpu::load_vmcs_pointer() {
   return true;
 }
 
-// initialize external structures
-void vcpu::prepare_external_structures() {
+// initialize external structures that are not included in the VMCS
+static void prepare_external_structures(vcpu* const cpu) {
   // setup the MSR bitmap so that we only exit on IA32_FEATURE_CONTROL
-  memset(&msr_bitmap_, 0, sizeof(msr_bitmap_));
-  toggle_exiting_for_msr(IA32_FEATURE_CONTROL, true);
+  memset(&cpu->msr_bitmap, 0, sizeof(cpu->msr_bitmap));
+  enable_exiting_for_msr(cpu, IA32_FEATURE_CONTROL, true);
 
   // we don't care about anything that's in the TSS
-  memset(&host_tss_, 0, sizeof(host_tss_));
+  memset(&cpu->host_tss, 0, sizeof(cpu->host_tss));
 
-  prepare_host_idt(host_idt_);
-  prepare_host_gdt(host_gdt_, &host_tss_);
+  prepare_host_idt(cpu->host_idt);
+  prepare_host_gdt(cpu->host_gdt, &cpu->host_tss);
 }
 
-// write VMCS control fields
-void vcpu::write_vmcs_ctrl_fields() {
+// write to the control fields in the VMCS
+static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   // 3.26.2
 
   // 3.24.6.1
@@ -287,7 +223,7 @@ void vcpu::write_vmcs_ctrl_fields() {
   vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, ghv.system_cr3.flags);
 
   // 3.24.6.9
-  vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&msr_bitmap_));
+  vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&cpu->msr_bitmap));
 
   // 3.24.6.12
   vmx_vmwrite(VMCS_CTRL_VIRTUAL_PROCESSOR_IDENTIFIER, guest_vpid);
@@ -308,8 +244,8 @@ void vcpu::write_vmcs_ctrl_fields() {
   vmx_vmwrite(VMCS_CTRL_VMENTRY_INSTRUCTION_LENGTH,             0);
 }
 
-// write VMCS host fields
-void vcpu::write_vmcs_host_fields() {
+// write to the host fields in the VMCS
+static void write_vmcs_host_fields(vcpu const* const cpu) {
   // 3.24.5
   // 3.26.2
 
@@ -325,8 +261,8 @@ void vcpu::write_vmcs_host_fields() {
   vmx_vmwrite(VMCS_HOST_CR4, __readcr4());
 
   // ensure that rsp is NOT aligned to 16 bytes when execution starts
-  auto const rsp = ((reinterpret_cast<size_t>(
-    host_stack_) + host_stack_size) & ~0b1111ull) - 8;
+  auto const rsp = ((reinterpret_cast<size_t>(cpu->host_stack)
+    + host_stack_size) & ~0b1111ull) - 8;
 
   vmx_vmwrite(VMCS_HOST_RSP, rsp);
   vmx_vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(vm_exit));
@@ -339,19 +275,19 @@ void vcpu::write_vmcs_host_fields() {
   vmx_vmwrite(VMCS_HOST_GS_SELECTOR, 0x00);
   vmx_vmwrite(VMCS_HOST_TR_SELECTOR, host_tr_selector.flags);
 
-  vmx_vmwrite(VMCS_HOST_FS_BASE,   reinterpret_cast<size_t>(this));
+  vmx_vmwrite(VMCS_HOST_FS_BASE,   reinterpret_cast<size_t>(cpu));
   vmx_vmwrite(VMCS_HOST_GS_BASE,   0);
-  vmx_vmwrite(VMCS_HOST_TR_BASE,   reinterpret_cast<size_t>(&host_tss_));
-  vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&host_gdt_));
-  vmx_vmwrite(VMCS_HOST_IDTR_BASE, reinterpret_cast<size_t>(&host_idt_));
+  vmx_vmwrite(VMCS_HOST_TR_BASE,   reinterpret_cast<size_t>(&cpu->host_tss));
+  vmx_vmwrite(VMCS_HOST_GDTR_BASE, reinterpret_cast<size_t>(&cpu->host_gdt));
+  vmx_vmwrite(VMCS_HOST_IDTR_BASE, reinterpret_cast<size_t>(&cpu->host_idt));
 
   vmx_vmwrite(VMCS_HOST_SYSENTER_CS,  0);
   vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, 0);
   vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, 0);
 }
 
-// write VMCS guest fields
-void vcpu::write_vmcs_guest_fields() {
+// write to the guest fields in the VMCS
+static void write_vmcs_guest_fields() {
   // 3.24.4
   // 3.26.3
 
@@ -432,8 +368,9 @@ void vcpu::write_vmcs_guest_fields() {
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, 0xFFFFFFFF);
 }
 
-// calculate the vm-exit TSC latency
-void vcpu::measure_tsc_latency() {
+// measure the amount of overhead that a vm-exit
+// causes so that we can use TSC offsetting to hide it
+static uint64_t measure_vm_exit_tsc_latency() {
   uint64_t lowest_latency = MAXULONGLONG;
 
   // we dont want to be interrupted (NMIs and SMIs can fuck off)
@@ -460,35 +397,60 @@ void vcpu::measure_tsc_latency() {
 
   _enable();
 
-  // use the lowest execution time as our offset + a little extra
+  // return the lowest execution time as our offset + a little extra
   // to ensure that we don't cause TSC delta to go negative.
-  vm_exit_tsc_latency_ = lowest_latency - 50;
+  return lowest_latency - 50;
 }
 
 // called for every vm-exit
-void vcpu::handle_vm_exit(guest_context* const ctx) {
+void handle_vm_exit(guest_context* const ctx) {
   // get the current vcpu
   auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
-  cpu->guest_ctx_ = ctx;
+  cpu->ctx = ctx;
 
-  vmx_vmexit_reason exit_reason;
-  exit_reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
+  vmx_vmexit_reason reason;
+  reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
-  if (cpu->vm_exit_tsc_latency_ == 0 && ctx->eax == 69 && ctx->ecx == 69 &&
-      exit_reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_CPUID) {
+  if (cpu->vm_exit_tsc_latency == 0 && ctx->eax == 69 && ctx->ecx == 69 &&
+      reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_CPUID) {
     // guest is measuring vm-exit latency, do nothing
     skip_instruction();
   } else {
     // handle the vm-exit
-    dispatch_vm_exit_handler(cpu, exit_reason);
+    switch (reason.basic_exit_reason) {
+    case VMX_EXIT_REASON_EXCEPTION_OR_NMI:             handle_exception_or_nmi(cpu); break;
+    case VMX_EXIT_REASON_EXECUTE_GETSEC:               emulate_getsec(cpu);          break;
+    case VMX_EXIT_REASON_EXECUTE_INVD:                 emulate_invd(cpu);            break;
+    case VMX_EXIT_REASON_NMI_WINDOW:                   handle_nmi_window(cpu);       break;
+    case VMX_EXIT_REASON_EXECUTE_CPUID:                emulate_cpuid(cpu);           break;
+    case VMX_EXIT_REASON_MOV_CR:                       handle_mov_cr(cpu);           break;
+    case VMX_EXIT_REASON_EXECUTE_RDMSR:                emulate_rdmsr(cpu);           break;
+    case VMX_EXIT_REASON_EXECUTE_WRMSR:                emulate_wrmsr(cpu);           break;
+    case VMX_EXIT_REASON_EXECUTE_XSETBV:               emulate_xsetbv(cpu);          break;
+    case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);           break;
+    case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);          break;
+    case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);   break;
+    // VMX instructions (except for VMXON and VMCALL)
+    case VMX_EXIT_REASON_EXECUTE_INVEPT:
+    case VMX_EXIT_REASON_EXECUTE_INVVPID:
+    case VMX_EXIT_REASON_EXECUTE_VMCLEAR:
+    case VMX_EXIT_REASON_EXECUTE_VMLAUNCH:
+    case VMX_EXIT_REASON_EXECUTE_VMPTRLD:
+    case VMX_EXIT_REASON_EXECUTE_VMPTRST:
+    case VMX_EXIT_REASON_EXECUTE_VMREAD:
+    case VMX_EXIT_REASON_EXECUTE_VMRESUME:
+    case VMX_EXIT_REASON_EXECUTE_VMWRITE:
+    case VMX_EXIT_REASON_EXECUTE_VMXOFF:
+    case VMX_EXIT_REASON_EXECUTE_VMFUNC:               handle_vmx_instruction(cpu);  break;
+    }
   }
 
   // hide vm-exit latency
-  if (exit_reason.basic_exit_reason != VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED) {
+  if (reason.basic_exit_reason != VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED) {
     // TODO: this seems to take an awful amount of time to execute...
     //       maybe we should cache the current tsc offset?
     vmx_vmwrite(VMCS_CTRL_TSC_OFFSET,
-      vmx_vmread(VMCS_CTRL_TSC_OFFSET) - cpu->vm_exit_tsc_latency_);
+      vmx_vmread(VMCS_CTRL_TSC_OFFSET) - cpu->vm_exit_tsc_latency);
 
     // enable the preemption timer so we can later reset our TSC offset
     auto pin_based = read_ctrl_pin_based();
@@ -512,12 +474,11 @@ void vcpu::handle_vm_exit(guest_context* const ctx) {
 
   }
 
-  // guest_ctx_ != nullptr only when it is usable
-  cpu->guest_ctx_ = nullptr;
+  cpu->ctx = nullptr;
 }
 
 // called for every host interrupt
-void vcpu::handle_host_interrupt(trap_frame* const frame) {
+void handle_host_interrupt(trap_frame* const frame) {
   switch (frame->vector) {
   // host NMIs
   case nmi:
@@ -525,6 +486,83 @@ void vcpu::handle_host_interrupt(trap_frame* const frame) {
     ctrl.nmi_window_exiting = 1;
     write_ctrl_proc_based(ctrl);
     break;
+  }
+}
+
+// virtualize the specified cpu. this assumes that execution is already
+// restricted to the desired logical proocessor.
+bool virtualize_cpu(vcpu* const cpu) {
+  memset(cpu, 0, sizeof(*cpu));
+
+  cache_cpu_data(cpu->cached);
+
+  DbgPrint("[hv] Cached VCPU data.\n");
+
+  if (!enable_vmx_operation(cpu)) {
+    DbgPrint("[hv] Failed to enable VMX operation.\n");
+    return false;
+  }
+
+  DbgPrint("[hv] Enabled VMX operation.\n");
+
+  if (!enter_vmx_operation(cpu->vmxon)) {
+    DbgPrint("[hv] Failed to enter VMX operation.\n");
+    return false;
+  }
+
+  DbgPrint("[hv] Entered VMX operation.\n");
+
+  if (!load_vmcs_pointer(cpu->vmcs)) {
+    DbgPrint("[hv] Failed to load VMCS pointer.\n");
+    vmx_vmxoff();
+    return false;
+  }
+
+  DbgPrint("[hv] Loaded VMCS pointer.\n");
+
+  prepare_external_structures(cpu);
+
+  DbgPrint("[hv] Initialized external structures.\n");
+
+  write_vmcs_ctrl_fields(cpu);
+  write_vmcs_host_fields(cpu);
+  write_vmcs_guest_fields();
+
+  DbgPrint("[hv] Wrote VMCS fields.\n");
+
+  cpu->vm_exit_tsc_latency = 0;
+
+  if (!vm_launch()) {
+    DbgPrint("[hv] VMLAUNCH failed. Instruction error = %lli.\n", vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
+    vmx_vmxoff();
+    return false;
+  }
+
+  DbgPrint("[hv] Launched virtual machine on VCPU#%i.\n",
+    KeGetCurrentProcessorIndex() + 1);
+
+  cpu->vm_exit_tsc_latency = measure_vm_exit_tsc_latency();
+
+  DbgPrint("[hv] Measured VM-exit TSC latency (%zi).\n",
+    cpu->vm_exit_tsc_latency);
+
+  return true;
+}
+
+// toggle vm-exiting for the specified MSR through the MSR bitmap
+void enable_exiting_for_msr(vcpu* const cpu, uint32_t msr, bool const enabled) {
+  auto const bit = static_cast<uint8_t>(enabled ? 1 : 0);
+
+  if (msr <= MSR_ID_LOW_MAX) {
+    // set the bit in the low bitmap
+    cpu->msr_bitmap.rdmsr_low[msr / 8] = (bit << (msr & 0b0111));
+    cpu->msr_bitmap.wrmsr_low[msr / 8] = (bit << (msr & 0b0111));
+  } else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
+    msr -= MSR_ID_HIGH_MIN;
+
+    // set the bit in the high bitmap
+    cpu->msr_bitmap.rdmsr_high[msr / 8] = (bit << (msr & 0b0111));
+    cpu->msr_bitmap.wrmsr_high[msr / 8] = (bit << (msr & 0b0111));
   }
 }
 

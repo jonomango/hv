@@ -31,7 +31,7 @@ trap_frame struct
   $ss     qword ?
 trap_frame ends
 
-extern ?handle_host_interrupt@vcpu@hv@@CAXPEAUtrap_frame@2@@Z : proc
+extern ?handle_host_interrupt@hv@@YAXQEAUtrap_frame@1@@Z : proc
 
 ; the generic interrupt handler that every stub will eventually jump to
 generic_interrupt_handler proc
@@ -61,7 +61,7 @@ generic_interrupt_handler proc
 
   ; call handle_host_interrupt
   sub rsp, 20h
-  call ?handle_host_interrupt@vcpu@hv@@CAXPEAUtrap_frame@2@@Z
+  call ?handle_host_interrupt@hv@@YAXQEAUtrap_frame@1@@Z
   add rsp, 20h
 
   ; general-purpose registers
