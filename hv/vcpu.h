@@ -45,9 +45,12 @@ struct vcpu_cached_data {
   // mask of unsupported processor state components for XCR0
   uint64_t xcr0_unsupported_mask;
 
-  // IA32_FEATURE_CONTROL MSR
+  // IA32_FEATURE_CONTROL
   ia32_feature_control_register feature_control;
-  
+
+  // IA32_VMX_MISC
+  ia32_vmx_misc_register vmx_misc;
+
   // CPUID 0x01
   cpuid_eax_01 cpuid_01;
 };

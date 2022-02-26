@@ -38,6 +38,7 @@ static void cache_cpu_data(vcpu_cached_data& cached) {
     cpuid_0d.edx.flags) << 32) | cpuid_0d.eax.flags);
 
   cached.feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
+  cached.vmx_misc.flags        = __readmsr(IA32_VMX_MISC);
 
   __cpuid(reinterpret_cast<int*>(&cached.cpuid_01), 0x01);
 }
@@ -403,16 +404,17 @@ static uint64_t measure_vm_exit_tsc_latency() {
 }
 
 // using TSC offsetting to hide vm-exit TSC latency
-static void hide_vm_exit_tsc_latency(uint64_t const offset) {
+static void hide_vm_exit_tsc_latency(vcpu const* const cpu) {
   // hotfix to prevent TSC offsetting while running in a nested HV
-  if (offset > 10000)
+  if (cpu->vm_exit_tsc_latency > 10000)
     return;
 
   // TODO: this seems to take an awful amount of time to execute...
   //       maybe we should cache the current tsc offset?
-  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, vmx_vmread(VMCS_CTRL_TSC_OFFSET) - offset);
+  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET,
+    vmx_vmread(VMCS_CTRL_TSC_OFFSET) - cpu->vm_exit_tsc_latency);
 
-  if (offset <= 0)
+  if (cpu->vm_exit_tsc_latency <= 0)
     return;
 
   // enable the preemption timer so we can later reset our TSC offset
@@ -420,12 +422,10 @@ static void hide_vm_exit_tsc_latency(uint64_t const offset) {
   pin_based.activate_vmx_preemption_timer = 1;
   write_ctrl_pin_based(pin_based);
 
-  // TODO: cache this
-  ia32_vmx_misc_register vmx_misc;
-  vmx_misc.flags = __readmsr(IA32_VMX_MISC);
-
   // reset TSC offset after 10000 TSC ticks have passed
-  auto const vmx_10000 = max(1, 10000 >> vmx_misc.preemption_timer_tsc_relationship);
+  auto const vmx_10000 = max(1, 10000 >>
+    cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
+
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, vmx_10000);
 }
 
@@ -474,7 +474,7 @@ void handle_vm_exit(guest_context* const ctx) {
 
   // hide vm-exit latency
   if (reason.basic_exit_reason != VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED)
-    hide_vm_exit_tsc_latency(cpu->vm_exit_tsc_latency);
+    hide_vm_exit_tsc_latency(cpu);
 
   vmentry_interrupt_information vectoring_info;
   vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
