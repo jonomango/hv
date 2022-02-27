@@ -124,6 +124,7 @@
     <ClInclude Include="gdt.h" />
     <ClInclude Include="guest-context.h" />
     <ClInclude Include="hv.h" />
+    <ClInclude Include="hypercalls.h" />
     <ClInclude Include="idt.h" />
     <ClInclude Include="interrupt-handlers.h" />
     <ClInclude Include="mm.h" />
@@ -137,6 +138,7 @@
     <ClCompile Include="exit-handlers.cpp" />
     <ClCompile Include="gdt.cpp" />
     <ClCompile Include="hv.cpp" />
+    <ClCompile Include="hypercalls.cpp" />
     <ClCompile Include="idt.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mm.cpp" />

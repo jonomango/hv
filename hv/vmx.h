@@ -8,8 +8,11 @@ namespace hv {
 // INVEPT instruction
 void vmx_invept(invept_type type, invept_descriptor const& desc);
 
-//INVVPID instruction
+// INVVPID instruction
 void vmx_invvpid(invvpid_type type, invvpid_descriptor const& desc);
+
+// VMCALL instruction
+uint64_t vmx_vmcall(uint64_t a1 = 0, uint64_t a2 = 0, uint64_t a3 = 0, uint64_t a4 = 0);
 
 // VMXON instruction
 bool vmx_vmxon(uint64_t vmxon_phys_addr);

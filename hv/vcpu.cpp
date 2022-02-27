@@ -378,15 +378,13 @@ static uint64_t measure_vm_exit_tsc_latency() {
   // we dont want to be interrupted (NMIs and SMIs can fuck off)
   _disable();
 
-  // measure the execution time of CPUID
+  // measure the execution time of a vm-entry and vm-exit
   for (int i = 0; i < 10; ++i) {
-    int regs[4];
-
     _mm_lfence();
     auto start = __rdtsc();
     _mm_lfence();
 
-    __cpuidex(regs, 69, 69);
+    vmx_vmcall(hypercall_ping);
 
     _mm_lfence();
     auto end = __rdtsc();
@@ -461,11 +459,11 @@ void handle_vm_exit(guest_context* const ctx) {
   auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
   cpu->ctx = ctx;
 
-  // dont hide tsc latency by default
-  cpu->hide_vm_exit_latency = false;
-
   vmx_vmexit_reason reason;
   reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
+
+  // dont hide tsc latency by default
+  cpu->hide_vm_exit_latency = false;
 
   // handle the vm-exit
   dispatch_vm_exit(cpu, reason);
@@ -543,7 +541,8 @@ bool virtualize_cpu(vcpu* const cpu) {
   DbgPrint("[hv] Wrote VMCS fields.\n");
 
   // TODO: should these fields really be set here? lol
-  cpu->tsc_offset = 0;
+  cpu->tsc_offset          = 0;
+  cpu->preemption_timer    = 0;
   cpu->vm_exit_tsc_latency = 0;
 
   if (!vm_launch()) {

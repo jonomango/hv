@@ -1,5 +1,6 @@
 #include "exit-handlers.h"
 #include "guest-context.h"
+#include "hypercalls.h"
 #include "vcpu.h"
 #include "vmx.h"
 
@@ -7,18 +8,6 @@ namespace hv {
 
 void emulate_cpuid(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
-
-  if (cpu->vm_exit_tsc_latency == 0 && ctx->eax == 69 && ctx->ecx == 69) {
-    // guest is measuring vm-exit latency, do nothing
-    skip_instruction();
-
-    // yes, we still want to hide our exit latency even though
-    // vm_exit_tsc_latency == 0. we want to follow the same code path that
-    // a normal vm-exit would take in order to get a precise measurement.
-    cpu->hide_vm_exit_latency = true;
-
-    return;
-  }
 
   int regs[4];
   __cpuidex(regs, ctx->eax, ctx->ecx);
@@ -136,7 +125,13 @@ void emulate_vmxon(vcpu*) {
   inject_hw_exception(general_protection, 0);
 }
 
-void emulate_vmcall(vcpu*) {
+void emulate_vmcall(vcpu* const cpu) {
+  // handle the hypercall
+  switch (cpu->ctx->rcx) {
+  case hypercall_ping:          hc::ping(cpu);          return;
+  case hypercall_read_phys_mem: hc::read_phys_mem(cpu); return;
+  }
+
   inject_hw_exception(invalid_opcode);
 }
 

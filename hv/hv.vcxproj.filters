@@ -58,6 +58,9 @@
     <ClInclude Include="vmx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="hypercalls.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="exit-handlers.cpp">
@@ -85,6 +88,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vcpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="hypercalls.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

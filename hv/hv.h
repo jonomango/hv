@@ -1,8 +1,8 @@
 #pragma once
 
 #include "page-tables.h"
-
-#include <ia32.hpp>
+#include "hypercalls.h"
+#include "vmx.h"
 
 namespace hv {
 
