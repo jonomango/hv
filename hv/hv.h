@@ -11,8 +11,8 @@ struct hypervisor {
   host_page_tables host_page_tables;
 
   // dynamically allocated array of vcpus
-  unsigned long vcpu_count = 0;
-  struct vcpu* vcpus = nullptr;
+  unsigned long vcpu_count;
+  struct vcpu* vcpus;
 
   // kernel CR3 value of the System process
   cr3 system_cr3;

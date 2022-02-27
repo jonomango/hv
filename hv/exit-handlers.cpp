@@ -8,6 +8,18 @@ namespace hv {
 void emulate_cpuid(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
+  if (cpu->vm_exit_tsc_latency == 0 && ctx->eax == 69 && ctx->ecx == 69) {
+    // guest is measuring vm-exit latency, do nothing
+    skip_instruction();
+
+    // yes, we still want to hide our exit latency even though
+    // vm_exit_tsc_latency == 0. we want to follow the same code path that
+    // a normal vm-exit would take in order to get a precise measurement.
+    cpu->hide_vm_exit_latency = true;
+
+    return;
+  }
+
   int regs[4];
   __cpuidex(regs, ctx->eax, ctx->ecx);
 
@@ -16,6 +28,7 @@ void emulate_cpuid(vcpu* const cpu) {
   ctx->rcx = regs[2];
   ctx->rdx = regs[3];
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
@@ -36,6 +49,7 @@ void emulate_rdmsr(vcpu* const cpu) {
     cpu->ctx->rax = feature_control.flags & 0xFFFF'FFFF;
     cpu->ctx->rdx = feature_control.flags >> 32;
 
+    cpu->hide_vm_exit_latency = true;
     skip_instruction();
     return;
   }
@@ -112,6 +126,7 @@ void emulate_xsetbv(vcpu* const cpu) {
 
   _xsetbv(cpu->ctx->ecx, new_xcr0.flags);
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
@@ -126,13 +141,7 @@ void emulate_vmcall(vcpu*) {
 }
 
 void handle_vmx_preemption(vcpu*) {
-  // reset the TSC offset to 0
-  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, 0);
-
-  // disable the preemption timer
-  auto pin_based = read_ctrl_pin_based();
-  pin_based.activate_vmx_preemption_timer = 0;
-  write_ctrl_pin_based(pin_based);
+  // do nothing.
 }
 
 void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
@@ -208,6 +217,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
   vmx_vmwrite(VMCS_GUEST_CR0, new_cr0.flags);
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
@@ -248,6 +258,7 @@ void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   // it is now safe to write the new guest cr3
   vmx_vmwrite(VMCS_GUEST_CR3, new_cr3.flags);
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
@@ -327,15 +338,18 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
 
   vmx_vmwrite(VMCS_GUEST_CR4, new_cr4.flags);
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
 void emulate_mov_from_cr3(vcpu* const cpu, uint64_t const gpr) {
   write_guest_gpr(cpu->ctx, gpr, vmx_vmread(VMCS_GUEST_CR3));
+
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
-void emulate_clts(vcpu*) {
+void emulate_clts(vcpu* const cpu) {
   // clear CR0.TS in the read shadow
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW,
     vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW) & ~CR0_TASK_SWITCHED_FLAG);
@@ -344,10 +358,11 @@ void emulate_clts(vcpu*) {
   vmx_vmwrite(VMCS_GUEST_CR0,
     vmx_vmread(VMCS_GUEST_CR0) & ~CR0_TASK_SWITCHED_FLAG);
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 
-void emulate_lmsw(vcpu*, uint16_t const value) {
+void emulate_lmsw(vcpu* const cpu, uint16_t const value) {
   // 3.25.1.3
 
   cr0 new_cr0;
@@ -374,6 +389,7 @@ void emulate_lmsw(vcpu*, uint16_t const value) {
   real_cr0.task_switched       = new_cr0.task_switched;
   vmx_vmwrite(VMCS_GUEST_CR0, real_cr0.flags);
 
+  cpu->hide_vm_exit_latency = true;
   skip_instruction();
 }
 

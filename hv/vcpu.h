@@ -72,19 +72,28 @@ struct vcpu {
   alignas(0x1000) segment_descriptor_interrupt_gate_64 host_idt[host_idt_descriptor_count];
 
   // host global descriptor table
-  segment_descriptor_32 host_gdt[host_gdt_descriptor_count];
+  alignas(0x1000) segment_descriptor_32 host_gdt[host_gdt_descriptor_count];
 
   // host task state segment
-  task_state_segment_64 host_tss;
-
-  // pointer to the current guest context, set in exit-handler
-  guest_context* ctx;
+  alignas(0x1000) task_state_segment_64 host_tss;
 
   // cached values that are assumed to NEVER change
   vcpu_cached_data cached;
 
+  // pointer to the current guest context, set in exit-handler
+  guest_context* ctx;
+
+  // current TSC offset
+  uint64_t tsc_offset;
+
+  // current preemption timer
+  uint64_t preemption_timer;
+
   // the latency caused by world-transitions
   uint64_t vm_exit_tsc_latency;
+
+  // whether to use TSC offsetting for the current vm-exit--false by default
+  bool hide_vm_exit_latency;
 };
 
 // virtualize the specified cpu. this assumes that execution is already

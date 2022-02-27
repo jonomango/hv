@@ -148,9 +148,10 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
 
   // 3.24.6.1
   ia32_vmx_pinbased_ctls_register pin_based_ctrl;
-  pin_based_ctrl.flags       = 0;
-  pin_based_ctrl.virtual_nmi = 1;
-  pin_based_ctrl.nmi_exiting = 1;
+  pin_based_ctrl.flags                         = 0;
+  pin_based_ctrl.virtual_nmi                   = 1;
+  pin_based_ctrl.nmi_exiting                   = 1;
+  pin_based_ctrl.activate_vmx_preemption_timer = 1;
   write_ctrl_pin_based_safe(pin_based_ctrl);
 
   // 3.24.6.2
@@ -207,9 +208,9 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
 #ifdef NDEBUG
   // only vm-exit when guest tries to change a reserved bit
   vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK,
-    cached_.vmx_cr0_fixed0 | ~cached_.vmx_cr0_fixed1);
+    cpu->cached.vmx_cr0_fixed0 | ~cpu->cached.vmx_cr0_fixed1);
   vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK,
-    cached_.vmx_cr4_fixed0 | ~cached_.vmx_cr4_fixed1);
+    cpu->cached.vmx_cr4_fixed0 | ~cpu->cached.vmx_cr4_fixed1);
 #else
   // vm-exit on every CR0/CR4 modification
   vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0xFFFFFFFF'FFFFFFFF);
@@ -259,7 +260,7 @@ static void write_vmcs_host_fields(vcpu const* const cpu) {
 
   // TODO: setup our own CR0/CR4
   vmx_vmwrite(VMCS_HOST_CR0, __readcr0());
-  vmx_vmwrite(VMCS_HOST_CR4, __readcr4());
+  vmx_vmwrite(VMCS_HOST_CR4, __readcr4() & ~CR4_PCID_ENABLE_FLAG);
 
   // ensure that rsp is NOT aligned to 16 bytes when execution starts
   auto const rsp = ((reinterpret_cast<size_t>(cpu->host_stack)
@@ -364,15 +365,15 @@ static void write_vmcs_guest_fields() {
 
   vmx_vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
 
-  vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, 0xFFFFFFFF'FFFFFFFFull);
+  vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, MAXULONG64);
 
-  vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, 0xFFFFFFFF);
+  vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, MAXULONG64);
 }
 
 // measure the amount of overhead that a vm-exit
 // causes so that we can use TSC offsetting to hide it
 static uint64_t measure_vm_exit_tsc_latency() {
-  uint64_t lowest_latency = MAXULONGLONG;
+  uint64_t lowest_latency = MAXULONG64;
 
   // we dont want to be interrupted (NMIs and SMIs can fuck off)
   _disable();
@@ -404,29 +405,24 @@ static uint64_t measure_vm_exit_tsc_latency() {
 }
 
 // using TSC offsetting to hide vm-exit TSC latency
-static void hide_vm_exit_tsc_latency(vcpu const* const cpu) {
-  // hotfix to prevent TSC offsetting while running in a nested HV
-  if (cpu->vm_exit_tsc_latency > 10000)
-    return;
+static void hide_vm_exit_tsc_latency(vcpu* const cpu) {
+  if (cpu->hide_vm_exit_latency) {
+    // hotfix to prevent TSC offsetting while running in a nested HV
+    if (cpu->vm_exit_tsc_latency > 10000)
+      return;
 
-  // TODO: this seems to take an awful amount of time to execute...
-  //       maybe we should cache the current tsc offset?
-  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET,
-    vmx_vmread(VMCS_CTRL_TSC_OFFSET) - cpu->vm_exit_tsc_latency);
+    cpu->tsc_offset -= cpu->vm_exit_tsc_latency;
 
-  if (cpu->vm_exit_tsc_latency <= 0)
-    return;
+    // set preemption timer to cause an exit after 10000 guest TSC ticks have passed
+    cpu->preemption_timer = max(2,
+      10000 >> cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
+  } else {
+    // reset TSC offset to 0 during vm-exits that are not likely to be timed
+    cpu->tsc_offset = 0;
 
-  // enable the preemption timer so we can later reset our TSC offset
-  auto pin_based = read_ctrl_pin_based();
-  pin_based.activate_vmx_preemption_timer = 1;
-  write_ctrl_pin_based(pin_based);
-
-  // reset TSC offset after 10000 TSC ticks have passed
-  auto const vmx_10000 = max(1, 10000 >>
-    cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
-
-  vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, vmx_10000);
+    // soft disable the VMX preemption timer
+    cpu->preemption_timer = MAXULONG64;
+  }
 }
 
 // call the appropriate exit-handler for this vm-exit
@@ -465,21 +461,21 @@ void handle_vm_exit(guest_context* const ctx) {
   auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
   cpu->ctx = ctx;
 
+  // dont hide tsc latency by default
+  cpu->hide_vm_exit_latency = false;
+
   vmx_vmexit_reason reason;
   reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
-  if (cpu->vm_exit_tsc_latency == 0 && ctx->eax == 69 && ctx->ecx == 69 &&
-      reason.basic_exit_reason == VMX_EXIT_REASON_EXECUTE_CPUID) {
-    // guest is measuring vm-exit latency, do nothing
-    skip_instruction();
-  } else {
-    // handle the vm-exit
-    dispatch_vm_exit(cpu, reason);
-  }
+  // handle the vm-exit
+  dispatch_vm_exit(cpu, reason);
 
-  // hide vm-exit latency
-  if (reason.basic_exit_reason != VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED)
-    hide_vm_exit_tsc_latency(cpu);
+  // hide the vm-exit overhead from the guest
+  hide_vm_exit_tsc_latency(cpu);
+
+  // update the TSC offset and VMX preemption timer
+  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
+  vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
 
   vmentry_interrupt_information vectoring_info;
   vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
@@ -546,6 +542,8 @@ bool virtualize_cpu(vcpu* const cpu) {
 
   DbgPrint("[hv] Wrote VMCS fields.\n");
 
+  // TODO: should these fields really be set here? lol
+  cpu->tsc_offset = 0;
   cpu->vm_exit_tsc_latency = 0;
 
   if (!vm_launch()) {
