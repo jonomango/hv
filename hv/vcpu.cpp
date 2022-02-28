@@ -389,26 +389,41 @@ static uint64_t measure_vm_exit_tsc_latency() {
 
   // measure the execution time of a vm-entry and vm-exit
   for (int i = 0; i < 10; ++i) {
+    // first measure the overhead of rdtsc/rdtsc
+
     _mm_lfence();
     auto start = __rdtsc();
     _mm_lfence();
-
-    vmx_vmcall(hypercall_ping);
 
     _mm_lfence();
     auto end = __rdtsc();
     _mm_lfence();
 
-    auto const curr = end - start;
+    auto const rdtsc_overhead = end - start;
+
+    // next, measure the overhead of a vm-exit
+
+    _mm_lfence();
+    start = __rdtsc();
+    _mm_lfence();
+
+    vmx_vmcall(hypercall_ping);
+
+    _mm_lfence();
+    end = __rdtsc();
+    _mm_lfence();
+
+    // this is the time it takes, in TSC, for a vm-exit that does no handling
+    auto const curr = (end - start) - rdtsc_overhead;
+
     if (curr < lowest_latency)
       lowest_latency = curr;
   }
 
   _enable();
 
-  // return the lowest execution time as our offset + a little extra
-  // to ensure that we don't cause TSC delta to go negative.
-  return lowest_latency - 50;
+  // return the lowest execution time as the vm-exit latency
+  return lowest_latency;
 }
 
 // using TSC offsetting to hide vm-exit TSC latency

@@ -120,6 +120,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arch.h" />
+    <ClInclude Include="ept.h" />
     <ClInclude Include="exit-handlers.h" />
     <ClInclude Include="gdt.h" />
     <ClInclude Include="guest-context.h" />
@@ -135,6 +136,7 @@
     <ClInclude Include="vmx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ept.cpp" />
     <ClCompile Include="exit-handlers.cpp" />
     <ClCompile Include="gdt.cpp" />
     <ClCompile Include="hv.cpp" />
