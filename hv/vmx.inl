@@ -58,8 +58,6 @@ inline uint64_t vmx_vmread(uint64_t const field) {
   return value;
 }
 
-
-
 // write to a guest general-purpose register
 inline void write_guest_gpr(guest_context* const ctx,
     uint64_t const gpr_idx, uint64_t const value) {
@@ -77,7 +75,33 @@ inline uint64_t read_guest_gpr(guest_context const* const ctx,
   return ctx->gpr[gpr_idx];
 }
 
+// get the value of CR0 that the guest believes is active.
+// this is a mixture of the guest CR0 and the CR0 read shadow.
+inline cr0 read_effective_guest_cr0() {
+  // TODO: cache this value
+  auto const mask = vmx_vmread(VMCS_CTRL_CR0_GUEST_HOST_MASK);
 
+  // bits set to 1 in the mask are read from CR0, otherwise from the shadow
+  cr0 cr0;
+  cr0.flags = (vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW) & mask)
+    | (vmx_vmread(VMCS_GUEST_CR0) & ~mask);
+
+  return cr0;
+}
+
+// get the value of CR4 that the guest believes is active.
+// this is a mixture of the guest CR4 and the CR4 read shadow.
+inline cr4 read_effective_guest_cr4() {
+  // TODO: cache this value
+  auto const mask = vmx_vmread(VMCS_CTRL_CR4_GUEST_HOST_MASK);
+
+  // bits set to 1 in the mask are read from CR4, otherwise from the shadow
+  cr4 cr4;
+  cr4.flags = (vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW) & mask)
+    | (vmx_vmread(VMCS_GUEST_CR4) & ~mask);
+
+  return cr4;
+}
 
 // write to the guest interruptibility state
 inline void write_interruptibility_state(vmx_interruptibility_state const value) {
@@ -90,8 +114,6 @@ inline vmx_interruptibility_state read_interruptibility_state() {
   value.flags = static_cast<uint32_t>(vmx_vmread(VMCS_GUEST_INTERRUPTIBILITY_STATE));
   return value;
 }
-
-
 
 // write to the pin-based vm-execution controls
 inline void write_ctrl_pin_based_safe(ia32_vmx_pinbased_ctls_register const value) {
@@ -133,8 +155,6 @@ inline void write_ctrl_entry_safe(ia32_vmx_entry_ctls_register const value) {
     IA32_VMX_TRUE_ENTRY_CTLS);
 }
 
-
-
 // write to the pin-based vm-execution controls
 inline void write_ctrl_pin_based(ia32_vmx_pinbased_ctls_register const value) {
   vmx_vmwrite(VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS, value.flags);
@@ -159,8 +179,6 @@ inline void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
 inline void write_ctrl_entry(ia32_vmx_entry_ctls_register const value) {
   vmx_vmwrite(VMCS_CTRL_VMENTRY_CONTROLS, value.flags);
 }
-
-
 
 // read the pin-based vm-execution controls
 inline ia32_vmx_pinbased_ctls_register read_ctrl_pin_based() {
@@ -197,8 +215,6 @@ inline ia32_vmx_entry_ctls_register read_ctrl_entry() {
   return value;
 }
 
-
-
 // increment the instruction pointer after emulating an instruction
 inline void skip_instruction() {
   // increment rip
@@ -227,38 +243,6 @@ inline void skip_instruction() {
     vmx_vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, dbg_exception.flags);
   }
 }
-
-
-
-// get the value of CR0 that the guest believes is active.
-// this is a mixture of the guest CR0 and the CR0 read shadow.
-inline cr0 read_effective_guest_cr0() {
-  // TODO: cache this value
-  auto const mask = vmx_vmread(VMCS_CTRL_CR0_GUEST_HOST_MASK);
-
-  // bits set to 1 in the mask are read from CR0, otherwise from the shadow
-  cr0 cr0;
-  cr0.flags = (vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW) & mask)
-    | (vmx_vmread(VMCS_GUEST_CR0) & ~mask);
-
-  return cr0;
-}
-
-// get the value of CR4 that the guest believes is active.
-// this is a mixture of the guest CR4 and the CR4 read shadow.
-inline cr4 read_effective_guest_cr4() {
-  // TODO: cache this value
-  auto const mask = vmx_vmread(VMCS_CTRL_CR4_GUEST_HOST_MASK);
-
-  // bits set to 1 in the mask are read from CR4, otherwise from the shadow
-  cr4 cr4;
-  cr4.flags = (vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW) & mask)
-    | (vmx_vmread(VMCS_GUEST_CR4) & ~mask);
-
-  return cr4;
-}
-
-
 
 // inject an NMI into the guest
 inline void inject_nmi() {
