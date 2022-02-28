@@ -258,9 +258,18 @@ static void write_vmcs_host_fields(vcpu const* const cpu) {
   host_cr3.address_of_page_directory = get_physical(&ghv.host_page_tables.pml4) >> 12;
   vmx_vmwrite(VMCS_HOST_CR3, host_cr3.flags);
 
-  // TODO: setup our own CR0/CR4
+  cr4 host_cr4;
+  host_cr4.flags = __readcr4();
+
+  // these are flags that may or may not be set by Windows
+  host_cr4.pcid_enable     = 0;
+  host_cr4.fsgsbase_enable = 1;
+  host_cr4.os_xsave        = 1;
+  host_cr4.smap_enable     = 0;
+  host_cr4.smep_enable     = 0;
+
   vmx_vmwrite(VMCS_HOST_CR0, __readcr0());
-  vmx_vmwrite(VMCS_HOST_CR4, __readcr4() & ~CR4_PCID_ENABLE_FLAG);
+  vmx_vmwrite(VMCS_HOST_CR4, host_cr4.flags);
 
   // ensure that rsp is NOT aligned to 16 bytes when execution starts
   auto const rsp = ((reinterpret_cast<size_t>(cpu->host_stack)
