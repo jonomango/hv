@@ -33,7 +33,7 @@ inline uint8_t* const host_physical_memory_base = reinterpret_cast<uint8_t*>(
 inline constexpr uint16_t guest_vpid = 1;
 
 // signature that is returned by the ping hypercall
-inline constexpr uint64_t hypervisor_signature = 'frog';
+inline constexpr uint64_t hypervisor_signature = 'jono';
 
 struct vcpu_cached_data {
   // maximum number of bits in a physical address (MAXPHYSADDR)

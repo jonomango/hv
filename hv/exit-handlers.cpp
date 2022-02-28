@@ -68,8 +68,7 @@ void emulate_xsetbv(vcpu* const cpu) {
   xcr0 new_xcr0;
   new_xcr0.flags = (cpu->ctx->rdx << 32) | cpu->ctx->eax;
 
-  cr4 curr_cr4;
-  curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
+  auto const curr_cr4 = read_effective_guest_cr4();
 
   // only XCR0 is supported
   if (cpu->ctx->ecx != 0) {
@@ -148,8 +147,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   cr0 new_cr0;
   new_cr0.flags = read_guest_gpr(cpu->ctx, gpr);
 
-  cr4 curr_cr4;
-  curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
+  auto const curr_cr4 = read_effective_guest_cr4();
 
   // CR0[15:6] is always 0
   new_cr0.reserved1 = 0;
@@ -220,8 +218,7 @@ void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   cr3 new_cr3;
   new_cr3.flags = read_guest_gpr(cpu->ctx, gpr);
 
-  cr4 curr_cr4;
-  curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
+  auto const curr_cr4 = read_effective_guest_cr4();
 
   bool invalidate_tlb = true;
 
@@ -267,14 +264,11 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   cr4 new_cr4;
   new_cr4.flags = read_guest_gpr(cpu->ctx, gpr);
 
-  cr4 curr_cr4;
-  curr_cr4.flags = vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW);
-
   cr3 curr_cr3;
   curr_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
 
-  cr0 curr_cr0;
-  curr_cr0.flags = vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW);
+  auto const curr_cr0 = read_effective_guest_cr0();
+  auto const curr_cr4 = read_effective_guest_cr4();
 
   // #GP(0) if an attempt is made to set CR4.SMXE when SMX is not supported
   if (!cpu->cached.cpuid_01.cpuid_feature_information_ecx.safer_mode_extensions

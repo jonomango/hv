@@ -230,6 +230,36 @@ inline void skip_instruction() {
 
 
 
+// get the value of CR0 that the guest believes is active.
+// this is a mixture of the guest CR0 and the CR0 read shadow.
+inline cr0 read_effective_guest_cr0() {
+  // TODO: cache this value
+  auto const mask = vmx_vmread(VMCS_CTRL_CR0_GUEST_HOST_MASK);
+
+  // bits set to 1 in the mask are read from CR0, otherwise from the shadow
+  cr0 cr0;
+  cr0.flags = (vmx_vmread(VMCS_CTRL_CR0_READ_SHADOW) & mask)
+    | (vmx_vmread(VMCS_GUEST_CR0) & ~mask);
+
+  return cr0;
+}
+
+// get the value of CR4 that the guest believes is active.
+// this is a mixture of the guest CR4 and the CR4 read shadow.
+inline cr4 read_effective_guest_cr4() {
+  // TODO: cache this value
+  auto const mask = vmx_vmread(VMCS_CTRL_CR4_GUEST_HOST_MASK);
+
+  // bits set to 1 in the mask are read from CR4, otherwise from the shadow
+  cr4 cr4;
+  cr4.flags = (vmx_vmread(VMCS_CTRL_CR4_READ_SHADOW) & mask)
+    | (vmx_vmread(VMCS_GUEST_CR4) & ~mask);
+
+  return cr4;
+}
+
+
+
 // inject an NMI into the guest
 inline void inject_nmi() {
   vmentry_interrupt_information interrupt_info;
