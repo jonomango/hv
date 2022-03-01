@@ -182,6 +182,8 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   exit_ctrl.flags                   = 0;
   exit_ctrl.save_debug_controls     = 1;
   exit_ctrl.host_address_space_size = 1;
+  exit_ctrl.save_ia32_pat           = 1;
+  exit_ctrl.load_ia32_pat           = 1;
   exit_ctrl.conceal_vmx_from_pt     = 1;
   write_ctrl_exit_safe(exit_ctrl);
 
@@ -190,6 +192,7 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   entry_ctrl.flags               = 0;
   entry_ctrl.load_debug_controls = 1;
   entry_ctrl.ia32e_mode_guest    = 1;
+  entry_ctrl.load_ia32_pat       = 1;
   entry_ctrl.conceal_vmx_from_pt = 1;
   write_ctrl_entry_safe(entry_ctrl);
 
@@ -295,6 +298,21 @@ static void write_vmcs_host_fields(vcpu const* const cpu) {
   vmx_vmwrite(VMCS_HOST_SYSENTER_CS,  0);
   vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, 0);
   vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, 0);
+
+  ia32_pat_register host_pat;
+  host_pat.flags = 0;
+
+  // 3.11.12.4
+  // configure PAT as if it wasn't supported (i.e. default settings after a reset)
+  host_pat.pa0   = MEMORY_TYPE_WRITE_BACK;
+  host_pat.pa1   = MEMORY_TYPE_WRITE_THROUGH;
+  host_pat.pa2   = MEMORY_TYPE_UNCACHEABLE_MINUS;
+  host_pat.pa3   = MEMORY_TYPE_UNCACHEABLE;
+  host_pat.pa4   = MEMORY_TYPE_WRITE_BACK;
+  host_pat.pa5   = MEMORY_TYPE_WRITE_THROUGH;
+  host_pat.pa6   = MEMORY_TYPE_UNCACHEABLE_MINUS;
+  host_pat.pa7   = MEMORY_TYPE_UNCACHEABLE;
+  vmx_vmwrite(VMCS_HOST_PAT, host_pat.flags);
 }
 
 // write to the guest fields in the VMCS
@@ -363,10 +381,11 @@ static void write_vmcs_guest_fields() {
   vmx_vmwrite(VMCS_GUEST_GDTR_LIMIT, gdtr.limit);
   vmx_vmwrite(VMCS_GUEST_IDTR_LIMIT, idtr.limit);
 
-  vmx_vmwrite(VMCS_GUEST_DEBUGCTL,     __readmsr(IA32_DEBUGCTL));
   vmx_vmwrite(VMCS_GUEST_SYSENTER_CS,  __readmsr(IA32_SYSENTER_CS));
   vmx_vmwrite(VMCS_GUEST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
   vmx_vmwrite(VMCS_GUEST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
+  vmx_vmwrite(VMCS_GUEST_DEBUGCTL,     __readmsr(IA32_DEBUGCTL));
+  vmx_vmwrite(VMCS_GUEST_PAT,          __readmsr(IA32_PAT));
 
   vmx_vmwrite(VMCS_GUEST_ACTIVITY_STATE, vmx_active);
 

@@ -200,6 +200,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
     //   if CR0.CD or CR0.NW is modified, we need to update the host CR0
     //   since these bits are shared by the guest AND the host... i think?
     //   3.26.3.2.1
+    //   instead, just update top-most EPT table entries (i.e. PML4e).
   }
 
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, new_cr0.flags);
