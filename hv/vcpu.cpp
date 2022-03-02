@@ -171,6 +171,7 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   // 3.24.6.2
   ia32_vmx_procbased_ctls2_register proc_based_ctrl2;
   proc_based_ctrl2.flags                  = 0;
+  proc_based_ctrl2.enable_ept             = 1;
   proc_based_ctrl2.enable_rdtscp          = 1;
   proc_based_ctrl2.enable_vpid            = 1;
   proc_based_ctrl2.enable_invpcid         = 1;
@@ -231,6 +232,16 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
 
   // 3.24.6.9
   vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&cpu->msr_bitmap));
+
+  // 3.24.6.11
+  ept_pointer eptp;
+  eptp.flags                                = 0;
+  eptp.memory_type                          = MEMORY_TYPE_WRITE_BACK;
+  eptp.page_walk_length                     = 3;
+  eptp.enable_access_and_dirty_flags        = 0;
+  eptp.enable_supervisor_shadow_stack_pages = 0;
+  eptp.page_frame_number                    = get_physical(&cpu->ept.pml4) >> 12;
+  vmx_vmwrite(VMCS_CTRL_EPT_POINTER, eptp.flags);
 
   // 3.24.6.12
   vmx_vmwrite(VMCS_CTRL_VIRTUAL_PROCESSOR_IDENTIFIER, guest_vpid);

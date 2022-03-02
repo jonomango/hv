@@ -28,7 +28,9 @@ void prepare_ept(vcpu_ept_data& ept) {
     pdpte.execute_access    = 1;
     pdpte.accessed          = 0;
     pdpte.user_mode_execute = 1;
-    pdpte.page_frame_number = get_physical(&ept.pds[i]);
+    pdpte.page_frame_number = get_physical(&ept.pds[i]) >> 12;
+
+    DbgPrint("[hv] PDPT (%zi) - %p.\n", i, pdpte.page_frame_number << 12);
 
     for (size_t j = 0; j < 512; ++j) {
       auto const pfn = (i << 9) + j;
