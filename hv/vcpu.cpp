@@ -140,6 +140,8 @@ static void prepare_external_structures(vcpu* const cpu) {
 
   prepare_host_idt(cpu->host_idt);
   prepare_host_gdt(cpu->host_gdt, &cpu->host_tss);
+
+  prepare_ept(cpu->ept);
 }
 
 // write to the control fields in the VMCS

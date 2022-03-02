@@ -27,5 +27,8 @@ uint64_t get_physical(void* virt_addr);
 // translate a physical address to its virtual address
 void* get_virtual(uint64_t phys_addr);
 
+// calculate the MTRR memory type for the given physical memory range
+uint8_t calc_mtrr_mem_type(uint64_t address, uint64_t size);
+
 } // namespace hv
 

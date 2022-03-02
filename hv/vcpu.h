@@ -2,6 +2,7 @@
 
 #include "page-tables.h"
 #include "guest-context.h"
+#include "ept.h"
 
 #include <ia32.hpp>
 
@@ -79,6 +80,9 @@ struct vcpu {
 
   // host task state segment
   alignas(0x1000) task_state_segment_64 host_tss;
+
+  // EPT paging structures
+  alignas(0x1000) vcpu_ept_data ept;
 
   // cached values that are assumed to NEVER change
   vcpu_cached_data cached;
