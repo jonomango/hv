@@ -1,34 +1,15 @@
 #pragma once
 
-#include "page-tables.h"
 #include "guest-context.h"
+#include "page-tables.h"
+#include "gdt.h"
+#include "idt.h"
 #include "ept.h"
-
-#include <ia32.hpp>
 
 namespace hv {
 
-// TODO: why are all these constants defined in vcpu.h?
-
-// selectors for the host GDT
-inline constexpr segment_selector host_cs_selector = { 0, 0, 1 };
-inline constexpr segment_selector host_tr_selector = { 0, 0, 2 };
-
-// number of available descriptor slots in the host GDT
-inline constexpr size_t host_gdt_descriptor_count = 4;
-
-// number of available descriptor slots in the host IDT
-inline constexpr size_t host_idt_descriptor_count = 256;
-
 // size of the host stack for handling vm-exits
 inline constexpr size_t host_stack_size = 0x6000;
-
-// the first 128GB of physical memory is mapped to this pml4 entry
-inline constexpr uint64_t host_physical_memory_pml4_idx = 255;
-
-// directly access physical memory by using [base + offset]
-inline uint8_t* const host_physical_memory_base = reinterpret_cast<uint8_t*>(
-  host_physical_memory_pml4_idx << (9 + 9 + 9 + 12));
 
 // guest virtual-processor identifier
 inline constexpr uint16_t guest_vpid = 1;
