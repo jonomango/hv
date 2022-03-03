@@ -1,13 +1,12 @@
 #include "ept.h"
 #include "mm.h"
+#include "arch.h"
 
 namespace hv {
 
 // identity-map the EPT paging structures
 void prepare_ept(vcpu_ept_data& ept) {
   memset(&ept, 0, sizeof(ept));
-
-  DbgPrint("[hv] Preparing EPT.\n");
 
   // setup the first PML4E so that it points to our PDPT
   auto& pml4e             = ept.pml4[0];
@@ -30,28 +29,47 @@ void prepare_ept(vcpu_ept_data& ept) {
     pdpte.user_mode_execute = 1;
     pdpte.page_frame_number = get_physical(&ept.pds[i]) >> 12;
 
-    DbgPrint("[hv] PDPT (%zi) - %p.\n", i, pdpte.page_frame_number << 12);
-
     for (size_t j = 0; j < 512; ++j) {
-      auto const pfn = (i << 9) + j;
-
       // identity-map every GPA to the corresponding HPA
       auto& pde             = ept.pds_2mb[i][j];
       pde.flags             = 0;
       pde.read_access       = 1;
       pde.write_access      = 1;
       pde.execute_access    = 1;
-      pde.memory_type       = calc_mtrr_mem_type(pfn << (9 + 12), 0x1000 << 9);
+      pde.memory_type       = MEMORY_TYPE_UNCACHEABLE;
       pde.ignore_pat        = 0;
       pde.large_page        = 1;
       pde.accessed          = 0;
       pde.dirty             = 0;
       pde.user_mode_execute = 1;
       pde.suppress_ve       = 0;
-      pde.page_frame_number = pfn;
+      pde.page_frame_number = (i << 9) + j;
+    }
+  }
+
+  update_ept_memory_types(ept);
+}
+
+// update the memory types in the EPT paging structures based on the MTRRs
+void update_ept_memory_types(vcpu_ept_data& ept) {
+  auto const mtrrs = read_mtrr_data();
+
+  for (size_t i = 0; i < ept_pd_count; ++i) {
+    for (size_t j = 0; j < 512; ++j) {
+      auto& pde = ept.pds_2mb[i][j];
+
+      // TODO: this could occur when we start splitting pages
+      if (!pde.large_page) {
+
+      }
+
+      // update the memory type
+      pde.memory_type = calc_mtrr_mem_type(mtrrs,
+        pde.page_frame_number << 21, 0x1000 << 9);
     }
   }
 }
+
 
 } // namespace hv
 
