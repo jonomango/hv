@@ -417,16 +417,32 @@ void handle_mov_cr(vcpu* const cpu) {
   }
 }
 
-void handle_nmi_window(vcpu*) {
-  auto ctrl = read_ctrl_proc_based();
-  ctrl.nmi_window_exiting = 0;
-  write_ctrl_proc_based(ctrl);
+void handle_nmi_window(vcpu* const cpu) {
+  --cpu->queued_nmis;
 
-  // reflect the NMI back into the guest
+  // inject the NMI into the guest
   inject_nmi();
+
+  if (cpu->queued_nmis == 0) {
+    // disable NMI-window exiting since we have no more NMIs to inject
+    auto ctrl = read_ctrl_proc_based();
+    ctrl.nmi_window_exiting = 0;
+    write_ctrl_proc_based(ctrl);
+  }
+  
+  // there is the possibility that a host NMI occurred right before we
+  // disabled NMI-window exiting. make sure to re-enable it if this is the case.
+  if (cpu->queued_nmis > 0) {
+    auto ctrl = read_ctrl_proc_based();
+    ctrl.nmi_window_exiting = 1;
+    write_ctrl_proc_based(ctrl);
+  }
 }
 
-void handle_exception_or_nmi(vcpu*) {
+void handle_exception_or_nmi(vcpu* const cpu) {
+  // enqueue an NMI to be injected into the guest later on
+  ++cpu->queued_nmis;
+
   auto ctrl = read_ctrl_proc_based();
   ctrl.nmi_window_exiting = 1;
   write_ctrl_proc_based(ctrl);

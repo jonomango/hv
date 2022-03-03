@@ -90,6 +90,9 @@ struct vcpu {
   // pointer to the current guest context, set in exit-handler
   guest_context* ctx;
 
+  // the number of NMIs that need to be delivered
+  uint32_t volatile queued_nmis;
+
   // current TSC offset
   uint64_t tsc_offset;
 

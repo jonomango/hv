@@ -22,6 +22,10 @@ void prepare_ept(vcpu_ept_data& ept) {
   // MTRR data for setting memory types
   auto const mtrrs = read_mtrr_data();
 
+  // TODO: allocate a PT for the fixed MTRRs region so that we can get
+  // more accurate memory typing in that area (as opposed to just
+  // mapping the whole PDE as UC).
+
   for (size_t i = 0; i < ept_pd_count; ++i) {
     // point each PDPTE to the corresponding PD
     auto& pdpte             = ept.pdpt[i];

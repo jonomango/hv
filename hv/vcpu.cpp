@@ -551,6 +551,10 @@ void handle_host_interrupt(trap_frame* const frame) {
     auto ctrl = read_ctrl_proc_based();
     ctrl.nmi_window_exiting = 1;
     write_ctrl_proc_based(ctrl);
+
+    auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
+    ++cpu->queued_nmis;
+
     break;
   }
 }
@@ -597,6 +601,8 @@ bool virtualize_cpu(vcpu* const cpu) {
   DbgPrint("[hv] Wrote VMCS fields.\n");
 
   // TODO: should these fields really be set here? lol
+  cpu->ctx                 = nullptr;
+  cpu->queued_nmis         = 0;
   cpu->tsc_offset          = 0;
   cpu->preemption_timer    = 0;
   cpu->vm_exit_tsc_latency = 0;
