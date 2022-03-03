@@ -1,6 +1,7 @@
 #include "ept.h"
 #include "mm.h"
 #include "arch.h"
+#include "vcpu.h"
 
 namespace hv {
 
@@ -17,6 +18,9 @@ void prepare_ept(vcpu_ept_data& ept) {
   pml4e.accessed          = 0;
   pml4e.user_mode_execute = 1;
   pml4e.page_frame_number = get_physical(&ept.pdpt) >> 12;
+
+  // MTRR data for setting memory types
+  auto const mtrrs = read_mtrr_data();
 
   for (size_t i = 0; i < ept_pd_count; ++i) {
     // point each PDPTE to the corresponding PD
@@ -36,7 +40,8 @@ void prepare_ept(vcpu_ept_data& ept) {
       pde.read_access       = 1;
       pde.write_access      = 1;
       pde.execute_access    = 1;
-      pde.memory_type       = MEMORY_TYPE_UNCACHEABLE;
+      pde.memory_type       = calc_mtrr_mem_type(mtrrs,
+        pde.page_frame_number << 21, 0x1000 << 9);
       pde.ignore_pat        = 0;
       pde.large_page        = 1;
       pde.accessed          = 0;
@@ -46,26 +51,35 @@ void prepare_ept(vcpu_ept_data& ept) {
       pde.page_frame_number = (i << 9) + j;
     }
   }
-
-  update_ept_memory_types(ept);
 }
 
-// update the memory types in the EPT paging structures based on the MTRRs
-void update_ept_memory_types(vcpu_ept_data& ept) {
+// update the memory types in the EPT paging structures based on the MTRRs.
+// this function should only be called from root-mode during vmx-operation.
+void update_ept_memory_type(vcpu_ept_data& ept) {
+  // TODO: completely virtualize the guest MTRRs
   auto const mtrrs = read_mtrr_data();
 
   for (size_t i = 0; i < ept_pd_count; ++i) {
     for (size_t j = 0; j < 512; ++j) {
       auto& pde = ept.pds_2mb[i][j];
 
-      // TODO: this could occur when we start splitting pages
-      if (!pde.large_page) {
-
+      // 2MB large page
+      if (pde.large_page) {
+        // update the memory type for this PDE
+        pde.memory_type = calc_mtrr_mem_type(mtrrs,
+          pde.page_frame_number << 21, 0x1000 << 9);
       }
+      // PDE points to a PT
+      else {
+        auto pt = reinterpret_cast<epte*>(host_physical_memory_base
+          + (ept.pds[i][j].page_frame_number << 12));
 
-      // update the memory type
-      pde.memory_type = calc_mtrr_mem_type(mtrrs,
-        pde.page_frame_number << 21, 0x1000 << 9);
+        // update the memory type for every PTE
+        for (size_t k = 0; k < 512; ++k) {
+          pt[k].memory_type = calc_mtrr_mem_type(mtrrs,
+            pt[k].page_frame_number << 12, 0x1000);
+        }
+      }
     }
   }
 }

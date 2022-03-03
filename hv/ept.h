@@ -25,8 +25,9 @@ struct vcpu_ept_data {
 // identity-map the EPT paging structures
 void prepare_ept(vcpu_ept_data& ept);
 
-// update the memory types in the EPT paging structures based on the MTRRs
-void update_ept_memory_types(vcpu_ept_data& ept);
+// update the memory types in the EPT paging structures based on the MTRRs.
+// this function should only be called from root-mode during vmx-operation.
+void update_ept_memory_type(vcpu_ept_data& ept);
 
 } // namespace hv
 
