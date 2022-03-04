@@ -18,7 +18,7 @@ void ping(vcpu* const cpu) {
   skip_instruction();
 }
 
-// read arbitrary physical memory
+// read from arbitrary physical memory
 void read_phys_mem(vcpu* const cpu) {
   // virtual address
   auto const dst  = reinterpret_cast<void*>(cpu->ctx->rdx);
@@ -46,6 +46,36 @@ void read_phys_mem(vcpu* const cpu) {
 
   skip_instruction();
 }
+
+// write to arbitrary physical memory
+void write_phys_mem(vcpu* const cpu) {
+  // physical address
+  auto const dst = cpu->ctx->rdx;
+
+  // virtual address
+  auto const src = reinterpret_cast<void*>(cpu->ctx->r8);
+
+  // size in bytes
+  auto const size = cpu->ctx->r9;
+
+  host_exception_info e;
+  memcpy_safe(e, host_physical_memory_base + dst, src, size);
+
+  if (e.exception_occurred) {
+    if (e.vector == page_fault) {
+      // TODO: reflect #PF into guest
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    // something bad happened :(
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  skip_instruction();
+}
+
 
 } // namespace hv::hc
 
