@@ -64,6 +64,9 @@
     <ClInclude Include="ept.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="exception-routines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="exit-handlers.cpp">
@@ -111,6 +114,9 @@
       <Filter>Source Files</Filter>
     </MASM>
     <MASM Include="vmx.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="exception-routines.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

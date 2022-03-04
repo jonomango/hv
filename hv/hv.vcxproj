@@ -121,6 +121,7 @@
   <ItemGroup>
     <ClInclude Include="arch.h" />
     <ClInclude Include="ept.h" />
+    <ClInclude Include="exception-routines.h" />
     <ClInclude Include="exit-handlers.h" />
     <ClInclude Include="gdt.h" />
     <ClInclude Include="guest-context.h" />
@@ -149,6 +150,7 @@
     <ClCompile Include="vcpu.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="exception-routines.asm" />
     <MASM Include="interrupt-handlers.asm" />
     <MASM Include="vm-exit.asm" />
     <MASM Include="vm-launch.asm" />

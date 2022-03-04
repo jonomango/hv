@@ -1,6 +1,8 @@
 #include "hypercalls.h"
 #include "vcpu.h"
 #include "vmx.h"
+#include "mm.h"
+#include "exception-routines.h"
 
 namespace hv::hc {
 
@@ -19,21 +21,28 @@ void ping(vcpu* const cpu) {
 // read arbitrary physical memory
 void read_phys_mem(vcpu* const cpu) {
   // virtual address
-  // auto const dst  = reinterpret_cast<void*>(cpu->ctx->rdx);
-  
+  auto const dst  = reinterpret_cast<void*>(cpu->ctx->rdx);
+
   // physical address
   auto const src  = cpu->ctx->r8;
 
   // size in bytes
   auto const size = cpu->ctx->r9;
 
-  // only works for reading 8 bytes until i grow brain (aka exception support)
-  if (size != 8) {
-    inject_hw_exception(invalid_opcode);
+  host_exception_info e;
+  memcpy_safe(e, dst, host_physical_memory_base + src, size);
+
+  if (e.exception_occurred) {
+    if (e.vector == page_fault) {
+      // TODO: reflect #PF into guest
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    // something bad happened :(
+    inject_hw_exception(general_protection, 0);
     return;
   }
-
-  cpu->ctx->rax = *reinterpret_cast<uint64_t*>(host_physical_memory_base + src);
 
   skip_instruction();
 }

@@ -8,6 +8,7 @@
 #include "segment.h"
 #include "trap-frame.h"
 #include "exit-handlers.h"
+#include "exception-routines.h"
 
 namespace hv {
 
@@ -547,7 +548,7 @@ void handle_vm_exit(guest_context* const ctx) {
 void handle_host_interrupt(trap_frame* const frame) {
   switch (frame->vector) {
   // host NMIs
-  case nmi:
+  case nmi: {
     auto ctrl = read_ctrl_proc_based();
     ctrl.nmi_window_exiting = 1;
     write_ctrl_proc_based(ctrl);
@@ -556,6 +557,26 @@ void handle_host_interrupt(trap_frame* const frame) {
     ++cpu->queued_nmis;
 
     break;
+  }
+  // host exceptions
+  default: {
+    // no registered exception handler
+    if (!frame->r10 || !frame->r11)
+      break;
+
+    // jump to the exception handler
+    frame->rip = frame->r10;
+
+    auto const e = reinterpret_cast<host_exception_info*>(frame->r11);
+
+    e->exception_occurred = true;
+    e->vector             = frame->vector;
+    e->error              = frame->error;
+
+    // slightly helps prevent infinite exceptions
+    frame->r10 = 0;
+    frame->r11 = 0;
+  }
   }
 }
 
