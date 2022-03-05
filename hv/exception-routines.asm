@@ -3,8 +3,6 @@
 ?memcpy_safe@hv@@YAXAEAUhost_exception_info@1@PEAXPEBX_K@Z proc
   mov r10, ehandler
   mov r11, rcx
-
-  ; set exception_occurred to false
   mov byte ptr [rcx], 0
 
   mov rsi, r8
@@ -16,5 +14,26 @@
 ehandler:
   ret
 ?memcpy_safe@hv@@YAXAEAUhost_exception_info@1@PEAXPEBX_K@Z endp
+
+?xsetbv_safe@hv@@YAXAEAUhost_exception_info@1@I_K@Z proc
+  mov r10, ehandler
+  mov r11, rcx
+  mov byte ptr [rcx], 0
+
+  ; idx
+  mov ecx, edx
+
+  ; value (low part)
+  mov eax, r8d
+
+  ; value (high part)
+  mov rdx, r8
+  shr rdx, 32
+
+  xsetbv
+
+ehandler:
+  ret
+?xsetbv_safe@hv@@YAXAEAUhost_exception_info@1@I_K@Z endp
 
 end

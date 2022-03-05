@@ -1,5 +1,6 @@
 #include "exit-handlers.h"
 #include "guest-context.h"
+#include "exception-routines.h"
 #include "hypercalls.h"
 #include "vcpu.h"
 #include "vmx.h"
@@ -112,7 +113,15 @@ void emulate_xsetbv(vcpu* const cpu) {
     return;
   }
 
-  _xsetbv(cpu->ctx->ecx, new_xcr0.flags);
+  host_exception_info e;
+  xsetbv_safe(e, cpu->ctx->ecx, new_xcr0.flags);
+
+  if (e.exception_occurred) {
+    // TODO: assert that it was a #GP(0) that occurred, although I really
+    //       doubt that any other exception could happen (according to manual).
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
 
   cpu->hide_vm_exit_latency = true;
   skip_instruction();

@@ -19,5 +19,8 @@ struct host_exception_info {
 // memcpy with exception handling
 void memcpy_safe(host_exception_info& e, void* dst, void const* src, size_t size);
 
+// xsetbv with exception handling
+void xsetbv_safe(host_exception_info& e, uint32_t idx, uint64_t value);
+
 } // namespace hv
 
