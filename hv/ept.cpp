@@ -44,8 +44,6 @@ void prepare_ept(vcpu_ept_data& ept) {
       pde.read_access       = 1;
       pde.write_access      = 1;
       pde.execute_access    = 1;
-      pde.memory_type       = calc_mtrr_mem_type(mtrrs,
-        pde.page_frame_number << 21, 0x1000 << 9);
       pde.ignore_pat        = 0;
       pde.large_page        = 1;
       pde.accessed          = 0;
@@ -53,6 +51,8 @@ void prepare_ept(vcpu_ept_data& ept) {
       pde.user_mode_execute = 1;
       pde.suppress_ve       = 0;
       pde.page_frame_number = (i << 9) + j;
+      pde.memory_type       = calc_mtrr_mem_type(mtrrs,
+        pde.page_frame_number << 21, 0x1000 << 9);
     }
   }
 }
