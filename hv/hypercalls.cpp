@@ -10,7 +10,7 @@ namespace hv::hc {
 // TODO: account for large pages
 // TODO: account for page boundaries (could be done by
 //       mapping guest pages into HV address-space?)
-static void* translate_guest_address(void* const address) {
+static void* translate_guest_address(void* const address, size_t* const size = nullptr) {
   cr3 guest_cr3;
   guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
 
@@ -60,6 +60,9 @@ static void* translate_guest_address(void* const address) {
   if (!pte.present)
     return nullptr;
 
+  if (size)
+    *size = 0x1000 - vaddr.offset;
+
   return host_physical_memory_base + (pte.page_frame_number << 12) + vaddr.offset;
 }
 
@@ -77,30 +80,43 @@ void ping(vcpu* const cpu) {
 
 // read from arbitrary physical memory
 void read_phys_mem(vcpu* const cpu) {
-  // virtual address
-  auto const dst  = reinterpret_cast<void*>(cpu->ctx->rdx);
+  auto const ctx = cpu->ctx;
 
-  // physical address
-  auto const src  = cpu->ctx->r8;
+  // virtual address
+  auto const dst  = reinterpret_cast<uint8_t*>(ctx->rdx);
+
+  // virtual address
+  auto const src  = host_physical_memory_base + ctx->r8;
 
   // size in bytes
-  auto const size = cpu->ctx->r9;
+  auto const size = ctx->r9;
 
-  auto const hva = translate_guest_address(dst);
+  for (uint64_t bytes_read = 0; bytes_read < size;) {
+    size_t offset_to_next_page = 0;
 
-  if (!hva) {
-    // TODO: should be a #PF instead
-    inject_hw_exception(general_protection, 0);
-    return;
-  }
+    // translate the guest virtual address to a host virtual address
+    auto const curr_addr = translate_guest_address(
+      dst + bytes_read, &offset_to_next_page);
 
-  host_exception_info e;
-  memcpy_safe(e, hva, host_physical_memory_base + src, size);
+    // dont wanna read past buffer end :)
+    auto const curr_size = min(offset_to_next_page, size - bytes_read);
 
-  // better safe than sorry
-  if (e.exception_occurred) {
-    inject_hw_exception(general_protection, 0);
-    return;
+    if (!curr_addr) {
+      // TODO: should be a #PF instead
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    host_exception_info e;
+    memcpy_safe(e, curr_addr, src + bytes_read, curr_size);
+
+    // better safe than sorry
+    if (e.exception_occurred) {
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    bytes_read += curr_size;
   }
 
   skip_instruction();
