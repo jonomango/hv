@@ -31,7 +31,7 @@ static void map_physical_memory(host_page_tables& pt) {
     pdpte.page_level_cache_disable = 0;
     pdpte.accessed                 = 0;
     pdpte.execute_disable          = 0;
-    pdpte.page_frame_number = MmGetPhysicalAddress(pt.phys_pds[i]).QuadPart >> 12;
+    pdpte.page_frame_number = MmGetPhysicalAddress(&pt.phys_pds[i]).QuadPart >> 12;
 
     for (uint64_t j = 0; j < 512; ++j) {
       auto& pde = pt.phys_pds[i][j];
