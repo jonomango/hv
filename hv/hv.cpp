@@ -15,7 +15,8 @@ static bool prepare_hv() {
   auto const arr_size = sizeof(vcpu) * ghv.vcpu_count;
 
   // allocate an array of vcpus
-  ghv.vcpus = static_cast<vcpu*>(alloc_aligned(arr_size, alignof(vcpu)));
+  ghv.vcpus = static_cast<vcpu*>(ExAllocatePoolWithTag(
+    NonPagedPoolNx, arr_size, 'fr0g'));
 
   if (!ghv.vcpus) {
     DbgPrint("[hv] Failed to alloocate VCPUs.\n");

@@ -17,7 +17,7 @@ void prepare_ept(vcpu_ept_data& ept) {
   pml4e.execute_access    = 1;
   pml4e.accessed          = 0;
   pml4e.user_mode_execute = 1;
-  pml4e.page_frame_number = get_physical(&ept.pdpt) >> 12;
+  pml4e.page_frame_number = MmGetPhysicalAddress(&ept.pdpt).QuadPart >> 12;
 
   // MTRR data for setting memory types
   auto const mtrrs = read_mtrr_data();
@@ -35,7 +35,7 @@ void prepare_ept(vcpu_ept_data& ept) {
     pdpte.execute_access    = 1;
     pdpte.accessed          = 0;
     pdpte.user_mode_execute = 1;
-    pdpte.page_frame_number = get_physical(&ept.pds[i]) >> 12;
+    pdpte.page_frame_number = MmGetPhysicalAddress(&ept.pds[i]).QuadPart >> 12;
 
     for (size_t j = 0; j < 512; ++j) {
       // identity-map every GPA to the corresponding HPA

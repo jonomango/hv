@@ -90,7 +90,7 @@ static bool enter_vmx_operation(vmxon& vmxon_region) {
   vmxon_region.revision_id = vmx_basic.vmcs_revision_id;
   vmxon_region.must_be_zero = 0;
 
-  auto vmxon_phys = get_physical(&vmxon_region);
+  auto vmxon_phys = MmGetPhysicalAddress(&vmxon_region).QuadPart;
   NT_ASSERT(vmxon_phys % 0x1000 == 0);
 
   // enter vmx operation
@@ -114,7 +114,7 @@ static bool load_vmcs_pointer(vmcs& vmcs_region) {
   vmcs_region.revision_id = vmx_basic.vmcs_revision_id;
   vmcs_region.shadow_vmcs_indicator = 0;
 
-  auto vmcs_phys = get_physical(&vmcs_region);
+  auto vmcs_phys = MmGetPhysicalAddress(&vmcs_region).QuadPart;
   NT_ASSERT(vmcs_phys % 0x1000 == 0);
 
   if (!vmx_vmclear(vmcs_phys)) {
@@ -232,7 +232,7 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   vmx_vmwrite(VMCS_CTRL_CR3_TARGET_VALUE_0, ghv.system_cr3.flags);
 
   // 3.24.6.9
-  vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, get_physical(&cpu->msr_bitmap));
+  vmx_vmwrite(VMCS_CTRL_MSR_BITMAP_ADDRESS, MmGetPhysicalAddress(&cpu->msr_bitmap).QuadPart);
 
   // 3.24.6.11
   ept_pointer eptp;
@@ -241,7 +241,7 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   eptp.page_walk_length                     = 3;
   eptp.enable_access_and_dirty_flags        = 0;
   eptp.enable_supervisor_shadow_stack_pages = 0;
-  eptp.page_frame_number                    = get_physical(&cpu->ept.pml4) >> 12;
+  eptp.page_frame_number                    = MmGetPhysicalAddress(&cpu->ept.pml4).QuadPart >> 12;
   vmx_vmwrite(VMCS_CTRL_EPT_POINTER, eptp.flags);
 
   // 3.24.6.12
@@ -272,7 +272,7 @@ static void write_vmcs_host_fields(vcpu const* const cpu) {
   host_cr3.flags                     = 0;
   host_cr3.page_level_cache_disable  = 0;
   host_cr3.page_level_write_through  = 0;
-  host_cr3.address_of_page_directory = get_physical(&ghv.host_page_tables.pml4) >> 12;
+  host_cr3.address_of_page_directory = MmGetPhysicalAddress(&ghv.host_page_tables.pml4).QuadPart >> 12;
   vmx_vmwrite(VMCS_HOST_CR3, host_cr3.flags);
 
   cr4 host_cr4;

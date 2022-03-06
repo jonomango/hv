@@ -16,7 +16,7 @@ static void map_physical_memory(host_page_tables& pt) {
   pml4e.page_level_cache_disable = 0;
   pml4e.accessed                 = 0;
   pml4e.execute_disable          = 0;
-  pml4e.page_frame_number = get_physical(&pt.phys_pdpt) >> 12;
+  pml4e.page_frame_number = MmGetPhysicalAddress(&pt.phys_pdpt).QuadPart >> 12;
 
   // TODO: add support for 1GB pages
   // TODO: check if 2MB pages are supported (pretty much always are)
@@ -31,7 +31,7 @@ static void map_physical_memory(host_page_tables& pt) {
     pdpte.page_level_cache_disable = 0;
     pdpte.accessed                 = 0;
     pdpte.execute_disable          = 0;
-    pdpte.page_frame_number = get_physical(pt.phys_pds[i]) >> 12;
+    pdpte.page_frame_number = MmGetPhysicalAddress(pt.phys_pds[i]).QuadPart >> 12;
 
     for (uint64_t j = 0; j < 512; ++j) {
       auto& pde = pt.phys_pds[i][j];
@@ -60,8 +60,9 @@ void prepare_host_page_tables() {
   // TODO: perform a deep copy instead of a shallow copy (for the memory
   //   ranges that our hypervisor code resides in)
 
-  auto const system_pml4 = static_cast<pml4e_64*>(get_virtual(
-    ghv.system_cr3.address_of_page_directory << 12));
+  PHYSICAL_ADDRESS pml4_address;
+  pml4_address.QuadPart = ghv.system_cr3.address_of_page_directory << 12;
+  auto const system_pml4 = static_cast<pml4e_64*>(MmGetVirtualForPhysical(pml4_address));
 
   // copy the top half of the System pml4 (a.k.a. the kernel address space)
   memcpy(&pt.pml4[256], &system_pml4[256], sizeof(pml4e_64) * 256);
