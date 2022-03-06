@@ -2,6 +2,7 @@
 
 #include "arch.h"
 #include "guest-context.h"
+#include "hypercalls.h"
 
 namespace hv {
 
@@ -12,7 +13,7 @@ void vmx_invept(invept_type type, invept_descriptor const& desc);
 void vmx_invvpid(invvpid_type type, invvpid_descriptor const& desc);
 
 // VMCALL instruction
-uint64_t vmx_vmcall(uint64_t a1 = 0, uint64_t a2 = 0, uint64_t a3 = 0, uint64_t a4 = 0);
+uint64_t vmx_vmcall(hypercall_input& input);
 
 // VMXON instruction
 bool vmx_vmxon(uint64_t vmxon_phys_addr);

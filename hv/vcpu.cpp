@@ -435,12 +435,14 @@ static uint64_t measure_vm_exit_tsc_latency() {
     auto const rdtsc_overhead = end - start;
 
     // next, measure the overhead of a vm-exit
+    hypercall_input input;
+    input.code = hypercall_ping;
 
     _mm_lfence();
     start = __rdtsc();
     _mm_lfence();
 
-    vmx_vmcall(hypercall_ping);
+    vmx_vmcall(input);
 
     _mm_lfence();
     end = __rdtsc();

@@ -7,13 +7,11 @@
 namespace hv::hc {
 
 // GVA -> HVA
+// TODO: should be in mm.h/mm.cpp
 // TODO: account for large pages
 // TODO: account for page boundaries (could be done by
 //       mapping guest pages into HV address-space?)
-static void* translate_guest_address(void* const address, size_t* const size = nullptr) {
-  cr3 guest_cr3;
-  guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
-
+static void* gva2hva(cr3 const cr3, void* const address, size_t* const size = nullptr) {
   // 4-level virtual address
   union virtual_address {
     void const* address;
@@ -30,7 +28,7 @@ static void* translate_guest_address(void* const address, size_t* const size = n
 
   // guest PML4
   auto const pml4 = reinterpret_cast<pml4e_64*>(host_physical_memory_base
-    + (guest_cr3.address_of_page_directory << 12));
+    + (cr3.address_of_page_directory << 12));
   auto const pml4e = pml4[vaddr.pml4_idx];
 
   if (!pml4e.present)
@@ -66,6 +64,13 @@ static void* translate_guest_address(void* const address, size_t* const size = n
   return host_physical_memory_base + (pte.page_frame_number << 12) + vaddr.offset;
 }
 
+// GVA -> HVA
+static void* gva2hva(void* const address, size_t* const size = nullptr) {
+  cr3 cr3;
+  cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
+  return gva2hva(cr3, address, size);
+}
+
 // ping the hypervisor to make sure it is running
 void ping(vcpu* const cpu) {
   cpu->ctx->rax = hypervisor_signature;
@@ -78,39 +83,33 @@ void ping(vcpu* const cpu) {
   skip_instruction();
 }
 
-// read from arbitrary physical memory
-void read_phys_mem(vcpu* const cpu) {
+// read virtual memory from another process
+void read_virt_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
-  // virtual address
-  auto const dst  = reinterpret_cast<uint8_t*>(ctx->rdx);
+  // arguments
+  cr3 cr3;
+  cr3.flags            = ctx->rcx;
+  auto const dst       = reinterpret_cast<uint8_t*>(ctx->rdx);
+  auto const src       = reinterpret_cast<uint8_t*>(ctx->r8);
+  auto const size      = ctx->r9;
 
-  // virtual address
-  auto const src  = host_physical_memory_base + ctx->r8;
+  for (size_t bytes_read = 0; bytes_read < size;) {
+    size_t dst_remaining, src_remaining;
 
-  // size in bytes
-  auto const size = ctx->r9;
+    auto const curr_dst = gva2hva(dst + bytes_read, &dst_remaining);
+    auto const curr_src = gva2hva(cr3, src + bytes_read, &src_remaining);
 
-  for (uint64_t bytes_read = 0; bytes_read < size;) {
-    size_t offset_to_next_page = 0;
-
-    // translate the guest virtual address to a host virtual address
-    auto const curr_addr = translate_guest_address(
-      dst + bytes_read, &offset_to_next_page);
-
-    // dont wanna read past buffer end :)
-    auto const curr_size = min(offset_to_next_page, size - bytes_read);
-
-    if (!curr_addr) {
-      // TODO: should be a #PF instead
+    if (!curr_dst || !curr_src) {
       inject_hw_exception(general_protection, 0);
       return;
     }
 
-    host_exception_info e;
-    memcpy_safe(e, curr_addr, src + bytes_read, curr_size);
+    auto const curr_size = min(size - bytes_read, min(dst_remaining, src_remaining));
 
-    // better safe than sorry
+    host_exception_info e;
+    memcpy_safe(e, curr_dst, curr_src, curr_size);
+
     if (e.exception_occurred) {
       inject_hw_exception(general_protection, 0);
       return;
@@ -121,12 +120,6 @@ void read_phys_mem(vcpu* const cpu) {
 
   skip_instruction();
 }
-
-// write to arbitrary physical memory
-void write_phys_mem(vcpu* const) {
-  inject_hw_exception(invalid_opcode);
-}
-
 
 } // namespace hv::hc
 

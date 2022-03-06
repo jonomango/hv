@@ -135,9 +135,9 @@ void emulate_vmxon(vcpu*) {
 
 void emulate_vmcall(vcpu* const cpu) {
   // handle the hypercall
-  switch (cpu->ctx->rcx) {
+  switch (cpu->ctx->rax) {
   case hypercall_ping:          hc::ping(cpu);          return;
-  case hypercall_read_phys_mem: hc::read_phys_mem(cpu); return;
+  case hypercall_read_virt_mem: hc::read_virt_mem(cpu); return;
   }
 
   inject_hw_exception(invalid_opcode);
