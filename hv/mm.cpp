@@ -127,8 +127,16 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
     return nullptr;
 
   if (pdpte.large_page) {
-    // TODO: 1GB pages
-    return nullptr;
+    pdpte_1gb_64 pdpte_1gb;
+    pdpte_1gb.flags = pdpte.flags;
+
+    auto const offset = (vaddr.pd_idx << 18) + (vaddr.pt_idx << 9) + vaddr.offset;
+
+    // 1GB
+    if (offset_to_next_page)
+      *offset_to_next_page = 0x40000000 - offset;
+
+    return host_physical_memory_base + (pdpte_1gb.page_frame_number << 30) + offset;
   }
 
   // guest PD
