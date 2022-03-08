@@ -19,7 +19,7 @@ static bool prepare_hv() {
     NonPagedPoolNx, arr_size, 'fr0g'));
 
   if (!ghv.vcpus) {
-    DbgPrint("[hv] Failed to alloocate VCPUs.\n");
+    DbgPrint("[hv] Failed to allocate VCPUs.\n");
     return false;
   }
 
@@ -28,9 +28,39 @@ static bool prepare_hv() {
   // zero-initialize the vcpu array
   memset(ghv.vcpus, 0, arr_size);
 
+  ghv.kprocess_directory_table_base_offset = 0x28;
+
+  DbgPrint("[hv] KPROCESS::DirectoryTableBase offset = 0x%zX.\n",
+    ghv.kprocess_directory_table_base_offset);
+
+  auto const ps_get_process_id = reinterpret_cast<uint8_t*>(PsGetProcessId);
+
+  // mov rax, [rcx + OFFSET]
+  // retn
+  if (ps_get_process_id[0] != 0x48 ||
+      ps_get_process_id[1] != 0x8B ||
+      ps_get_process_id[2] != 0x81 ||
+      ps_get_process_id[7] != 0xC3) {
+    DbgPrint("[hv] Failed to get offset of EPROCESS::UniqueProcessId.\n");
+    return false;
+  }
+
+  ghv.eprocess_unique_process_id_offset =
+    *reinterpret_cast<uint32_t*>(ps_get_process_id + 3);
+
+  DbgPrint("[hv] EPROCESS::UniqueProcessId offset = 0x%zX.\n",
+    ghv.eprocess_unique_process_id_offset);
+
+  ghv.system_eprocess = reinterpret_cast<uint8_t*>(PsInitialSystemProcess);
+
+  DbgPrint("[hv] System EPROCESS = 0x%zX.\n",
+    reinterpret_cast<size_t>(ghv.system_eprocess));
+
   // store the System cr3 value (found in the System EPROCESS structure)
-  ghv.system_cr3 = *reinterpret_cast<cr3*>(
-    reinterpret_cast<uint8_t*>(PsInitialSystemProcess) + 0x28);
+  ghv.system_cr3 = *reinterpret_cast<cr3*>(ghv.system_eprocess +
+    ghv.kprocess_directory_table_base_offset);
+
+  DbgPrint("[hv] System CR3 = 0x%zX.\n", ghv.system_cr3.flags);
 
   prepare_host_page_tables();
   
