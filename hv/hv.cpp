@@ -7,8 +7,8 @@ namespace hv {
 
 hypervisor ghv;
 
-// allocate and initialize various hypervisor structures before virtualizing
-static bool prepare_hv() {
+// create the hypervisor
+bool create() {
   ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
   // size of the vcpu array
@@ -28,6 +28,15 @@ static bool prepare_hv() {
   // zero-initialize the vcpu array
   memset(ghv.vcpus, 0, arr_size);
 
+  auto& smr = ghv.shared_memory_region;
+
+  // zero-initialize the shared memory region
+  memset(&smr, 0, sizeof(smr));
+
+  // add the VCPU array to the SMR since it is dynamically allocated...
+  mark_shared_memory(ghv.vcpus, arr_size);
+
+  // TODO: maybe dont hardcode this...
   ghv.kprocess_directory_table_base_offset = 0x28;
 
   DbgPrint("[hv] KPROCESS::DirectoryTableBase offset = 0x%zX.\n",
@@ -63,7 +72,7 @@ static bool prepare_hv() {
   DbgPrint("[hv] System CR3 = 0x%zX.\n", ghv.system_cr3.flags);
 
   prepare_host_page_tables();
-  
+
   DbgPrint("[hv] Mapped all of physical memory to address 0x%zX.\n",
     reinterpret_cast<uint64_t>(host_physical_memory_base));
 
@@ -72,9 +81,6 @@ static bool prepare_hv() {
 
 // virtualize the current system
 bool start() {
-  if (!prepare_hv())
-    return false;
-
   // we need to be running at an IRQL below DISPATCH_LEVEL so
   // that KeSetSystemAffinityThreadEx takes effect immediately
   NT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
@@ -92,6 +98,24 @@ bool start() {
 
     KeRevertToUserAffinityThreadEx(orig_affinity);
   }
+
+  return true;
+}
+
+// mark a region of kernel memory as shared (present in both host and guest)
+bool mark_shared_memory(void* const start, size_t const size) {
+  if (size <= 0)
+    return false;
+
+  auto& smr = ghv.shared_memory_region;
+
+  if (smr.count >= smr.max_region_count)
+    return false;
+
+  smr.regions[smr.count++] = {
+    reinterpret_cast<uint8_t*>(start),
+    size
+  };
 
   return true;
 }
