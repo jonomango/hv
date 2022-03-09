@@ -53,28 +53,15 @@ static void map_physical_memory(host_page_tables& pt) {
 }
 
 // map shared guest pages into the host page tables
-static void map_shared_memory(host_page_tables& pt, shared_memory_region const& smr) {
+static void map_shared_memory(host_page_tables& pt, shared_memory_region const&) {
   PHYSICAL_ADDRESS pml4_address;
   pml4_address.QuadPart = ghv.system_cr3.address_of_page_directory << 12;
 
   // kernel PML4 address
-  auto const system_pml4 = static_cast<pml4e_64*>(MmGetVirtualForPhysical(pml4_address));
-
-  for (size_t r = 0; r < smr.count; ++r) {
-    auto [base, size] = smr.regions[r];
-
-    pml4_virtual_address vcurr = { base };
-
-    // TODO: check for overflow
-    while (vcurr.address < base + size + 0xFFF) {
-
-      // go to next page
-      reinterpret_cast<uint8_t*&>(vcurr) += 0x1000;
-    }
-  }
+  auto const guest_pml4 = static_cast<pml4e_64*>(MmGetVirtualForPhysical(pml4_address));
 
   // copy the top half of the System pml4 (a.k.a. the kernel address space)
-  memcpy(&pt.pml4[256], &system_pml4[256], sizeof(pml4e_64) * 256);
+  memcpy(&pt.pml4[256], &guest_pml4[256], sizeof(pml4e_64) * 256);
 }
 
 // initialize the host page tables
