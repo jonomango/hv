@@ -5,7 +5,7 @@
 
 namespace hv {
 
-// map the first 128GB of physical memory into the specified PML4E
+// directly map physical memory into the host page tables
 static void map_physical_memory(host_page_tables& pt) {
   auto& pml4e = pt.pml4[host_physical_memory_pml4_idx];
   pml4e.flags                    = 0;
@@ -21,7 +21,7 @@ static void map_physical_memory(host_page_tables& pt) {
   // TODO: add support for 1GB pages
   // TODO: check if 2MB pages are supported (pretty much always are)
 
-  for (uint64_t i = 0; i < 128; ++i) {
+  for (uint64_t i = 0; i < host_physical_memory_pd_count; ++i) {
     auto& pdpte = pt.phys_pdpt[i];
     pdpte.flags                    = 0;
     pdpte.present                  = 1;

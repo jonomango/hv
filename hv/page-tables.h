@@ -4,7 +4,10 @@
 
 namespace hv {
 
-// the first 128GB of physical memory is mapped to this pml4 entry
+// how much of physical memory to map into the host address-space
+inline constexpr size_t host_physical_memory_pd_count = 64;
+
+// physical memory is directly mapped to this pml4 entry
 inline constexpr uint64_t host_physical_memory_pml4_idx = 255;
 
 // directly access physical memory by using [base + offset]
@@ -19,7 +22,7 @@ struct host_page_tables {
   alignas(0x1000) pdpte_64 phys_pdpt[512];
 
   // PDs for mapping physical memory
-  alignas(0x1000) pde_2mb_64 phys_pds[128][512];
+  alignas(0x1000) pde_2mb_64 phys_pds[host_physical_memory_pd_count][512];
 };
 
 // initialize the host page tables
