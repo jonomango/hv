@@ -172,6 +172,12 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   // CR0.ET is always 1
   new_cr0.extension_type = 1;
 
+  // #GP(0) if setting any reserved bits in CR0[63:32]
+  if (new_cr0.reserved4) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
   // #GP(0) if setting CR0.PG while CR0.PE is clear
   if (new_cr0.paging_enable && !new_cr0.protection_enable) {
     inject_hw_exception(general_protection, 0);
