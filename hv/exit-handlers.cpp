@@ -91,25 +91,25 @@ void emulate_xsetbv(vcpu* const cpu) {
 
   // #GP(0) if XCR0.AVX is 1 while XCRO.SSE is cleared
   if (new_xcr0.avx && !new_xcr0.sse) {
-    inject_hw_exception(general_protection);
+    inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if XCR0.AVX is clear and XCR0.opmask, XCR0.ZMM_Hi256, or XCR0.Hi16_ZMM is set
   if (!new_xcr0.avx && (new_xcr0.opmask || new_xcr0.zmm_hi256 || new_xcr0.zmm_hi16)) {
-    inject_hw_exception(general_protection);
+    inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if setting XCR0.BNDREG or XCR0.BNDCSR while not setting the other
   if (new_xcr0.bndreg != new_xcr0.bndcsr) {
-    inject_hw_exception(general_protection);
+    inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if setting XCR0.opmask, XCR0.ZMM_Hi256, or XCR0.Hi16_ZMM while not setting all of them
   if (new_xcr0.opmask != new_xcr0.zmm_hi256 || new_xcr0.zmm_hi256 != new_xcr0.zmm_hi16) {
-    inject_hw_exception(general_protection);
+    inject_hw_exception(general_protection, 0);
     return;
   }
 
@@ -171,12 +171,6 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
   // CR0.ET is always 1
   new_cr0.extension_type = 1;
-
-  // #GP(0) if setting any reserved bits in CR0[63:32]
-  if (new_cr0.reserved4) {
-    inject_hw_exception(general_protection, 0);
-    return;
-  }
 
   // #GP(0) if setting CR0.PG while CR0.PE is clear
   if (new_cr0.paging_enable && !new_cr0.protection_enable) {
