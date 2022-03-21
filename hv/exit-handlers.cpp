@@ -128,6 +128,13 @@ void emulate_xsetbv(vcpu* const cpu) {
 }
 
 void emulate_vmxon(vcpu*) {
+  // usually a #UD doesn't trigger a vm-exit, but in this case it is possible
+  // that CR4.VMXE is 1 while guest shadow CR4.VMXE is 0.
+  if (!read_effective_guest_cr4().vmx_enable) {
+    inject_hw_exception(invalid_opcode);
+    return;
+  }
+
   // we are spoofing the value of the IA32_FEATURE_CONTROL MSR in
   // order to convince the guest that VMX has been disabled by BIOS.
   inject_hw_exception(general_protection, 0);
