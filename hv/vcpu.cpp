@@ -437,6 +437,7 @@ static uint64_t measure_vm_exit_tsc_latency() {
     // next, measure the overhead of a vm-exit
     hypercall_input input;
     input.code = hypercall_ping;
+    input.key  = hypercall_key;
 
     _mm_lfence();
     start = __rdtsc();
@@ -638,6 +639,13 @@ bool virtualize_cpu(vcpu* const cpu) {
 
   DbgPrint("[hv] Launched virtual machine on VCPU#%i.\n",
     KeGetCurrentProcessorIndex() + 1);
+
+  hypercall_input input;
+  input.code = hypercall_ping;
+  input.key  = hypercall_key;
+
+  if (vmx_vmcall(input) == hypervisor_signature)
+    DbgPrint("[hv] Successfully pinged the hypervisor.\n");
 
   cpu->vm_exit_tsc_latency = measure_vm_exit_tsc_latency();
 

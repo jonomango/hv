@@ -6,6 +6,10 @@ namespace hv {
 
 struct vcpu;
 
+// key used for executing hypercalls
+// TODO: compute this at runtime
+inline constexpr uint64_t hypercall_key = 69420;
+
 // hypercall indices
 enum hypercall_code : uint64_t {
   hypercall_ping = 0,
@@ -17,7 +21,10 @@ enum hypercall_code : uint64_t {
 // hypercall input
 struct hypercall_input {
   // rax
-  hypercall_code code;
+  struct {
+    hypercall_code code : 8;
+    uint64_t       key  : 56;
+  };
 
   // rcx, rdx, r8, r9, r10, r11
   uint64_t args[6];

@@ -134,8 +134,17 @@ void emulate_vmxon(vcpu*) {
 }
 
 void emulate_vmcall(vcpu* const cpu) {
+  auto const code = cpu->ctx->rax & 8;
+  auto const key  = cpu->ctx->rax >> 8;
+
+  // validate the hypercall key
+  if (key != hypercall_key) {
+    inject_hw_exception(invalid_opcode);
+    return;
+  }
+
   // handle the hypercall
-  switch (cpu->ctx->rax) {
+  switch (code) {
   case hypercall_ping:              hc::ping(cpu);              return;
   case hypercall_read_virt_mem:     hc::read_virt_mem(cpu);     return;
   case hypercall_write_virt_mem:    hc::write_virt_mem(cpu);    return;
