@@ -1,6 +1,7 @@
 #include "hv.h"
 
 #include <ntddk.h>
+#include <ia32.hpp>
 
 void driver_unload(PDRIVER_OBJECT) {
   DbgPrint("[hv] Driver unloaded.\n");

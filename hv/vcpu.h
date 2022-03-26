@@ -5,6 +5,7 @@
 #include "gdt.h"
 #include "idt.h"
 #include "ept.h"
+#include "vmx.h"
 
 namespace hv {
 
@@ -64,6 +65,11 @@ struct vcpu {
 
   // EPT paging structures
   alignas(0x1000) vcpu_ept_data ept;
+
+  // vm-exit MSR store area
+  struct alignas(0x10) {
+    vmx_msr_entry perf_global_ctrl;
+  } msr_exit_store;
 
   // cached values that are assumed to NEVER change
   vcpu_cached_data cached;

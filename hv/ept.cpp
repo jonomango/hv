@@ -75,7 +75,7 @@ void update_ept_memory_type(vcpu_ept_data& ept) {
       }
       // PDE points to a PT
       else {
-        auto pt = reinterpret_cast<epte*>(host_physical_memory_base
+        auto pt = reinterpret_cast<ept_pte*>(host_physical_memory_base
           + (ept.pds[i][j].page_frame_number << 12));
 
         // update the memory type for every PTE

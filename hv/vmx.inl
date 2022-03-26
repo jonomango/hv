@@ -142,7 +142,7 @@ inline void write_ctrl_proc_based2_safe(ia32_vmx_procbased_ctls2_register const 
 // write to the vm-exit controls
 inline void write_ctrl_exit_safe(ia32_vmx_exit_ctls_register const value) {
   impl::write_vmcs_ctrl_field(value.flags,
-    VMCS_CTRL_VMEXIT_CONTROLS,
+    VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS,
     IA32_VMX_EXIT_CTLS,
     IA32_VMX_TRUE_EXIT_CTLS);
 }
@@ -172,7 +172,7 @@ inline void write_ctrl_proc_based2(ia32_vmx_procbased_ctls2_register const value
 
 // write to the vm-exit controls
 inline void write_ctrl_exit(ia32_vmx_exit_ctls_register const value) {
-  vmx_vmwrite(VMCS_CTRL_VMEXIT_CONTROLS, value.flags);
+  vmx_vmwrite(VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS, value.flags);
 }
 
 // write to the vm-entry controls
@@ -204,7 +204,7 @@ inline ia32_vmx_procbased_ctls2_register read_ctrl_proc_based2() {
 // read the vm-exit controls
 inline ia32_vmx_exit_ctls_register read_ctrl_exit() {
   ia32_vmx_exit_ctls_register value;
-  value.flags = vmx_vmread(VMCS_CTRL_VMEXIT_CONTROLS);
+  value.flags = vmx_vmread(VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS);
   return value;
 }
 

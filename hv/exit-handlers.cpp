@@ -213,7 +213,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   }
 
   // #GP(0) if an attempt is made to clear CR0.WP while CR4.CET is set
-  if (!new_cr0.write_protect && curr_cr4.cet_enable) {
+  if (!new_cr0.write_protect && curr_cr4.control_flow_enforcement_enable) {
     inject_hw_exception(general_protection, 0);
     return;
   }
@@ -323,13 +323,13 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
   }
 
   // #GP(0) if CR4.LA57 is enabled
-  if (new_cr4.la57_enable) {
+  if (new_cr4.linear_addresses_57_bit) {
     inject_hw_exception(general_protection, 0);
     return;
   }
 
   // #GP(0) if CR4.CET == 1 and CR0.WP == 0
-  if (new_cr4.cet_enable && !curr_cr0.write_protect) {
+  if (new_cr4.control_flow_enforcement_enable && !curr_cr0.write_protect) {
     inject_hw_exception(general_protection, 0);
     return;
   }

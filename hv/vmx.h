@@ -6,6 +6,13 @@
 
 namespace hv {
 
+// TODO: move to ia32?
+struct vmx_msr_entry {
+  uint32_t msr_idx;
+  uint32_t _reserved;
+  uint64_t msr_data;
+};
+
 // INVEPT instruction
 void vmx_invept(invept_type type, invept_descriptor const& desc);
 

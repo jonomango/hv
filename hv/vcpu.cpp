@@ -183,21 +183,23 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
 
   // 3.24.7
   ia32_vmx_exit_ctls_register exit_ctrl;
-  exit_ctrl.flags                   = 0;
-  exit_ctrl.save_debug_controls     = 1;
-  exit_ctrl.host_address_space_size = 1;
-  exit_ctrl.save_ia32_pat           = 1;
-  exit_ctrl.load_ia32_pat           = 1;
-  exit_ctrl.conceal_vmx_from_pt     = 1;
+  exit_ctrl.flags                      = 0;
+  exit_ctrl.save_debug_controls        = 1;
+  exit_ctrl.host_address_space_size    = 1;
+  exit_ctrl.save_ia32_pat              = 1;
+  exit_ctrl.load_ia32_pat              = 1;
+  exit_ctrl.load_ia32_perf_global_ctrl = 1;
+  exit_ctrl.conceal_vmx_from_pt        = 1;
   write_ctrl_exit_safe(exit_ctrl);
 
   // 3.24.8
   ia32_vmx_entry_ctls_register entry_ctrl;
-  entry_ctrl.flags               = 0;
-  entry_ctrl.load_debug_controls = 1;
-  entry_ctrl.ia32e_mode_guest    = 1;
-  entry_ctrl.load_ia32_pat       = 1;
-  entry_ctrl.conceal_vmx_from_pt = 1;
+  entry_ctrl.flags                      = 0;
+  entry_ctrl.load_debug_controls        = 1;
+  entry_ctrl.ia32e_mode_guest           = 1;
+  entry_ctrl.load_ia32_pat              = 1;
+  entry_ctrl.load_ia32_perf_global_ctrl = 1;
+  entry_ctrl.conceal_vmx_from_pt        = 1;
   write_ctrl_entry_safe(entry_ctrl);
 
   // 3.24.6.3
@@ -248,8 +250,11 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
   vmx_vmwrite(VMCS_CTRL_VIRTUAL_PROCESSOR_IDENTIFIER, guest_vpid);
 
   // 3.24.7.2
-  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT,   0);
-  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS, 0);
+  cpu->msr_exit_store.perf_global_ctrl.msr_idx = IA32_PERF_GLOBAL_CTRL;
+  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT,   sizeof(cpu->msr_exit_store) / 16);
+  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS, MmGetPhysicalAddress(&cpu->msr_exit_store).QuadPart);
+
+  // 3.24.7.2
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_COUNT,    0);
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_ADDRESS,  0);
 
@@ -327,6 +332,9 @@ static void write_vmcs_host_fields(vcpu const* const cpu) {
   host_pat.pa6   = MEMORY_TYPE_UNCACHEABLE_MINUS;
   host_pat.pa7   = MEMORY_TYPE_UNCACHEABLE;
   vmx_vmwrite(VMCS_HOST_PAT, host_pat.flags);
+
+  // disable every PMC
+  vmx_vmwrite(VMCS_HOST_PERF_GLOBAL_CTRL, 0);
 }
 
 // write to the guest fields in the VMCS
@@ -395,11 +403,12 @@ static void write_vmcs_guest_fields() {
   vmx_vmwrite(VMCS_GUEST_GDTR_LIMIT, gdtr.limit);
   vmx_vmwrite(VMCS_GUEST_IDTR_LIMIT, idtr.limit);
 
-  vmx_vmwrite(VMCS_GUEST_SYSENTER_CS,  __readmsr(IA32_SYSENTER_CS));
-  vmx_vmwrite(VMCS_GUEST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
-  vmx_vmwrite(VMCS_GUEST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
-  vmx_vmwrite(VMCS_GUEST_DEBUGCTL,     __readmsr(IA32_DEBUGCTL));
-  vmx_vmwrite(VMCS_GUEST_PAT,          __readmsr(IA32_PAT));
+  vmx_vmwrite(VMCS_GUEST_SYSENTER_CS,      __readmsr(IA32_SYSENTER_CS));
+  vmx_vmwrite(VMCS_GUEST_SYSENTER_ESP,     __readmsr(IA32_SYSENTER_ESP));
+  vmx_vmwrite(VMCS_GUEST_SYSENTER_EIP,     __readmsr(IA32_SYSENTER_EIP));
+  vmx_vmwrite(VMCS_GUEST_DEBUGCTL,         __readmsr(IA32_DEBUGCTL));
+  vmx_vmwrite(VMCS_GUEST_PAT,              __readmsr(IA32_PAT));
+  vmx_vmwrite(VMCS_GUEST_PERF_GLOBAL_CTRL, __readmsr(IA32_PERF_GLOBAL_CTRL));
 
   vmx_vmwrite(VMCS_GUEST_ACTIVITY_STATE, vmx_active);
 
@@ -521,6 +530,8 @@ void handle_vm_exit(guest_context* const ctx) {
 
   vmx_vmexit_reason reason;
   reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
+
+  vmx_vmwrite(VMCS_GUEST_PERF_GLOBAL_CTRL, cpu->msr_exit_store.perf_global_ctrl.msr_data);
 
   // dont hide tsc latency by default
   cpu->hide_vm_exit_latency = false;
