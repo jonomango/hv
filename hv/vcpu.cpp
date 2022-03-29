@@ -468,7 +468,7 @@ static uint64_t measure_vm_exit_tsc_latency() {
   _enable();
 
   // return the lowest execution time as the vm-exit latency
-  return lowest_latency;
+  return lowest_latency - 50;
 }
 
 // using TSC offsetting to hide vm-exit TSC latency
@@ -478,11 +478,29 @@ static void hide_vm_exit_tsc_latency(vcpu* const cpu) {
     if (cpu->vm_exit_tsc_latency > 10000)
       return;
 
+    // hide from rdtsc/rdtscp
     cpu->tsc_offset -= cpu->vm_exit_tsc_latency;
 
     // set preemption timer to cause an exit after 10000 guest TSC ticks have passed
     cpu->preemption_timer = max(2,
       10000 >> cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
+
+    ia32_perf_global_ctrl_register perf_global_ctrl;
+    perf_global_ctrl.flags = cpu->msr_exit_store.perf_global_ctrl.msr_data;
+
+    // hide from CPU_CLK_UNHALTED.REF_TSC
+    if (perf_global_ctrl.en_fixed_ctrn & (1ull << 2)) {
+      auto const cpl = current_guest_cpl();
+
+      ia32_fixed_ctr_ctrl_register fixed_ctr_ctrl;
+      fixed_ctr_ctrl.flags = __readmsr(IA32_FIXED_CTR_CTRL);
+
+      if ((cpl == 0 && fixed_ctr_ctrl.en2_os) ||
+          (cpl == 3 && fixed_ctr_ctrl.en2_usr)) {
+        // TODO: measure the value to subtract the same way that normal TSC does
+        __writemsr(IA32_FIXED_CTR2, __readmsr(IA32_FIXED_CTR2) - 300);
+      }
+    }
   } else {
     // reset TSC offset to 0 during vm-exits that are not likely to be timed
     cpu->tsc_offset = 0;
@@ -531,8 +549,6 @@ void handle_vm_exit(guest_context* const ctx) {
   vmx_vmexit_reason reason;
   reason.flags = static_cast<uint32_t>(vmx_vmread(VMCS_EXIT_REASON));
 
-  vmx_vmwrite(VMCS_GUEST_PERF_GLOBAL_CTRL, cpu->msr_exit_store.perf_global_ctrl.msr_data);
-
   // dont hide tsc latency by default
   cpu->hide_vm_exit_latency = false;
 
@@ -542,9 +558,10 @@ void handle_vm_exit(guest_context* const ctx) {
   // hide the vm-exit overhead from the guest
   hide_vm_exit_tsc_latency(cpu);
 
-  // update the TSC offset and VMX preemption timer
+  // sync the vmcs state with the vcpu state
   vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
+  vmx_vmwrite(VMCS_GUEST_PERF_GLOBAL_CTRL, cpu->msr_exit_store.perf_global_ctrl.msr_data);
 
   vmentry_interrupt_information vectoring_info;
   vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
