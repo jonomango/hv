@@ -88,6 +88,52 @@ void update_ept_memory_type(vcpu_ept_data& ept) {
   }
 }
 
+// get the corresponding EPT PDPTE for a given physical address
+ept_pdpte* get_ept_pdpte(vcpu_ept_data& ept, uint64_t const physical_address) {
+  pml4_virtual_address const addr = { reinterpret_cast<void*>(physical_address) };
+
+  if (addr.pml4_idx != 0)
+    return nullptr;
+
+  if (addr.pdpt_idx >= ept_pd_count)
+    return nullptr;
+
+  return &ept.pdpt[addr.pdpt_idx];
+}
+
+// get the corresponding EPT PDE for a given physical address
+ept_pde* get_ept_pde(vcpu_ept_data& ept, uint64_t const physical_address) {
+  pml4_virtual_address const addr = { reinterpret_cast<void*>(physical_address) };
+
+  if (addr.pml4_idx != 0)
+    return nullptr;
+
+  if (addr.pdpt_idx >= ept_pd_count)
+    return nullptr;
+
+  return &ept.pds[addr.pdpt_idx][addr.pd_idx];
+}
+
+// get the corresponding EPT PTE for a given physical address
+ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t const physical_address) {
+  pml4_virtual_address const addr = { reinterpret_cast<void*>(physical_address) };
+
+  if (addr.pml4_idx != 0)
+    return nullptr;
+
+  if (addr.pdpt_idx >= ept_pd_count)
+    return nullptr;
+
+  auto const& pde_2mb = ept.pds_2mb[addr.pdpt_idx][addr.pd_idx];
+
+  if (pde_2mb.large_page)
+    return nullptr;
+
+  auto const pt = reinterpret_cast<ept_pte*>(host_physical_memory_base
+    + (ept.pds[addr.pdpt_idx][addr.pd_idx].page_frame_number << 12));
+
+  return &pt[addr.pt_idx];
+}
 
 } // namespace hv
 

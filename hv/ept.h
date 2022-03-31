@@ -29,5 +29,14 @@ void prepare_ept(vcpu_ept_data& ept);
 // this function should only be called from root-mode during vmx-operation.
 void update_ept_memory_type(vcpu_ept_data& ept);
 
+// get the corresponding EPT PDPTE for a given physical address
+ept_pdpte* get_ept_pdpte(vcpu_ept_data& ept, uint64_t physical_address);
+
+// get the corresponding EPT PDE for a given physical address
+ept_pde* get_ept_pde(vcpu_ept_data& ept, uint64_t physical_address);
+
+// get the corresponding EPT PTE for a given physical address
+ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t physical_address);
+
 } // namespace hv
 
