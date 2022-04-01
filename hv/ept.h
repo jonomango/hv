@@ -6,6 +6,7 @@ namespace hv {
 
 // number of PDs in the EPT paging structures
 inline constexpr size_t ept_pd_count = 64;
+inline constexpr size_t ept_free_page_count = 10;
 
 struct vcpu_ept_data {
   // EPT PML4
@@ -20,6 +21,15 @@ struct vcpu_ept_data {
     alignas(0x1000) ept_pde     pds[ept_pd_count][512];
     alignas(0x1000) ept_pde_2mb pds_2mb[ept_pd_count][512];
   };
+
+  // free pages that can be used to split PDEs or for other purposes
+  alignas(0x1000) uint8_t free_pages[ept_free_page_count][0x1000];
+
+  // an array of PFNs that point to each free page in the free page array
+  uint64_t free_page_pfns[ept_free_page_count];
+
+  // # of free pages that are currently in use
+  size_t num_used_free_pages;
 };
 
 // identity-map the EPT paging structures
@@ -37,6 +47,9 @@ ept_pde* get_ept_pde(vcpu_ept_data& ept, uint64_t physical_address);
 
 // get the corresponding EPT PTE for a given physical address
 ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t physical_address);
+
+// split a 2MB EPT PDE so that it points to an EPT PT
+void split_ept_pde(vcpu_ept_data& ept, ept_pde_2mb* pde_2mb);
 
 } // namespace hv
 

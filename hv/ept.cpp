@@ -9,6 +9,11 @@ namespace hv {
 void prepare_ept(vcpu_ept_data& ept) {
   memset(&ept, 0, sizeof(ept));
 
+  ept.num_used_free_pages = 0;
+
+  for (size_t i = 0; i < ept_free_page_count; ++i)
+    ept.free_page_pfns[i] = MmGetPhysicalAddress(&ept.free_pages[i]).QuadPart >> 12;
+
   // setup the first PML4E so that it points to our PDPT
   auto& pml4e             = ept.pml4[0];
   pml4e.flags             = 0;
@@ -133,6 +138,51 @@ ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t const physical_address) {
     + (ept.pds[addr.pdpt_idx][addr.pd_idx].page_frame_number << 12));
 
   return &pt[addr.pt_idx];
+}
+
+// split a 2MB EPT PDE so that it points to an EPT PT
+void split_ept_pde(vcpu_ept_data& ept, ept_pde_2mb* const pde_2mb) {
+  // this PDE is already split
+  if (!pde_2mb->large_page)
+    return;
+
+  // no available free pages
+  if (ept.num_used_free_pages >= ept_free_page_count)
+    return;
+
+  // allocate a free page for the PT
+  auto const pt_pfn = ept.free_page_pfns[ept.num_used_free_pages];
+  auto const pt = reinterpret_cast<ept_pte*>(
+    &ept.free_pages[ept.num_used_free_pages]);
+  ++ept.num_used_free_pages;
+
+  for (size_t i = 0; i < 512; ++i) {
+    auto& pte = pt[i];
+    pte.flags = 0;
+
+    // copy the parent PDE flags
+    pte.read_access             = pde_2mb->read_access;
+    pte.write_access            = pde_2mb->write_access;
+    pte.execute_access          = pde_2mb->execute_access;
+    pte.memory_type             = pde_2mb->memory_type;
+    pte.ignore_pat              = pde_2mb->ignore_pat;
+    pte.accessed                = pde_2mb->accessed;
+    pte.dirty                   = pde_2mb->dirty;
+    pte.user_mode_execute       = pde_2mb->user_mode_execute;
+    pte.verify_guest_paging     = pde_2mb->verify_guest_paging;
+    pte.paging_write_access     = pde_2mb->paging_write_access;
+    pte.supervisor_shadow_stack = pde_2mb->supervisor_shadow_stack;
+    pte.suppress_ve             = pde_2mb->suppress_ve;
+    pte.page_frame_number       = (pde_2mb->page_frame_number << 9) + i;
+  }
+
+  auto const pde         = reinterpret_cast<ept_pde*>(pde_2mb);
+  pde->flags             = 0;
+  pde->read_access       = 1;
+  pde->write_access      = 1;
+  pde->execute_access    = 1;
+  pde->user_mode_execute = 1;
+  pde->page_frame_number = pt_pfn;
 }
 
 } // namespace hv
