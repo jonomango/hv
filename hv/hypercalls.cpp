@@ -19,6 +19,44 @@ void ping(vcpu* const cpu) {
   skip_instruction();
 }
 
+// a hypercall for quick testing
+void test(vcpu* const cpu) {
+  // TODO: move the code for adding/removing ept hooks into ept.cpp
+
+  auto const ctx = cpu->ctx;
+  auto&      ept = cpu->ept;
+
+  // arguments
+  auto const orig_page = ctx->rcx;
+  auto const exec_page = ctx->rdx;
+
+  // used up every EPT hook already
+  if (ept.num_ept_hooks >= ept_hook_count) {
+    skip_instruction();
+    return;
+  }
+
+  auto const pte = get_ept_pte(ept, orig_page, true);
+
+  // failed to get the EPT PTE (PDE split probably failed)
+  if (!pte) {
+    skip_instruction();
+    return;
+  }
+
+  ept.ept_hooks[ept.num_ept_hooks++] = {
+    pte,
+    orig_page >> 12,
+    exec_page >> 12
+  };
+
+  // an EPT violation will be raised whenever the guest tries to execute
+  // code in this page
+  pte->execute_access = 0;
+
+  skip_instruction();
+}
+
 // read from virtual memory from another process
 void read_virt_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;

@@ -525,6 +525,7 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);           break;
   case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);          break;
   case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);   break;
+  case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);    break;
   // VMX instructions (except for VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:

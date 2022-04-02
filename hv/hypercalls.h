@@ -13,6 +13,7 @@ inline constexpr uint64_t hypercall_key = 69420;
 // hypercall indices
 enum hypercall_code : uint64_t {
   hypercall_ping = 0,
+  hypercall_test,
   hypercall_read_virt_mem,
   hypercall_write_virt_mem,
   hypercall_query_process_cr3
@@ -34,6 +35,9 @@ namespace hc {
 
 // ping the hypervisor to make sure it is running
 void ping(vcpu* cpu);
+
+// a hypercall for quick testing
+void test(vcpu* cpu);
 
 // read from virtual memory from another process
 void read_virt_mem(vcpu* cpu);

@@ -141,7 +141,7 @@ void emulate_vmxon(vcpu*) {
 }
 
 void emulate_vmcall(vcpu* const cpu) {
-  auto const code = cpu->ctx->rax & 8;
+  auto const code = cpu->ctx->rax & 0xFF;
   auto const key  = cpu->ctx->rax >> 8;
 
   // validate the hypercall key
@@ -153,6 +153,7 @@ void emulate_vmcall(vcpu* const cpu) {
   // handle the hypercall
   switch (code) {
   case hypercall_ping:              hc::ping(cpu);              return;
+  case hypercall_test:              hc::test(cpu);              return;
   case hypercall_read_virt_mem:     hc::read_virt_mem(cpu);     return;
   case hypercall_write_virt_mem:    hc::write_virt_mem(cpu);    return;
   case hypercall_query_process_cr3: hc::query_process_cr3(cpu); return;
@@ -479,6 +480,44 @@ void handle_vmx_instruction(vcpu*) {
   // inject #UD for every VMX instruction since we
   // don't allow the guest to ever enter VMX operation.
   inject_hw_exception(invalid_opcode);
+}
+
+void handle_ept_violation(vcpu* const cpu) {
+  vmx_exit_qualification_ept_violation qualification;
+  qualification.flags = vmx_vmread(VMCS_EXIT_QUALIFICATION);
+
+  // guest physical address that caused the ept-violation
+  auto const physical_address = vmx_vmread(qualification.caused_by_translation ?
+    VMCS_GUEST_PHYSICAL_ADDRESS : VMCS_EXIT_GUEST_LINEAR_ADDRESS);
+
+  if (qualification.execute_access &&
+     (qualification.write_access || qualification.read_access)) {
+    // TODO: assert
+    inject_hw_exception(machine_check);
+    return;
+  }
+
+  // look for the EPT hook that caused the violation
+  for (size_t i = 0; i < cpu->ept.num_ept_hooks; ++i) {
+    auto& hook = cpu->ept.ept_hooks[i];
+
+    if (hook.pte->page_frame_number != (physical_address >> 12))
+      continue;
+
+    if (qualification.execute_access) {
+      hook.pte->read_access       = 0;
+      hook.pte->write_access      = 0;
+      hook.pte->execute_access    = 1;
+      hook.pte->page_frame_number = hook.exec_pfn;
+    } else {
+      hook.pte->read_access       = 1;
+      hook.pte->write_access      = 1;
+      hook.pte->execute_access    = 0;
+      hook.pte->page_frame_number = hook.orig_pfn;
+    }
+
+    break;
+  }
 }
 
 } // namespace hv

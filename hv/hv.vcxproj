@@ -152,6 +152,7 @@
   <ItemGroup>
     <MASM Include="exception-routines.asm" />
     <MASM Include="interrupt-handlers.asm" />
+    <MASM Include="syscall-hook.asm" />
     <MASM Include="vm-exit.asm" />
     <MASM Include="vm-launch.asm" />
     <MASM Include="vmx.asm" />

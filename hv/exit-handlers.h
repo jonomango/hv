@@ -44,5 +44,7 @@ void handle_exception_or_nmi(vcpu* cpu);
 
 void handle_vmx_instruction(vcpu* cpu);
 
+void handle_ept_violation(vcpu* cpu);
+
 } // namespace hv
 

@@ -119,6 +119,9 @@
     <MASM Include="exception-routines.asm">
       <Filter>Source Files</Filter>
     </MASM>
+    <MASM Include="syscall-hook.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
   <ItemGroup>
     <None Include="vmx.inl">

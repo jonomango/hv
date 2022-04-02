@@ -14,6 +14,8 @@ void prepare_ept(vcpu_ept_data& ept) {
   for (size_t i = 0; i < ept_free_page_count; ++i)
     ept.free_page_pfns[i] = MmGetPhysicalAddress(&ept.free_pages[i]).QuadPart >> 12;
 
+  ept.num_ept_hooks = 0;
+
   // setup the first PML4E so that it points to our PDPT
   auto& pml4e             = ept.pml4[0];
   pml4e.flags             = 0;
@@ -120,7 +122,7 @@ ept_pde* get_ept_pde(vcpu_ept_data& ept, uint64_t const physical_address) {
 }
 
 // get the corresponding EPT PTE for a given physical address
-ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t const physical_address) {
+ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t const physical_address, bool const force_split) {
   pml4_virtual_address const addr = { reinterpret_cast<void*>(physical_address) };
 
   if (addr.pml4_idx != 0)
@@ -129,10 +131,18 @@ ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t const physical_address) {
   if (addr.pdpt_idx >= ept_pd_count)
     return nullptr;
 
-  auto const& pde_2mb = ept.pds_2mb[addr.pdpt_idx][addr.pd_idx];
+  auto& pde_2mb = ept.pds_2mb[addr.pdpt_idx][addr.pd_idx];
 
-  if (pde_2mb.large_page)
-    return nullptr;
+  if (pde_2mb.large_page) {
+    if (!force_split)
+      return nullptr;
+
+    split_ept_pde(ept, &pde_2mb);
+
+    // failed to split the PDE
+    if (pde_2mb.large_page)
+      return nullptr;
+  }
 
   auto const pt = reinterpret_cast<ept_pte*>(host_physical_memory_base
     + (ept.pds[addr.pdpt_idx][addr.pd_idx].page_frame_number << 12));
