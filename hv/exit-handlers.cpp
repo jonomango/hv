@@ -501,7 +501,7 @@ void handle_ept_violation(vcpu* const cpu) {
   for (size_t i = 0; i < cpu->ept.num_ept_hooks; ++i) {
     auto& hook = cpu->ept.ept_hooks[i];
 
-    if (hook.pte->page_frame_number != (physical_address >> 12))
+    if (hook.orig_pfn != (physical_address >> 12))
       continue;
 
     if (qualification.execute_access) {
