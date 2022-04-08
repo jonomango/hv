@@ -423,8 +423,8 @@ static void write_vmcs_guest_fields() {
 
 // measure the amount of overhead that a vm-exit
 // causes so that we can use TSC offsetting to hide it
-static uint64_t measure_vm_exit_tsc_latency() {
-  uint64_t lowest_latency = MAXULONG64;
+static void measure_vm_exit_tsc_latency(vcpu* const cpu) {
+  cpu->vm_exit_tsc_latency = MAXUINT64;
 
   // we dont want to be interrupted (NMIs and SMIs can fuck off)
   _disable();
@@ -461,14 +461,14 @@ static uint64_t measure_vm_exit_tsc_latency() {
     // this is the time it takes, in TSC, for a vm-exit that does no handling
     auto const curr = (end - start) - rdtsc_overhead;
 
-    if (curr < lowest_latency)
-      lowest_latency = curr;
+    if (curr < cpu->vm_exit_tsc_latency)
+      cpu->vm_exit_tsc_latency = curr;
   }
 
   _enable();
 
-  // return the lowest execution time as the vm-exit latency
-  return lowest_latency - 50;
+  // account for a little extra to ensure that TSC offset NEVER goes negative
+  cpu->vm_exit_tsc_latency -= 50;
 }
 
 // using TSC offsetting to hide vm-exit TSC latency
@@ -676,7 +676,7 @@ bool virtualize_cpu(vcpu* const cpu) {
   if (vmx_vmcall(input) == hypervisor_signature)
     DbgPrint("[hv] Successfully pinged the hypervisor.\n");
 
-  cpu->vm_exit_tsc_latency = measure_vm_exit_tsc_latency();
+  measure_vm_exit_tsc_latency(cpu);
 
   DbgPrint("[hv] Measured VM-exit TSC latency (%zi).\n",
     cpu->vm_exit_tsc_latency);
