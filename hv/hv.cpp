@@ -28,14 +28,6 @@ bool create() {
   // zero-initialize the vcpu array
   memset(ghv.vcpus, 0, arr_size);
 
-  auto& smr = ghv.shared_memory_region;
-
-  // zero-initialize the shared memory region
-  memset(&smr, 0, sizeof(smr));
-
-  // add the VCPU array to the SMR since it is dynamically allocated...
-  mark_shared_memory(ghv.vcpus, arr_size);
-
   // TODO: maybe dont hardcode this...
   ghv.kprocess_directory_table_base_offset = 0x28;
 
@@ -98,24 +90,6 @@ bool start() {
 
     KeRevertToUserAffinityThreadEx(orig_affinity);
   }
-
-  return true;
-}
-
-// mark a region of kernel memory as shared (present in both host and guest)
-bool mark_shared_memory(void* const start, size_t const size) {
-  if (size <= 0)
-    return false;
-
-  auto& smr = ghv.shared_memory_region;
-
-  if (smr.count >= smr.max_region_count)
-    return false;
-
-  smr.regions[smr.count++] = {
-    reinterpret_cast<uint8_t*>(start),
-    size
-  };
 
   return true;
 }

@@ -52,18 +52,6 @@ static void map_physical_memory(host_page_tables& pt) {
   }
 }
 
-// map shared guest pages into the host page tables
-static void map_shared_memory(host_page_tables& pt, shared_memory_region const&) {
-  PHYSICAL_ADDRESS pml4_address;
-  pml4_address.QuadPart = ghv.system_cr3.address_of_page_directory << 12;
-
-  // kernel PML4 address
-  auto const guest_pml4 = static_cast<pml4e_64*>(MmGetVirtualForPhysical(pml4_address));
-
-  // copy the top half of the System pml4 (a.k.a. the kernel address space)
-  memcpy(&pt.pml4[256], &guest_pml4[256], sizeof(pml4e_64) * 256);
-}
-
 // initialize the host page tables
 void prepare_host_page_tables() {
   auto& pt = ghv.host_page_tables;
@@ -72,8 +60,14 @@ void prepare_host_page_tables() {
   // map all of physical memory into our address space
   map_physical_memory(pt);
 
-  // map shared memory into our address space
-  map_shared_memory(pt, ghv.shared_memory_region);
+  PHYSICAL_ADDRESS pml4_address;
+  pml4_address.QuadPart = ghv.system_cr3.address_of_page_directory << 12;
+
+  // kernel PML4 address
+  auto const guest_pml4 = static_cast<pml4e_64*>(MmGetVirtualForPhysical(pml4_address));
+
+  // copy the top half of the System pml4 (a.k.a. the kernel address space)
+  memcpy(&pt.pml4[256], &guest_pml4[256], sizeof(pml4e_64) * 256);
 }
 
 } // namespace hv

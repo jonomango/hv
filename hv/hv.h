@@ -8,27 +8,9 @@
 
 namespace hv {
 
-struct shared_memory_region {
-  static constexpr size_t max_region_count = 16;
-
-  // number of shared regions between the guest and the host
-  size_t count;
-
-  struct {
-    // base address of the region (GVA and HVA)
-    uint8_t* base;
-
-    // size of the region, in bytes
-    size_t size;
-  } regions[max_region_count];
-};
-
 struct hypervisor {
   // host page tables that are shared between vcpus
   host_page_tables host_page_tables;
-
-  // memory that is shared between the host and the guest
-  shared_memory_region shared_memory_region;
 
   // dynamically allocated array of vcpus
   unsigned long vcpu_count;
@@ -54,7 +36,5 @@ bool create();
 // virtualize the current system
 bool start();
 
-// mark a region of kernel memory as shared (present in both host and guest)
-bool mark_shared_memory(void* start, size_t size);
-
 } // namespace hv
+
