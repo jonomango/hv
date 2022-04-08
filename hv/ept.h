@@ -49,6 +49,9 @@ void prepare_ept(vcpu_ept_data& ept);
 // this function should only be called from root-mode during vmx-operation.
 void update_ept_memory_type(vcpu_ept_data& ept);
 
+// set the memory type in every EPT paging structure to the specified value
+void set_ept_memory_type(vcpu_ept_data& ept, uint8_t memory_type);
+
 // get the corresponding EPT PDPTE for a given physical address
 ept_pdpte* get_ept_pdpte(vcpu_ept_data& ept, uint64_t physical_address);
 

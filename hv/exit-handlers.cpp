@@ -175,6 +175,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   cr0 new_cr0;
   new_cr0.flags = read_guest_gpr(cpu->ctx, gpr);
 
+  auto const curr_cr0 = read_effective_guest_cr0();
   auto const curr_cr4 = read_effective_guest_cr4();
 
   // CR0[15:6] is always 0
@@ -221,6 +222,17 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
   cr0 host_cr0;
   host_cr0.flags = vmx_vmread(VMCS_HOST_CR0);
+
+  // guest tried to modify CR0.CD, which cannot be updated through VMCS_GUEST_CR0
+  if (new_cr0.cache_disable != curr_cr0.cache_disable) {
+    if (new_cr0.cache_disable)
+      set_ept_memory_type(cpu->ept, MEMORY_TYPE_UNCACHEABLE);
+    else
+      update_ept_memory_type(cpu->ept);
+
+    // invalidate old mappings since we've just updated the EPT structures
+    vmx_invept(invept_all_context, {});
+  }
 
   if (new_cr0.cache_disable != host_cr0.cache_disable ||
       new_cr0.not_write_through != host_cr0.not_write_through) {
