@@ -432,7 +432,7 @@ static void write_vmcs_guest_fields() {
 // measure the amount of overhead that a vm-exit
 // causes so that we can use TSC offsetting to hide it
 static void measure_vm_exit_tsc_latency(vcpu* const cpu) {
-  cpu->vm_exit_tsc_latency = MAXUINT64;
+  uint64_t tsc_latency = MAXUINT64;
 
   // we dont want to be interrupted (NMIs and SMIs can fuck off)
   _disable();
@@ -469,14 +469,14 @@ static void measure_vm_exit_tsc_latency(vcpu* const cpu) {
     // this is the time it takes, in TSC, for a vm-exit that does no handling
     auto const curr = (end - start) - rdtsc_overhead;
 
-    if (curr < cpu->vm_exit_tsc_latency)
-      cpu->vm_exit_tsc_latency = curr;
+    if (curr < tsc_latency)
+      tsc_latency = curr;
   }
 
   _enable();
 
   // account for a little extra to ensure that TSC offset NEVER goes negative
-  cpu->vm_exit_tsc_latency -= 50;
+  cpu->vm_exit_tsc_latency = tsc_latency - 50;
 }
 
 // using TSC offsetting to hide vm-exit TSC latency
