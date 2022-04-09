@@ -36,4 +36,23 @@ ehandler:
   ret
 ?xsetbv_safe@hv@@YAXAEAUhost_exception_info@1@I_K@Z endp
 
+?wrmsr_safe@hv@@YAXAEAUhost_exception_info@1@I_K@Z proc
+  mov r10, ehandler
+  mov r11, rcx
+  mov byte ptr [rcx], 0
+
+  ; msr
+  mov ecx, edx
+
+  ; value
+  mov eax, r8d
+  mov rdx, r8
+  shr rdx, 32
+
+  wrmsr
+
+ehandler:
+  ret
+?wrmsr_safe@hv@@YAXAEAUhost_exception_info@1@I_K@Z endp
+
 end
