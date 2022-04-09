@@ -138,11 +138,36 @@ static bool load_vmcs_pointer(vmcs& vmcs_region) {
   return true;
 }
 
+// enable vm-exits for MTRR MSR reads/writes
+static void enable_mtrr_exiting(vcpu* const cpu) {
+  ia32_mtrr_capabilities_register mtrr_cap;
+  mtrr_cap.flags = __readmsr(IA32_MTRR_CAPABILITIES);
+
+  enable_exiting_for_msr(cpu, IA32_MTRR_DEF_TYPE, true);
+
+  // enable exiting for fixed-range MTRRs
+  if (mtrr_cap.fixed_range_supported) {
+    enable_exiting_for_msr(cpu, IA32_MTRR_FIX64K_00000, true);
+    enable_exiting_for_msr(cpu, IA32_MTRR_FIX16K_80000, true);
+    enable_exiting_for_msr(cpu, IA32_MTRR_FIX16K_A0000, true);
+
+    for (uint32_t i = 0; i < 8; ++i)
+      enable_exiting_for_msr(cpu, IA32_MTRR_FIX4K_C0000 + i, true);
+  }
+
+  // enable exiting for variable-range MTRRs
+  for (uint32_t i = 0; i < mtrr_cap.variable_range_count; ++i) {
+    enable_exiting_for_msr(cpu, IA32_MTRR_PHYSBASE0 + i * 2, true);
+    enable_exiting_for_msr(cpu, IA32_MTRR_PHYSMASK0 + i * 2, true);
+  }
+}
+
 // initialize external structures that are not included in the VMCS
 static void prepare_external_structures(vcpu* const cpu) {
   memset(&cpu->msr_bitmap, 0, sizeof(cpu->msr_bitmap));
   enable_exiting_for_msr(cpu, IA32_FEATURE_CONTROL, true);
-  enable_exiting_for_msr(cpu, IA32_MTRR_DEF_TYPE, true);
+
+  enable_mtrr_exiting(cpu);
 
   // we don't care about anything that's in the TSS
   memset(&cpu->host_tss, 0, sizeof(cpu->host_tss));
