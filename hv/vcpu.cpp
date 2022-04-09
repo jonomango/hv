@@ -42,6 +42,14 @@ static void cache_cpu_data(vcpu_cached_data& cached) {
   cached.vmx_misc.flags        = __readmsr(IA32_VMX_MISC);
 
   __cpuid(reinterpret_cast<int*>(&cached.cpuid_01), 0x01);
+
+  // create a fake guest FEATURE_CONTROL MSR that has VMX and SMX disabled
+  cached.guest_feature_control                               = cached.feature_control;
+  cached.guest_feature_control.lock_bit                      = 1;
+  cached.guest_feature_control.enable_vmx_inside_smx         = 0;
+  cached.guest_feature_control.enable_vmx_outside_smx        = 0;
+  cached.guest_feature_control.senter_local_function_enables = 0;
+  cached.guest_feature_control.senter_global_enable          = 0;
 }
 
 // enable VMX operation prior to execution of the VMXON instruction
@@ -132,9 +140,9 @@ static bool load_vmcs_pointer(vmcs& vmcs_region) {
 
 // initialize external structures that are not included in the VMCS
 static void prepare_external_structures(vcpu* const cpu) {
-  // setup the MSR bitmap so that we only exit on IA32_FEATURE_CONTROL
   memset(&cpu->msr_bitmap, 0, sizeof(cpu->msr_bitmap));
   enable_exiting_for_msr(cpu, IA32_FEATURE_CONTROL, true);
+  enable_exiting_for_msr(cpu, IA32_MTRR_DEF_TYPE, true);
 
   // we don't care about anything that's in the TSS
   memset(&cpu->host_tss, 0, sizeof(cpu->host_tss));
@@ -685,8 +693,8 @@ bool virtualize_cpu(vcpu* const cpu) {
 }
 
 // toggle vm-exiting for the specified MSR through the MSR bitmap
-void enable_exiting_for_msr(vcpu* const cpu, uint32_t msr, bool const enabled) {
-  auto const bit = static_cast<uint8_t>(enabled ? 1 : 0);
+void enable_exiting_for_msr(vcpu* const cpu, uint32_t msr, bool const enable_exiting) {
+  auto const bit = static_cast<uint8_t>(enable_exiting ? 1 : 0);
 
   if (msr <= MSR_ID_LOW_MAX) {
     // set the bit in the low bitmap

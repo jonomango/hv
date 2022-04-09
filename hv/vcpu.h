@@ -33,6 +33,7 @@ struct vcpu_cached_data {
 
   // IA32_FEATURE_CONTROL
   ia32_feature_control_register feature_control;
+  ia32_feature_control_register guest_feature_control;
 
   // IA32_VMX_MISC
   ia32_vmx_misc_register vmx_misc;
@@ -98,7 +99,7 @@ struct vcpu {
 bool virtualize_cpu(vcpu* cpu);
 
 // toggle vm-exiting for the specified MSR through the MSR bitmap
-void enable_exiting_for_msr(vcpu* cpu, uint32_t msr, bool enabled);
+void enable_exiting_for_msr(vcpu* cpu, uint32_t msr, bool enable_exiting);
 
 } // namespace hv
 

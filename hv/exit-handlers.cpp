@@ -23,33 +23,63 @@ void emulate_cpuid(vcpu* const cpu) {
 }
 
 void emulate_rdmsr(vcpu* const cpu) {
-  if (cpu->ctx->ecx == IA32_FEATURE_CONTROL) {
-    auto feature_control = cpu->cached.feature_control;
+  switch (cpu->ctx->ecx) {
+  case IA32_FEATURE_CONTROL:
+    cpu->ctx->rax = cpu->cached.guest_feature_control.flags & 0xFFFF'FFFF;
+    cpu->ctx->rdx = cpu->cached.guest_feature_control.flags >> 32;
+    break;
 
-    feature_control.lock_bit               = 1;
+  case IA32_MTRR_DEF_TYPE: {
+    auto const value = __readmsr(IA32_MTRR_DEF_TYPE);
+    cpu->ctx->rax = value & 0xFFFF'FFFF;
+    cpu->ctx->rdx = value >> 32;
+    break;
+  }
 
-    // disable VMX
-    feature_control.enable_vmx_inside_smx  = 0;
-    feature_control.enable_vmx_outside_smx = 0;
-
-    // disable SMX
-    feature_control.senter_local_function_enables = 0;
-    feature_control.senter_global_enable          = 0;
-
-    cpu->ctx->rax = feature_control.flags & 0xFFFF'FFFF;
-    cpu->ctx->rdx = feature_control.flags >> 32;
-
-    cpu->hide_vm_exit_latency = true;
-    skip_instruction();
+  default:
+    // reserved MSR
+    inject_hw_exception(general_protection, 0);
     return;
   }
 
-  inject_hw_exception(general_protection, 0);
+  cpu->hide_vm_exit_latency = true;
+  skip_instruction();
+  return;
 }
 
-void emulate_wrmsr(vcpu*) {
-  // inject a #GP(0) for every invalid MSR write + IA32_FEATURE_CONTROL
-  inject_hw_exception(general_protection, 0);
+void emulate_wrmsr(vcpu* const cpu) {
+  switch (cpu->ctx->ecx) {
+  case IA32_FEATURE_CONTROL:
+    // inject a #GP(0) if guest tries to write to the FEATURE_CONTROL MSR since
+    // the lock bit is set to 1 and writes are disabled.
+    inject_hw_exception(general_protection, 0);
+    return;
+
+  case IA32_MTRR_DEF_TYPE: {
+    host_exception_info e;
+    wrmsr_safe(e, IA32_MTRR_DEF_TYPE, (cpu->ctx->rdx << 32) | cpu->ctx->eax);
+
+    if (e.exception_occurred) {
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    // update EPT memory types since the MTRRs were modified
+    update_ept_memory_type(cpu->ept);
+    vmx_invept(invept_all_context, {});
+
+    break;
+  }
+
+  default:
+    // reserved MSR
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  cpu->hide_vm_exit_latency = true;
+  skip_instruction();
+  return;
 }
 
 void emulate_getsec(vcpu*) {
