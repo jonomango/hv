@@ -67,6 +67,9 @@
     <ClInclude Include="exception-routines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="mtrr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="exit-handlers.cpp">
@@ -100,6 +103,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ept.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mtrr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

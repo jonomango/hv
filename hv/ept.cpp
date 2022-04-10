@@ -1,7 +1,8 @@
 #include "ept.h"
-#include "mm.h"
 #include "arch.h"
 #include "vcpu.h"
+#include "mtrr.h"
+#include "mm.h"
 
 namespace hv {
 
