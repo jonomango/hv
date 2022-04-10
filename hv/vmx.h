@@ -120,6 +120,12 @@ void inject_hw_exception(uint32_t vector);
 // inject a vectored exception into the guest (with an error code)
 void inject_hw_exception(uint32_t vector, uint32_t error);
 
+// enable/disable vm-exits when the guest tries to read the specified MSR
+void enable_exit_for_msr_read(vmx_msr_bitmap& bitmap, uint32_t msr, bool enable_exiting);
+
+// enable/disable vm-exits when the guest tries to write to the specified MSR
+void enable_exit_for_msr_write(vmx_msr_bitmap& bitmap, uint32_t msr, bool enable_exiting);
+
 } // namespace hv
 
 #include "vmx.inl"
