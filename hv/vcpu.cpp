@@ -138,34 +138,34 @@ static bool load_vmcs_pointer(vmcs& vmcs_region) {
   return true;
 }
 
-// enable vm-exits for MTRR MSR reads/writes
+// enable vm-exits for MTRR MSR writes
 static void enable_mtrr_exiting(vcpu* const cpu) {
   ia32_mtrr_capabilities_register mtrr_cap;
   mtrr_cap.flags = __readmsr(IA32_MTRR_CAPABILITIES);
 
-  enable_exiting_for_msr(cpu, IA32_MTRR_DEF_TYPE, true);
+  enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_DEF_TYPE, true);
 
   // enable exiting for fixed-range MTRRs
   if (mtrr_cap.fixed_range_supported) {
-    enable_exiting_for_msr(cpu, IA32_MTRR_FIX64K_00000, true);
-    enable_exiting_for_msr(cpu, IA32_MTRR_FIX16K_80000, true);
-    enable_exiting_for_msr(cpu, IA32_MTRR_FIX16K_A0000, true);
+    enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_FIX64K_00000, true);
+    enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_FIX16K_80000, true);
+    enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_FIX16K_A0000, true);
 
     for (uint32_t i = 0; i < 8; ++i)
-      enable_exiting_for_msr(cpu, IA32_MTRR_FIX4K_C0000 + i, true);
+      enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_FIX4K_C0000 + i, true);
   }
 
   // enable exiting for variable-range MTRRs
   for (uint32_t i = 0; i < mtrr_cap.variable_range_count; ++i) {
-    enable_exiting_for_msr(cpu, IA32_MTRR_PHYSBASE0 + i * 2, true);
-    enable_exiting_for_msr(cpu, IA32_MTRR_PHYSMASK0 + i * 2, true);
+    enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_PHYSBASE0 + i * 2, true);
+    enable_exit_for_msr_write(cpu->msr_bitmap, IA32_MTRR_PHYSMASK0 + i * 2, true);
   }
 }
 
 // initialize external structures that are not included in the VMCS
 static void prepare_external_structures(vcpu* const cpu) {
   memset(&cpu->msr_bitmap, 0, sizeof(cpu->msr_bitmap));
-  enable_exiting_for_msr(cpu, IA32_FEATURE_CONTROL, true);
+  enable_exit_for_msr_read(cpu->msr_bitmap, IA32_FEATURE_CONTROL, true);
 
   enable_mtrr_exiting(cpu);
 
@@ -717,21 +717,5 @@ bool virtualize_cpu(vcpu* const cpu) {
   return true;
 }
 
-// toggle vm-exiting for the specified MSR through the MSR bitmap
-void enable_exiting_for_msr(vcpu* const cpu, uint32_t msr, bool const enable_exiting) {
-  auto const bit = static_cast<uint8_t>(enable_exiting ? 1 : 0);
-
-  if (msr <= MSR_ID_LOW_MAX) {
-    // set the bit in the low bitmap
-    cpu->msr_bitmap.rdmsr_low[msr / 8] = (bit << (msr & 0b0111));
-    cpu->msr_bitmap.wrmsr_low[msr / 8] = (bit << (msr & 0b0111));
-  } else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
-    msr -= MSR_ID_HIGH_MIN;
-
-    // set the bit in the high bitmap
-    cpu->msr_bitmap.rdmsr_high[msr / 8] = (bit << (msr & 0b0111));
-    cpu->msr_bitmap.wrmsr_high[msr / 8] = (bit << (msr & 0b0111));
-  }
-}
-
 } // namespace hv
+

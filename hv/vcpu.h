@@ -98,8 +98,5 @@ struct vcpu {
 // restricted to the desired logical proocessor.
 bool virtualize_cpu(vcpu* cpu);
 
-// toggle vm-exiting for the specified MSR through the MSR bitmap
-void enable_exiting_for_msr(vcpu* cpu, uint32_t msr, bool enable_exiting);
-
 } // namespace hv
 

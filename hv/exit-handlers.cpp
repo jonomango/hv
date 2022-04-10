@@ -23,69 +23,53 @@ void emulate_cpuid(vcpu* const cpu) {
 }
 
 void emulate_rdmsr(vcpu* const cpu) {
-  auto const msr = cpu->ctx->ecx;
-
-  // we're spoofing FEATURE_CONTROL
-  if (msr == IA32_FEATURE_CONTROL) {
+  if (cpu->ctx->ecx == IA32_FEATURE_CONTROL) {
+    // return the fake guest FEATURE_CONTROL MSR
     cpu->ctx->rax = cpu->cached.guest_feature_control.flags & 0xFFFF'FFFF;
     cpu->ctx->rdx = cpu->cached.guest_feature_control.flags >> 32;
-  }
-  // handle guest reading from the MTRRs
-  else if (msr == IA32_MTRR_DEF_TYPE || msr == IA32_MTRR_FIX64K_00000 ||
-      msr == IA32_MTRR_FIX16K_80000 || msr == IA32_MTRR_FIX16K_A0000 ||
-      (msr >= IA32_MTRR_FIX4K_C0000 && msr <= IA32_MTRR_FIX4K_F8000) ||
-      (msr >= IA32_MTRR_PHYSBASE0 && msr <= IA32_MTRR_PHYSBASE0 + 511)) {
-    // we share the MTRRs with the guest, so just RDMSR
-    auto const value = __readmsr(cpu->ctx->ecx);
-    cpu->ctx->rax = value & 0xFFFF'FFFF;
-    cpu->ctx->rdx = value >> 32;
-  }
-  // reserved MSR
-  else {
-    inject_hw_exception(general_protection, 0);
+
+    cpu->hide_vm_exit_latency = true;
+    skip_instruction();
     return;
   }
 
-  cpu->hide_vm_exit_latency = true;
-  skip_instruction();
+  // inject #GP(0) for reserved MSRs
+  inject_hw_exception(general_protection, 0);
+  return;
 }
 
 void emulate_wrmsr(vcpu* const cpu) {
   auto const msr = cpu->ctx->ecx;
+  auto const value = (cpu->ctx->rdx << 32) | cpu->ctx->eax;
 
-  // we're spoofing FEATURE_CONTROL
-  if (msr == IA32_FEATURE_CONTROL) {
-    // inject a #GP(0) if guest tries to write to the FEATURE_CONTROL MSR since
-    // the lock bit is set to 1 and writes are disabled.
-    inject_hw_exception(general_protection, 0);
-    return;
-  }
-  // handle guest writing to the MTRRs
-  else if (msr == IA32_MTRR_DEF_TYPE || msr == IA32_MTRR_FIX64K_00000 ||
+  // we need to make sure to update EPT memory types if the guest
+  // modifies any of the MTRR registers
+  if (msr == IA32_MTRR_DEF_TYPE     || msr == IA32_MTRR_FIX64K_00000 ||
       msr == IA32_MTRR_FIX16K_80000 || msr == IA32_MTRR_FIX16K_A0000 ||
-      (msr >= IA32_MTRR_FIX4K_C0000 && msr <= IA32_MTRR_FIX4K_F8000) ||
-      (msr >= IA32_MTRR_PHYSBASE0 && msr <= IA32_MTRR_PHYSBASE0 + 511)) {
+     (msr >= IA32_MTRR_FIX4K_C0000  && msr <= IA32_MTRR_FIX4K_F8000) ||
+     (msr >= IA32_MTRR_PHYSBASE0    && msr <= IA32_MTRR_PHYSBASE0 + 511)) {
     // let the guest write to the (shared) MTRRs
     host_exception_info e;
-    wrmsr_safe(e, msr, (cpu->ctx->rdx << 32) | cpu->ctx->eax);
+    wrmsr_safe(e, msr, value);
 
     if (e.exception_occurred) {
       inject_hw_exception(general_protection, 0);
       return;
     }
 
-    // update EPT memory types since the MTRRs were modified
-    update_ept_memory_type(cpu->ept);
-    vmx_invept(invept_all_context, {});
-  }
-  // reserved MSR
-  else {
-    inject_hw_exception(general_protection, 0);
+    // update EPT memory types (if CR0.CD isn't set)
+    if (!read_effective_guest_cr0().cache_disable) {
+      update_ept_memory_type(cpu->ept);
+      vmx_invept(invept_all_context, {});
+    }
+
+    cpu->hide_vm_exit_latency = true;
+    skip_instruction();
     return;
   }
 
-  cpu->hide_vm_exit_latency = true;
-  skip_instruction();
+  // reserved MSR
+  inject_hw_exception(general_protection, 0);
   return;
 }
 
@@ -269,14 +253,6 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
     // invalidate old mappings since we've just updated the EPT structures
     vmx_invept(invept_all_context, {});
-  }
-
-  if (new_cr0.cache_disable != host_cr0.cache_disable ||
-      new_cr0.not_write_through != host_cr0.not_write_through) {
-    // TODO:
-    //   if CR0.CD or CR0.NW is modified, we need to update the host CR0
-    //   since these bits are shared by the guest AND the host... i think?
-    //   3.26.3.2.1
   }
 
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, new_cr0.flags);
