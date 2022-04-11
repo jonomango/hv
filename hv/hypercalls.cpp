@@ -11,11 +11,6 @@ namespace hv::hc {
 void ping(vcpu* const cpu) {
   cpu->ctx->rax = hypervisor_signature;
 
-  // we want to hide our vm-exit latency since the hypervisor uses this
-  // hypercall for measuring vm-exit latency and we want to follow the
-  // same code path as close as possible.
-  cpu->hide_vm_exit_latency = true;
-
   skip_instruction();
 }
 

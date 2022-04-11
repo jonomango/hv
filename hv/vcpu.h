@@ -70,7 +70,15 @@ struct vcpu {
   // vm-exit MSR store area
   struct alignas(0x10) {
     vmx_msr_entry perf_global_ctrl;
+    vmx_msr_entry aperf;
+    vmx_msr_entry mperf;
   } msr_exit_store;
+
+  // vm-entry MSR load area
+  struct alignas(0x10) {
+    vmx_msr_entry aperf;
+    vmx_msr_entry mperf;
+  } msr_entry_load;
 
   // cached values that are assumed to NEVER change
   vcpu_cached_data cached;
@@ -87,11 +95,15 @@ struct vcpu {
   // current preemption timer
   uint64_t preemption_timer;
 
-  // the latency caused by world-transitions
-  uint64_t vm_exit_tsc_latency;
+  // the overhead caused by world-transitions
+  uint64_t vm_exit_tsc_overhead;
+  uint64_t vm_exit_mperf_overhead;
 
   // whether to use TSC offsetting for the current vm-exit--false by default
-  bool hide_vm_exit_latency;
+  bool hide_vm_exit_overhead;
+
+  // whether the vcpu has finished measuring vm-exit overhead
+  bool measured_vm_exit_overhead;
 };
 
 // virtualize the specified cpu. this assumes that execution is already

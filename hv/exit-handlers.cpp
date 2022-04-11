@@ -18,7 +18,7 @@ void emulate_cpuid(vcpu* const cpu) {
   ctx->rcx = regs[2];
   ctx->rdx = regs[3];
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
@@ -28,7 +28,7 @@ void emulate_rdmsr(vcpu* const cpu) {
     cpu->ctx->rax = cpu->cached.guest_feature_control.flags & 0xFFFF'FFFF;
     cpu->ctx->rdx = cpu->cached.guest_feature_control.flags >> 32;
 
-    cpu->hide_vm_exit_latency = true;
+    cpu->hide_vm_exit_overhead = true;
     skip_instruction();
     return;
   }
@@ -63,7 +63,7 @@ void emulate_wrmsr(vcpu* const cpu) {
       vmx_invept(invept_all_context, {});
     }
 
-    cpu->hide_vm_exit_latency = true;
+    cpu->hide_vm_exit_overhead = true;
     skip_instruction();
     return;
   }
@@ -144,7 +144,7 @@ void emulate_xsetbv(vcpu* const cpu) {
     return;
   }
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
@@ -263,7 +263,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
   vmx_vmwrite(VMCS_GUEST_CR0, new_cr0.flags);
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
@@ -303,7 +303,7 @@ void emulate_mov_to_cr3(vcpu* const cpu, uint64_t const gpr) {
   // it is now safe to write the new guest cr3
   vmx_vmwrite(VMCS_GUEST_CR3, new_cr3.flags);
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
@@ -380,14 +380,14 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
 
   vmx_vmwrite(VMCS_GUEST_CR4, new_cr4.flags);
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
 void emulate_mov_from_cr3(vcpu* const cpu, uint64_t const gpr) {
   write_guest_gpr(cpu->ctx, gpr, vmx_vmread(VMCS_GUEST_CR3));
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
@@ -400,7 +400,7 @@ void emulate_clts(vcpu* const cpu) {
   vmx_vmwrite(VMCS_GUEST_CR0,
     vmx_vmread(VMCS_GUEST_CR0) & ~CR0_TASK_SWITCHED_FLAG);
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
@@ -431,7 +431,7 @@ void emulate_lmsw(vcpu* const cpu, uint16_t const value) {
   real_cr0.task_switched       = new_cr0.task_switched;
   vmx_vmwrite(VMCS_GUEST_CR0, real_cr0.flags);
 
-  cpu->hide_vm_exit_latency = true;
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
