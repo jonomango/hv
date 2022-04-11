@@ -204,14 +204,15 @@ static void write_vmcs_ctrl_fields(vcpu* const cpu) {
 
   // 3.24.6.2
   ia32_vmx_procbased_ctls2_register proc_based_ctrl2;
-  proc_based_ctrl2.flags                  = 0;
-  proc_based_ctrl2.enable_ept             = 1;
-  proc_based_ctrl2.enable_rdtscp          = 1;
-  proc_based_ctrl2.enable_vpid            = 1;
-  proc_based_ctrl2.enable_invpcid         = 1;
-  proc_based_ctrl2.enable_xsaves          = 1;
-  proc_based_ctrl2.enable_user_wait_pause = 1;
-  proc_based_ctrl2.conceal_vmx_from_pt    = 1;
+  proc_based_ctrl2.flags                            = 0;
+  proc_based_ctrl2.enable_ept                       = 1;
+  proc_based_ctrl2.enable_rdtscp                    = 1;
+  proc_based_ctrl2.enable_vpid                      = 1;
+  proc_based_ctrl2.enable_invpcid                   = 1;
+  proc_based_ctrl2.enable_xsaves                    = 1;
+  proc_based_ctrl2.enable_user_wait_pause           = 1;
+  proc_based_ctrl2.conceal_vmx_from_pt              = 1;
+  proc_based_ctrl2.pt_uses_guest_physical_addresses = 1;
   write_ctrl_proc_based2_safe(proc_based_ctrl2);
 
   // 3.24.7
