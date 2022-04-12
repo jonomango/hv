@@ -559,6 +559,13 @@ static uint64_t measure_vm_exit_mperf_overhead() {
   return mperf_overhead;
 }
 
+// measure the amount of overhead that a vm-exit
+// causes using CPU_CLK_UNHALTED.REF_TSC
+static uint64_t measure_vm_exit_ref_tsc_overhead() {
+  // TODO: measure this...
+  return 300;
+}
+
 // hide the vm-exit overhead that is caused by world transitions
 static void hide_vm_exit_overhead(vcpu* const cpu) {
   // hide APERF/MPERF overhead but don't account for all of it yet
@@ -600,11 +607,8 @@ static void hide_vm_exit_overhead(vcpu* const cpu) {
     ia32_fixed_ctr_ctrl_register fixed_ctr_ctrl;
     fixed_ctr_ctrl.flags = __readmsr(IA32_FIXED_CTR_CTRL);
 
-    if ((cpl == 0 && fixed_ctr_ctrl.en2_os) ||
-        (cpl == 3 && fixed_ctr_ctrl.en2_usr)) {
-      // TODO: measure the value to subtract the same way that normal TSC does
-      __writemsr(IA32_FIXED_CTR2, __readmsr(IA32_FIXED_CTR2) - 300);
-    }
+    if ((cpl == 0 && fixed_ctr_ctrl.en2_os) || (cpl == 3 && fixed_ctr_ctrl.en2_usr))
+      __writemsr(IA32_FIXED_CTR2, __readmsr(IA32_FIXED_CTR2) - cpu->vm_exit_ref_tsc_overhead);
   }
 }
 
@@ -776,8 +780,9 @@ bool virtualize_cpu(vcpu* const cpu) {
   if (vmx_vmcall(input) == hypervisor_signature)
     DbgPrint("[hv] Successfully pinged the hypervisor.\n");
 
-  cpu->vm_exit_tsc_overhead   = measure_vm_exit_tsc_overhead();
-  cpu->vm_exit_mperf_overhead = measure_vm_exit_mperf_overhead();
+  cpu->vm_exit_tsc_overhead     = measure_vm_exit_tsc_overhead();
+  cpu->vm_exit_mperf_overhead   = measure_vm_exit_mperf_overhead();
+  cpu->vm_exit_ref_tsc_overhead = measure_vm_exit_ref_tsc_overhead();
 
   cpu->measured_vm_exit_overhead = true;
 
@@ -785,6 +790,8 @@ bool virtualize_cpu(vcpu* const cpu) {
     cpu->vm_exit_tsc_overhead);
   DbgPrint("[hv] Measured VM-exit MPERF overhead (%zi).\n",
     cpu->vm_exit_mperf_overhead);
+  DbgPrint("[hv] Measured VM-exit CPU_CLK_UNHALTED.REF_TSC overhead (%zi).\n",
+    cpu->vm_exit_ref_tsc_overhead);
 
   return true;
 }

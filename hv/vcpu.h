@@ -98,6 +98,7 @@ struct vcpu {
   // the overhead caused by world-transitions
   uint64_t vm_exit_tsc_overhead;
   uint64_t vm_exit_mperf_overhead;
+  uint64_t vm_exit_ref_tsc_overhead;
 
   // whether to use TSC offsetting for the current vm-exit--false by default
   bool hide_vm_exit_overhead;
