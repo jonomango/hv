@@ -15,7 +15,14 @@ void prepare_ept(vcpu_ept_data& ept) {
   for (size_t i = 0; i < ept_free_page_count; ++i)
     ept.free_page_pfns[i] = MmGetPhysicalAddress(&ept.free_pages[i]).QuadPart >> 12;
 
-  ept.num_ept_hooks = 0;
+  ept.hooks.active_list_head = nullptr;
+  ept.hooks.free_list_head   = &ept.hooks.buffer[0];
+
+  for (size_t i = 0; i < ept.hooks.capacity - 1; ++i)
+    ept.hooks.buffer[i].next = &ept.hooks.buffer[i + 1];
+
+  // the last node points to NULL
+  ept.hooks.buffer[ept.hooks.capacity - 1].next = nullptr;
 
   // setup the first PML4E so that it points to our PDPT
   auto& pml4e             = ept.pml4[0];
@@ -145,7 +152,8 @@ ept_pde* get_ept_pde(vcpu_ept_data& ept, uint64_t const physical_address) {
 }
 
 // get the corresponding EPT PTE for a given physical address
-ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t const physical_address, bool const force_split) {
+ept_pte* get_ept_pte(vcpu_ept_data& ept,
+    uint64_t const physical_address, bool const force_split) {
   pml4_virtual_address const addr = { reinterpret_cast<void*>(physical_address) };
 
   if (addr.pml4_idx != 0)
@@ -216,6 +224,48 @@ void split_ept_pde(vcpu_ept_data& ept, ept_pde_2mb* const pde_2mb) {
   pde->execute_access    = 1;
   pde->user_mode_execute = 1;
   pde->page_frame_number = pt_pfn;
+}
+
+// memory read/written will use the original page while code
+// being executed will use the executable page instead
+bool install_ept_hook(vcpu* const cpu,
+    uint64_t const original_page_pfn,
+    uint64_t const executable_page_pfn) {
+  auto& ept = cpu->ept;
+
+  // we ran out of EPT hooks :(
+  if (!ept.hooks.free_list_head)
+    return false;
+
+  // get the EPT PTE, and possible split an existing PDE if needed
+  auto const pte = get_ept_pte(ept, original_page_pfn << 12, true);
+  if (!pte)
+    return false;
+
+  // remove a hook node from the free list
+  auto const hook_node = ept.hooks.free_list_head;
+  ept.hooks.free_list_head = hook_node->next;
+
+  // insert the hook node into the active list
+  hook_node->next = ept.hooks.active_list_head;
+  ept.hooks.active_list_head = hook_node;
+
+  // initialize the hook node
+  hook_node->orig_pfn = static_cast<uint32_t>(original_page_pfn);
+  hook_node->exec_pfn = static_cast<uint32_t>(executable_page_pfn);
+
+  // an instruction fetch to this physical address will now trigger
+  // an ept-violation vm-exit where the real "meat" of the ept hook is
+  pte->execute_access = 0;
+
+  vmx_invept(invept_all_context, {});
+
+  return true;
+}
+
+// remove an EPT hook that was installed with install_ept_hook()
+void remove_ept_hook(vcpu* const, uint64_t const) {
+  // TODO: do this.
 }
 
 } // namespace hv

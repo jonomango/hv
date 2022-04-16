@@ -4,10 +4,33 @@
 
 namespace hv {
 
+struct vcpu;
+
 // number of PDs in the EPT paging structures
 inline constexpr size_t ept_pd_count = 64;
 inline constexpr size_t ept_free_page_count = 10;
-inline constexpr size_t ept_hook_count = 10;
+
+struct vcpu_ept_hooks {
+  struct node {
+    node* next;
+
+    // these can be stored as 32-bit integers to conserve space since
+    // nobody is going to have more than 16,000 GB of physical memory
+    uint32_t orig_pfn;
+    uint32_t exec_pfn;
+  };
+
+  // buffer of nodes (there can be unused nodes in the middle
+  // of the buffer if a hook was removed for example)
+  static constexpr size_t capacity = 64;
+  node buffer[capacity];
+
+  // list of currently active EPT hooks
+  node* active_list_head;
+
+  // list of unused nodes
+  node* free_list_head;
+};
 
 struct vcpu_ept_data {
   // EPT PML4
@@ -32,14 +55,8 @@ struct vcpu_ept_data {
   // # of free pages that are currently in use
   size_t num_used_free_pages;
 
-  struct {
-    ept_pte* pte;
-    uint64_t orig_pfn;
-    uint64_t exec_pfn;
-  } ept_hooks[10];
-
-  // # of EPT hooks that are installed
-  size_t num_ept_hooks;
+  // EPT hooks
+  vcpu_ept_hooks hooks;
 };
 
 // identity-map the EPT paging structures
@@ -59,10 +76,19 @@ ept_pdpte* get_ept_pdpte(vcpu_ept_data& ept, uint64_t physical_address);
 ept_pde* get_ept_pde(vcpu_ept_data& ept, uint64_t physical_address);
 
 // get the corresponding EPT PTE for a given physical address
-ept_pte* get_ept_pte(vcpu_ept_data& ept, uint64_t physical_address, bool force_split = false);
+ept_pte* get_ept_pte(vcpu_ept_data& ept,
+    uint64_t physical_address, bool force_split = false);
 
 // split a 2MB EPT PDE so that it points to an EPT PT
 void split_ept_pde(vcpu_ept_data& ept, ept_pde_2mb* pde_2mb);
+
+// memory read/written will use the original page while code
+// being executed will use the executable page instead
+bool install_ept_hook(vcpu* cpu,
+    uint64_t original_page_pfn, uint64_t executable_page_pfn);
+
+// remove an EPT hook that was installed with install_ept_hook()
+void remove_ept_hook(vcpu* cpu, uint64_t original_page_pfn);
 
 } // namespace hv
 

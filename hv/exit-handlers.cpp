@@ -523,22 +523,23 @@ void handle_ept_violation(vcpu* const cpu) {
   }
 
   // look for the EPT hook that caused the violation
-  for (size_t i = 0; i < cpu->ept.num_ept_hooks; ++i) {
-    auto& hook = cpu->ept.ept_hooks[i];
-
-    if (hook.orig_pfn != (physical_address >> 12))
+  for (auto hook = cpu->ept.hooks.active_list_head; hook; hook = hook->next) {
+    if (hook->orig_pfn != (physical_address >> 12))
       continue;
 
+    auto const pte = get_ept_pte(cpu->ept, physical_address);
+    // TODO: assert(pte != nullptr)
+
     if (qualification.execute_access) {
-      hook.pte->read_access       = 0;
-      hook.pte->write_access      = 0;
-      hook.pte->execute_access    = 1;
-      hook.pte->page_frame_number = hook.exec_pfn;
+      pte->read_access       = 0;
+      pte->write_access      = 0;
+      pte->execute_access    = 1;
+      pte->page_frame_number = hook->exec_pfn;
     } else {
-      hook.pte->read_access       = 1;
-      hook.pte->write_access      = 1;
-      hook.pte->execute_access    = 0;
-      hook.pte->page_frame_number = hook.orig_pfn;
+      pte->read_access       = 1;
+      pte->write_access      = 1;
+      pte->execute_access    = 0;
+      pte->page_frame_number = hook->orig_pfn;
     }
 
     break;
