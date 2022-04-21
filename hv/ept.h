@@ -10,26 +10,26 @@ struct vcpu;
 inline constexpr size_t ept_pd_count = 64;
 inline constexpr size_t ept_free_page_count = 10;
 
+struct vcpu_ept_hook_node {
+  vcpu_ept_hook_node* next;
+
+  // these can be stored as 32-bit integers to conserve space since
+  // nobody is going to have more than 16,000 GB of physical memory
+  uint32_t orig_pfn;
+  uint32_t exec_pfn;
+};
+
 struct vcpu_ept_hooks {
-  struct node {
-    node* next;
-
-    // these can be stored as 32-bit integers to conserve space since
-    // nobody is going to have more than 16,000 GB of physical memory
-    uint32_t orig_pfn;
-    uint32_t exec_pfn;
-  };
-
   // buffer of nodes (there can be unused nodes in the middle
   // of the buffer if a hook was removed for example)
   static constexpr size_t capacity = 64;
-  node buffer[capacity];
+  vcpu_ept_hook_node buffer[capacity];
 
   // list of currently active EPT hooks
-  node* active_list_head;
+  vcpu_ept_hook_node* active_list_head;
 
   // list of unused nodes
-  node* free_list_head;
+  vcpu_ept_hook_node* free_list_head;
 };
 
 struct vcpu_ept_data {
@@ -89,6 +89,9 @@ bool install_ept_hook(vcpu* cpu,
 
 // remove an EPT hook that was installed with install_ept_hook()
 void remove_ept_hook(vcpu* cpu, uint64_t original_page_pfn);
+
+// find the EPT hook for the specified PFN
+vcpu_ept_hook_node* find_ept_hook(vcpu_ept_hooks& hooks, uint64_t original_page_pfn);
 
 } // namespace hv
 

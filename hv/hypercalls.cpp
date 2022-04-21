@@ -20,7 +20,10 @@ void test(vcpu* const cpu) {
   auto const orig_page = cpu->ctx->rcx;
   auto const exec_page = cpu->ctx->rdx;
 
-  install_ept_hook(cpu, orig_page >> 12, exec_page >> 12);
+  if (!install_ept_hook(cpu, orig_page >> 12, exec_page >> 12)) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
 
   skip_instruction();
 }

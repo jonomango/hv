@@ -522,27 +522,26 @@ void handle_ept_violation(vcpu* const cpu) {
     return;
   }
 
-  // look for the EPT hook that caused the violation
-  for (auto hook = cpu->ept.hooks.active_list_head; hook; hook = hook->next) {
-    if (hook->orig_pfn != (physical_address >> 12))
-      continue;
+  auto const hook = find_ept_hook(cpu->ept.hooks, physical_address >> 12);
 
-    auto const pte = get_ept_pte(cpu->ept, physical_address);
-    // TODO: assert(pte != nullptr)
+  if (!hook) {
+    // TODO: assert
+    inject_hw_exception(machine_check);
+    return;
+  }
 
-    if (qualification.execute_access) {
-      pte->read_access       = 0;
-      pte->write_access      = 0;
-      pte->execute_access    = 1;
-      pte->page_frame_number = hook->exec_pfn;
-    } else {
-      pte->read_access       = 1;
-      pte->write_access      = 1;
-      pte->execute_access    = 0;
-      pte->page_frame_number = hook->orig_pfn;
-    }
+  auto const pte = get_ept_pte(cpu->ept, physical_address);
 
-    break;
+  if (qualification.execute_access) {
+    pte->read_access       = 0;
+    pte->write_access      = 0;
+    pte->execute_access    = 1;
+    pte->page_frame_number = hook->exec_pfn;
+  } else {
+    pte->read_access       = 1;
+    pte->write_access      = 1;
+    pte->execute_access    = 0;
+    pte->page_frame_number = hook->orig_pfn;
   }
 }
 

@@ -268,5 +268,21 @@ void remove_ept_hook(vcpu* const, uint64_t const) {
   // TODO: do this.
 }
 
+// find the EPT hook for the specified PFN
+vcpu_ept_hook_node* find_ept_hook(vcpu_ept_hooks& hooks,
+    uint64_t const original_page_pfn) {
+  // TODO:
+  //   maybe use a more optimal data structure to handle a large
+  //   amount of EPT hooks?
+
+  // linear search through the active hook list
+  for (auto curr = hooks.active_list_head; curr; curr = curr->next) {
+    if (curr->orig_pfn == original_page_pfn)
+      return curr;
+  }
+
+  return nullptr;
+}
+
 } // namespace hv
 
