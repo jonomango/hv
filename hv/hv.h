@@ -30,9 +30,6 @@ struct hypervisor {
 // global instance of the hypervisor
 extern hypervisor ghv;
 
-// create the hypervisor
-bool create();
-
 // virtualize the current system
 bool start();
 

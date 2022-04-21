@@ -8,7 +8,7 @@ namespace hv {
 hypervisor ghv;
 
 // create the hypervisor
-bool create() {
+static bool create() {
   ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
   // size of the vcpu array
@@ -73,6 +73,9 @@ bool create() {
 
 // virtualize the current system
 bool start() {
+  if (!create())
+    return false;
+
   // we need to be running at an IRQL below DISPATCH_LEVEL so
   // that KeSetSystemAffinityThreadEx takes effect immediately
   NT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);

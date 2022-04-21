@@ -101,11 +101,6 @@ NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
 
   DbgPrint("[hv] Driver loaded.\n");
 
-  if (!hv::create()) {
-    DbgPrint("[hv] Failed to create hypervisor.\n");
-    return STATUS_HV_OPERATION_FAILED;
-  }
-
   if (!hv::start()) {
     DbgPrint("[hv] Failed to virtualize system.\n");
     return STATUS_HV_OPERATION_FAILED;
