@@ -84,14 +84,14 @@ void split_ept_pde(vcpu_ept_data& ept, ept_pde_2mb* pde_2mb);
 
 // memory read/written will use the original page while code
 // being executed will use the executable page instead
-bool install_ept_hook(vcpu* cpu,
+bool install_ept_hook(vcpu_ept_data& ept,
     uint64_t original_page_pfn, uint64_t executable_page_pfn);
 
 // remove an EPT hook that was installed with install_ept_hook()
-void remove_ept_hook(vcpu* cpu, uint64_t original_page_pfn);
+void remove_ept_hook(vcpu_ept_data& ept, uint64_t original_page_pfn);
 
 // find the EPT hook for the specified PFN
-vcpu_ept_hook_node* find_ept_hook(vcpu_ept_hooks& hooks, uint64_t original_page_pfn);
+vcpu_ept_hook_node* find_ept_hook(vcpu_ept_data& ept, uint64_t original_page_pfn);
 
 } // namespace hv
 

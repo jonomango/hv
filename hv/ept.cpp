@@ -228,11 +228,9 @@ void split_ept_pde(vcpu_ept_data& ept, ept_pde_2mb* const pde_2mb) {
 
 // memory read/written will use the original page while code
 // being executed will use the executable page instead
-bool install_ept_hook(vcpu* const cpu,
+bool install_ept_hook(vcpu_ept_data& ept,
     uint64_t const original_page_pfn,
     uint64_t const executable_page_pfn) {
-  auto& ept = cpu->ept;
-
   // we ran out of EPT hooks :(
   if (!ept.hooks.free_list_head)
     return false;
@@ -264,19 +262,68 @@ bool install_ept_hook(vcpu* const cpu,
 }
 
 // remove an EPT hook that was installed with install_ept_hook()
-void remove_ept_hook(vcpu* const, uint64_t const) {
-  // TODO: do this.
+void remove_ept_hook(vcpu_ept_data& ept, uint64_t const original_page_pfn) {
+  if (!ept.hooks.active_list_head)
+    return;
+
+  // the head is the target node
+  if (ept.hooks.active_list_head->orig_pfn == original_page_pfn) {
+    auto const new_head = ept.hooks.active_list_head->next;
+
+    // add to the free list
+    ept.hooks.active_list_head->next = ept.hooks.free_list_head;
+    ept.hooks.free_list_head = ept.hooks.active_list_head;
+
+    // remove from the active list
+    ept.hooks.active_list_head = new_head;
+  } else {
+    auto prev = ept.hooks.active_list_head;
+
+    // search for the node BEFORE the target node (prev if this was doubly)
+    while (prev->next) {
+      if (prev->next->orig_pfn == original_page_pfn)
+        break;
+
+      prev = prev->next;
+    }
+
+    if (!prev->next)
+      return;
+
+    auto const new_next = prev->next->next;
+
+    // add to the free list
+    prev->next->next = ept.hooks.free_list_head;
+    ept.hooks.free_list_head = prev->next;
+
+    // remove from the active list
+    prev->next = new_next;
+  }
+
+  auto const pte = get_ept_pte(ept, original_page_pfn << 12, false);
+
+  // this should NOT fail
+  if (!pte)
+    return;
+
+  // restore original EPT page attributes
+  pte->read_access       = 1;
+  pte->write_access      = 1;
+  pte->execute_access    = 1;
+  pte->page_frame_number = original_page_pfn;
+
+  vmx_invept(invept_all_context, {});
 }
 
 // find the EPT hook for the specified PFN
-vcpu_ept_hook_node* find_ept_hook(vcpu_ept_hooks& hooks,
+vcpu_ept_hook_node* find_ept_hook(vcpu_ept_data& ept,
     uint64_t const original_page_pfn) {
   // TODO:
   //   maybe use a more optimal data structure to handle a large
   //   amount of EPT hooks?
 
   // linear search through the active hook list
-  for (auto curr = hooks.active_list_head; curr; curr = curr->next) {
+  for (auto curr = ept.hooks.active_list_head; curr; curr = curr->next) {
     if (curr->orig_pfn == original_page_pfn)
       return curr;
   }

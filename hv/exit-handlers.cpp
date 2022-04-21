@@ -522,7 +522,7 @@ void handle_ept_violation(vcpu* const cpu) {
     return;
   }
 
-  auto const hook = find_ept_hook(cpu->ept.hooks, physical_address >> 12);
+  auto const hook = find_ept_hook(cpu->ept, physical_address >> 12);
 
   if (!hook) {
     // TODO: assert
