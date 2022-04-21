@@ -133,6 +133,7 @@
     <ClInclude Include="mtrr.h" />
     <ClInclude Include="page-tables.h" />
     <ClInclude Include="segment.h" />
+    <ClInclude Include="timing.h" />
     <ClInclude Include="trap-frame.h" />
     <ClInclude Include="vcpu.h" />
     <ClInclude Include="vmx.h" />
@@ -149,6 +150,7 @@
     <ClCompile Include="mtrr.cpp" />
     <ClCompile Include="page-tables.cpp" />
     <ClCompile Include="segment.cpp" />
+    <ClCompile Include="timing.cpp" />
     <ClCompile Include="vcpu.cpp" />
   </ItemGroup>
   <ItemGroup>

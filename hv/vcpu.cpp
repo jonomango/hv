@@ -5,6 +5,7 @@
 #include "mm.h"
 #include "vmx.h"
 #include "arch.h"
+#include "timing.h"
 #include "segment.h"
 #include "trap-frame.h"
 #include "exit-handlers.h"
@@ -461,109 +462,6 @@ static void write_vmcs_guest_fields() {
   vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, MAXULONG64);
 
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, MAXULONG64);
-}
-
-// measure the amount of overhead that a vm-exit
-// causes so that we can use TSC offsetting to hide it
-static uint64_t measure_vm_exit_tsc_overhead() {
-  uint64_t tsc_overhead = MAXUINT64;
-
-  // we dont want to be interrupted (NMIs and SMIs can fuck off)
-  _disable();
-
-  // measure the execution time of a vm-entry and vm-exit
-  for (int i = 0; i < 10; ++i) {
-    // first measure the overhead of rdtsc/rdtsc
-
-    _mm_lfence();
-    auto start = __rdtsc();
-    _mm_lfence();
-
-    _mm_lfence();
-    auto end = __rdtsc();
-    _mm_lfence();
-
-    auto const rdtsc_overhead = end - start;
-
-    // next, measure the overhead of a vm-exit
-    hypercall_input input;
-    input.code = hypercall_ping;
-    input.key  = hypercall_key;
-
-    _mm_lfence();
-    start = __rdtsc();
-    _mm_lfence();
-
-    vmx_vmcall(input);
-
-    _mm_lfence();
-    end = __rdtsc();
-    _mm_lfence();
-
-    // this is the time it takes, in TSC, for a vm-exit that does no handling
-    auto const curr = (end - start) - rdtsc_overhead;
-
-    if (curr < tsc_overhead)
-      tsc_overhead = curr;
-  }
-
-  _enable();
-  return tsc_overhead;
-}
-
-// measure the amount of overhead that a vm-exit
-// causes using the MPERF MSR
-static uint64_t measure_vm_exit_mperf_overhead() {
-  uint64_t mperf_overhead = MAXUINT64;
-
-  // we dont want to be interrupted (NMIs and SMIs can fuck off)
-  _disable();
-
-  // measure the execution time of a vm-entry and vm-exit
-  for (int i = 0; i < 10; ++i) {
-    // first measure the overhead of rdmsr/rdmsr
-
-    _mm_lfence();
-    auto start = __readmsr(IA32_MPERF);
-    _mm_lfence();
-
-    _mm_lfence();
-    auto end = __readmsr(IA32_MPERF);
-    _mm_lfence();
-
-    auto const rdtsc_overhead = end - start;
-
-    // next, measure the overhead of a vm-exit
-    hypercall_input input;
-    input.code = hypercall_ping;
-    input.key  = hypercall_key;
-
-    _mm_lfence();
-    start = __readmsr(IA32_MPERF);
-    _mm_lfence();
-
-    vmx_vmcall(input);
-
-    _mm_lfence();
-    end = __readmsr(IA32_MPERF);
-    _mm_lfence();
-
-    // this is the time it takes, in TSC, for a vm-exit that does no handling
-    auto const curr = (end - start) - rdtsc_overhead;
-
-    if (curr < mperf_overhead)
-      mperf_overhead = curr;
-  }
-
-  _enable();
-  return mperf_overhead;
-}
-
-// measure the amount of overhead that a vm-exit
-// causes using CPU_CLK_UNHALTED.REF_TSC
-static uint64_t measure_vm_exit_ref_tsc_overhead() {
-  // TODO: measure this...
-  return 300;
 }
 
 // hide the vm-exit overhead that is caused by world transitions
