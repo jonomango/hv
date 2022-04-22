@@ -464,52 +464,6 @@ static void write_vmcs_guest_fields() {
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, MAXULONG64);
 }
 
-// hide the vm-exit overhead that is caused by world transitions
-static void hide_vm_exit_overhead(vcpu* const cpu) {
-  // hide APERF/MPERF overhead but don't account for all of it yet
-  cpu->msr_entry_load.aperf.msr_data = cpu->msr_exit_store.aperf.msr_data;
-  cpu->msr_entry_load.mperf.msr_data = cpu->msr_exit_store.mperf.msr_data;
-
-  if (!cpu->measured_vm_exit_overhead || !cpu->hide_vm_exit_overhead) {
-    // reset TSC offset to 0 during vm-exits that are not likely to be timed
-    cpu->tsc_offset = 0;
-
-    // soft disable the VMX preemption timer
-    cpu->preemption_timer = MAXULONG64;
-
-    return;
-  }
-
-  // hotfix to prevent TSC offsetting while running in a nested HV
-  if (cpu->vm_exit_tsc_overhead > 10000)
-    return;
-
-  // set preemption timer to cause an exit after 10000 guest TSC ticks have passed
-  cpu->preemption_timer = max(2,
-    10000 >> cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
-
-  // hide from rdtsc/rdtscp
-  cpu->tsc_offset -= cpu->vm_exit_tsc_overhead;
-
-  // hide from APERF/MPERF
-  cpu->msr_entry_load.aperf.msr_data -= cpu->vm_exit_mperf_overhead;
-  cpu->msr_entry_load.mperf.msr_data -= cpu->vm_exit_mperf_overhead;
-
-  ia32_perf_global_ctrl_register perf_global_ctrl;
-  perf_global_ctrl.flags = cpu->msr_exit_store.perf_global_ctrl.msr_data;
-
-  // hide from CPU_CLK_UNHALTED.REF_TSC
-  if (perf_global_ctrl.en_fixed_ctrn & (1ull << 2)) {
-    auto const cpl = current_guest_cpl();
-
-    ia32_fixed_ctr_ctrl_register fixed_ctr_ctrl;
-    fixed_ctr_ctrl.flags = __readmsr(IA32_FIXED_CTR_CTRL);
-
-    if ((cpl == 0 && fixed_ctr_ctrl.en2_os) || (cpl == 3 && fixed_ctr_ctrl.en2_usr))
-      __writemsr(IA32_FIXED_CTR2, __readmsr(IA32_FIXED_CTR2) - cpu->vm_exit_ref_tsc_overhead);
-  }
-}
-
 // call the appropriate exit-handler for this vm-exit
 static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   switch (reason.basic_exit_reason) {
@@ -560,7 +514,6 @@ void handle_vm_exit(guest_context* const ctx) {
   // sync the vmcs state with the vcpu state
   vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
-  vmx_vmwrite(VMCS_GUEST_PERF_GLOBAL_CTRL, cpu->msr_exit_store.perf_global_ctrl.msr_data);
 
   vmentry_interrupt_information vectoring_info;
   vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
@@ -658,7 +611,7 @@ bool virtualize_cpu(vcpu* const cpu) {
   cpu->preemption_timer          = 0;
   cpu->vm_exit_tsc_overhead      = 0;
   cpu->vm_exit_mperf_overhead    = 0;
-  cpu->measured_vm_exit_overhead = false;
+  cpu->vm_exit_ref_tsc_overhead  = 0;
 
   if (!vm_launch()) {
     DbgPrint("[hv] VMLAUNCH failed. Instruction error = %lli.\n",
@@ -678,17 +631,15 @@ bool virtualize_cpu(vcpu* const cpu) {
   if (vmx_vmcall(input) == hypervisor_signature)
     DbgPrint("[hv] Successfully pinged the hypervisor.\n");
 
-  cpu->vm_exit_tsc_overhead     = measure_vm_exit_tsc_overhead();
-  cpu->vm_exit_mperf_overhead   = measure_vm_exit_mperf_overhead();
-  cpu->vm_exit_ref_tsc_overhead = measure_vm_exit_ref_tsc_overhead();
+  cpu->vm_exit_tsc_overhead      = measure_vm_exit_tsc_overhead();
+  cpu->vm_exit_mperf_overhead    = measure_vm_exit_mperf_overhead();
+  cpu->vm_exit_ref_tsc_overhead  = measure_vm_exit_ref_tsc_overhead();
 
-  cpu->measured_vm_exit_overhead = true;
-
-  DbgPrint("[hv] Measured VM-exit TSC overhead (%zi).\n",
+  DbgPrint("[hv] Measured VM-exit overhead (TSC = %zi).\n",
     cpu->vm_exit_tsc_overhead);
-  DbgPrint("[hv] Measured VM-exit MPERF overhead (%zi).\n",
+  DbgPrint("[hv] Measured VM-exit overhead (MPERF = %zi).\n",
     cpu->vm_exit_mperf_overhead);
-  DbgPrint("[hv] Measured VM-exit CPU_CLK_UNHALTED.REF_TSC overhead (%zi).\n",
+  DbgPrint("[hv] Measured VM-exit overhead (CPU_CLK_UNHALTED.REF_TSC = %zi).\n",
     cpu->vm_exit_ref_tsc_overhead);
 
   return true;

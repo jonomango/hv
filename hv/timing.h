@@ -4,6 +4,11 @@
 
 namespace hv {
 
+struct vcpu;
+
+// try to hide the vm-exit overhead from being detected through timings
+void hide_vm_exit_overhead(vcpu* cpu);
+
 // measure the overhead of a vm-exit (RDTSC)
 uint64_t measure_vm_exit_tsc_overhead();
 
