@@ -136,6 +136,7 @@
     <ClInclude Include="timing.h" />
     <ClInclude Include="trap-frame.h" />
     <ClInclude Include="vcpu.h" />
+    <ClInclude Include="vmcs.h" />
     <ClInclude Include="vmx.h" />
   </ItemGroup>
   <ItemGroup>
@@ -152,6 +153,7 @@
     <ClCompile Include="segment.cpp" />
     <ClCompile Include="timing.cpp" />
     <ClCompile Include="vcpu.cpp" />
+    <ClCompile Include="vmcs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="exception-routines.asm" />
