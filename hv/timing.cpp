@@ -43,7 +43,7 @@ void hide_vm_exit_overhead(vcpu* const cpu) {
 
   // this usually occurs for vm-exits that are unlikely to be reliably timed,
   // such as when an exception occurs or if the preemption timer fired
-  if (!cpu->hide_vm_exit_overhead) {
+  if (!cpu->hide_vm_exit_overhead || cpu->vm_exit_tsc_overhead > 10000) {
     // this is our chance to resync the TSC
     cpu->tsc_offset = 0;
 
@@ -52,10 +52,6 @@ void hide_vm_exit_overhead(vcpu* const cpu) {
 
     return;
   }
-
-  // prevent TSC offsetting while running in a nested HV (specifically VMware)
-  if (cpu->vm_exit_tsc_overhead > 10000)
-    return;
 
   // set the preemption timer to cause an exit after 10000 guest TSC ticks have passed
   cpu->preemption_timer = max(2,

@@ -218,21 +218,11 @@ void handle_vm_exit(guest_context* const ctx) {
   cpu->hide_vm_exit_overhead = false;
 
   dispatch_vm_exit(cpu, reason);
-
   hide_vm_exit_overhead(cpu);
 
   // sync the vmcs state with the vcpu state
   vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
-
-  vmentry_interrupt_information vectoring_info;
-  vectoring_info.flags = static_cast<uint32_t>(vmx_vmread(VMCS_IDT_VECTORING_INFORMATION));
-
-  // 3.27.2.4
-  // TODO: vm-exit during event delivery
-  if (vectoring_info.valid) {
-
-  }
 
   cpu->ctx = nullptr;
 }

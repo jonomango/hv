@@ -57,11 +57,11 @@ void emulate_wrmsr(vcpu* const cpu) {
       return;
     }
 
-    // update EPT memory types (if CR0.CD isn't set)
-    if (!read_effective_guest_cr0().cache_disable) {
+    // update EPT memory types
+    if (!read_effective_guest_cr0().cache_disable)
       update_ept_memory_type(cpu->ept);
-      vmx_invept(invept_all_context, {});
-    }
+
+    vmx_invept(invept_all_context, {});
 
     cpu->hide_vm_exit_overhead = true;
     skip_instruction();
@@ -241,17 +241,15 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
     return;
   }
 
-  cr0 host_cr0;
-  host_cr0.flags = vmx_vmread(VMCS_HOST_CR0);
-
-  // guest tried to modify CR0.CD, which cannot be updated through VMCS_GUEST_CR0
-  if (new_cr0.cache_disable != curr_cr0.cache_disable) {
+  // the guest tried to modify CR0.CD or CR0.NW, which must be updated manually
+  if (new_cr0.cache_disable     != curr_cr0.cache_disable ||
+      new_cr0.not_write_through != curr_cr0.not_write_through) {
+    // TODO: should we care about WT?
     if (new_cr0.cache_disable)
       set_ept_memory_type(cpu->ept, MEMORY_TYPE_UNCACHEABLE);
     else
       update_ept_memory_type(cpu->ept);
 
-    // invalidate old mappings since we've just updated the EPT structures
     vmx_invept(invept_all_context, {});
   }
 
