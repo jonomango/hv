@@ -106,8 +106,68 @@ uint64_t measure_vm_exit_tsc_overhead() {
 
 // measure the overhead of a vm-exit (CPU_CLK_UNHALTED.REF_TSC)
 uint64_t measure_vm_exit_ref_tsc_overhead() {
-  // TODO: actually measure this...
-  return 300;
+  _disable();
+
+  hypercall_input hv_input;
+  hv_input.code = hypercall_ping;
+  hv_input.key  = hypercall_key;
+
+  ia32_fixed_ctr_ctrl_register curr_fixed_ctr_ctrl;
+  curr_fixed_ctr_ctrl.flags = __readmsr(IA32_FIXED_CTR_CTRL);
+
+  ia32_perf_global_ctrl_register curr_perf_global_ctrl;
+  curr_perf_global_ctrl.flags = __readmsr(IA32_PERF_GLOBAL_CTRL);
+
+  // enable fixed counter #2
+  auto new_fixed_ctr_ctrl = curr_fixed_ctr_ctrl;
+  new_fixed_ctr_ctrl.en2_os      = 1;
+  new_fixed_ctr_ctrl.en2_usr     = 0;
+  new_fixed_ctr_ctrl.en2_pmi     = 0;
+  new_fixed_ctr_ctrl.any_thread2 = 0;
+  __writemsr(IA32_FIXED_CTR_CTRL, new_fixed_ctr_ctrl.flags);
+
+  // enable fixed counter #2
+  auto new_perf_global_ctrl = curr_perf_global_ctrl;
+  new_perf_global_ctrl.en_fixed_ctrn |= (1ull << 2);
+  __writemsr(IA32_PERF_GLOBAL_CTRL, new_perf_global_ctrl.flags);
+
+  uint64_t lowest = ~0ull;
+
+  // perform the measurement 10 times and use the smallest time
+  for (int i = 0; i < 10; ++i) {
+    _mm_lfence();
+    auto start = __readmsr(IA32_FIXED_CTR2);
+    _mm_lfence();
+
+    _mm_lfence();
+    auto end = __readmsr(IA32_FIXED_CTR2);
+    _mm_lfence();
+
+    auto const timing_overhead = (end - start);
+
+    _mm_lfence();
+    start = __readmsr(IA32_FIXED_CTR2);
+    _mm_lfence();
+
+    vmx_vmcall(hv_input);
+
+    _mm_lfence();
+    end = __readmsr(IA32_FIXED_CTR2);
+    _mm_lfence();
+
+    auto const vm_exit_overhead = (end - start);
+    auto const adjusted = (vm_exit_overhead - timing_overhead);
+
+    if (adjusted < lowest)
+      lowest = adjusted;
+  }
+
+  // restore MSRs
+  __writemsr(IA32_PERF_GLOBAL_CTRL, curr_perf_global_ctrl.flags);
+  __writemsr(IA32_FIXED_CTR_CTRL, curr_fixed_ctr_ctrl.flags);
+
+  _enable();
+  return lowest;
 }
 
 // measure the overhead of a vm-exit (IA32_MPERF)
