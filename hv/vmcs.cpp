@@ -150,7 +150,8 @@ void write_vmcs_host_fields(vcpu const* const cpu) {
   host_cr3.flags                     = 0;
   host_cr3.page_level_cache_disable  = 0;
   host_cr3.page_level_write_through  = 0;
-  host_cr3.address_of_page_directory = MmGetPhysicalAddress(&ghv.host_page_tables.pml4).QuadPart >> 12;
+  host_cr3.address_of_page_directory =
+    MmGetPhysicalAddress(&ghv.host_page_tables.pml4).QuadPart >> 12;
   vmx_vmwrite(VMCS_HOST_CR3, host_cr3.flags);
 
   cr4 host_cr4;
@@ -191,11 +192,10 @@ void write_vmcs_host_fields(vcpu const* const cpu) {
   vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, 0);
   vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, 0);
 
-  ia32_pat_register host_pat;
-  host_pat.flags = 0;
-
   // 3.11.12.4
   // configure PAT as if it wasn't supported (i.e. default settings after a reset)
+  ia32_pat_register host_pat;
+  host_pat.flags = 0;
   host_pat.pa0   = MEMORY_TYPE_WRITE_BACK;
   host_pat.pa1   = MEMORY_TYPE_WRITE_THROUGH;
   host_pat.pa2   = MEMORY_TYPE_UNCACHEABLE_MINUS;
@@ -228,47 +228,45 @@ void write_vmcs_guest_fields() {
 
   vmx_vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
 
-  // TODO: don't hardcode the segment selectors idiot...
-
-  vmx_vmwrite(VMCS_GUEST_CS_SELECTOR,   0x10);
-  vmx_vmwrite(VMCS_GUEST_SS_SELECTOR,   0x18);
-  vmx_vmwrite(VMCS_GUEST_DS_SELECTOR,   0x2B);
-  vmx_vmwrite(VMCS_GUEST_ES_SELECTOR,   0x2B);
-  vmx_vmwrite(VMCS_GUEST_FS_SELECTOR,   0x53);
-  vmx_vmwrite(VMCS_GUEST_GS_SELECTOR,   0x2B);
-  vmx_vmwrite(VMCS_GUEST_TR_SELECTOR,   0x40);
-  vmx_vmwrite(VMCS_GUEST_LDTR_SELECTOR, 0x00);
+  vmx_vmwrite(VMCS_GUEST_CS_SELECTOR,   read_cs().flags);
+  vmx_vmwrite(VMCS_GUEST_SS_SELECTOR,   read_ss().flags);
+  vmx_vmwrite(VMCS_GUEST_DS_SELECTOR,   read_ds().flags);
+  vmx_vmwrite(VMCS_GUEST_ES_SELECTOR,   read_es().flags);
+  vmx_vmwrite(VMCS_GUEST_FS_SELECTOR,   read_fs().flags);
+  vmx_vmwrite(VMCS_GUEST_GS_SELECTOR,   read_gs().flags);
+  vmx_vmwrite(VMCS_GUEST_TR_SELECTOR,   read_tr().flags);
+  vmx_vmwrite(VMCS_GUEST_LDTR_SELECTOR, read_ldtr().flags);
 
   segment_descriptor_register_64 gdtr, idtr;
   _sgdt(&gdtr);
   __sidt(&idtr);
 
-  vmx_vmwrite(VMCS_GUEST_CS_BASE,   segment_base(gdtr, 0x10));
-  vmx_vmwrite(VMCS_GUEST_SS_BASE,   segment_base(gdtr, 0x18));
-  vmx_vmwrite(VMCS_GUEST_DS_BASE,   segment_base(gdtr, 0x2B));
-  vmx_vmwrite(VMCS_GUEST_ES_BASE,   segment_base(gdtr, 0x2B));
+  vmx_vmwrite(VMCS_GUEST_CS_BASE,   segment_base(gdtr, read_cs()));
+  vmx_vmwrite(VMCS_GUEST_SS_BASE,   segment_base(gdtr, read_ss()));
+  vmx_vmwrite(VMCS_GUEST_DS_BASE,   segment_base(gdtr, read_ds()));
+  vmx_vmwrite(VMCS_GUEST_ES_BASE,   segment_base(gdtr, read_es()));
   vmx_vmwrite(VMCS_GUEST_FS_BASE,   __readmsr(IA32_FS_BASE));
   vmx_vmwrite(VMCS_GUEST_GS_BASE,   __readmsr(IA32_GS_BASE));
-  vmx_vmwrite(VMCS_GUEST_TR_BASE,   segment_base(gdtr, 0x40));
-  vmx_vmwrite(VMCS_GUEST_LDTR_BASE, segment_base(gdtr, 0x00));
+  vmx_vmwrite(VMCS_GUEST_TR_BASE,   segment_base(gdtr, read_tr()));
+  vmx_vmwrite(VMCS_GUEST_LDTR_BASE, segment_base(gdtr, read_ldtr()));
 
-  vmx_vmwrite(VMCS_GUEST_CS_LIMIT,   __segmentlimit(0x10));
-  vmx_vmwrite(VMCS_GUEST_SS_LIMIT,   __segmentlimit(0x18));
-  vmx_vmwrite(VMCS_GUEST_DS_LIMIT,   __segmentlimit(0x2B));
-  vmx_vmwrite(VMCS_GUEST_ES_LIMIT,   __segmentlimit(0x2B));
-  vmx_vmwrite(VMCS_GUEST_FS_LIMIT,   __segmentlimit(0x53));
-  vmx_vmwrite(VMCS_GUEST_GS_LIMIT,   __segmentlimit(0x2B));
-  vmx_vmwrite(VMCS_GUEST_TR_LIMIT,   __segmentlimit(0x40));
-  vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, __segmentlimit(0x00));
+  vmx_vmwrite(VMCS_GUEST_CS_LIMIT,   __segmentlimit(read_cs().flags));
+  vmx_vmwrite(VMCS_GUEST_SS_LIMIT,   __segmentlimit(read_ss().flags));
+  vmx_vmwrite(VMCS_GUEST_DS_LIMIT,   __segmentlimit(read_ds().flags));
+  vmx_vmwrite(VMCS_GUEST_ES_LIMIT,   __segmentlimit(read_es().flags));
+  vmx_vmwrite(VMCS_GUEST_FS_LIMIT,   __segmentlimit(read_fs().flags));
+  vmx_vmwrite(VMCS_GUEST_GS_LIMIT,   __segmentlimit(read_gs().flags));
+  vmx_vmwrite(VMCS_GUEST_TR_LIMIT,   __segmentlimit(read_tr().flags));
+  vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, __segmentlimit(read_ldtr().flags));
 
-  vmx_vmwrite(VMCS_GUEST_CS_ACCESS_RIGHTS,   segment_access(gdtr, 0x10).flags);
-  vmx_vmwrite(VMCS_GUEST_SS_ACCESS_RIGHTS,   segment_access(gdtr, 0x18).flags);
-  vmx_vmwrite(VMCS_GUEST_DS_ACCESS_RIGHTS,   segment_access(gdtr, 0x2B).flags);
-  vmx_vmwrite(VMCS_GUEST_ES_ACCESS_RIGHTS,   segment_access(gdtr, 0x2B).flags);
-  vmx_vmwrite(VMCS_GUEST_FS_ACCESS_RIGHTS,   segment_access(gdtr, 0x53).flags);
-  vmx_vmwrite(VMCS_GUEST_GS_ACCESS_RIGHTS,   segment_access(gdtr, 0x2B).flags);
-  vmx_vmwrite(VMCS_GUEST_TR_ACCESS_RIGHTS,   segment_access(gdtr, 0x40).flags);
-  vmx_vmwrite(VMCS_GUEST_LDTR_ACCESS_RIGHTS, segment_access(gdtr, 0x00).flags);
+  vmx_vmwrite(VMCS_GUEST_CS_ACCESS_RIGHTS,   segment_access(gdtr, read_cs()).flags);
+  vmx_vmwrite(VMCS_GUEST_SS_ACCESS_RIGHTS,   segment_access(gdtr, read_ss()).flags);
+  vmx_vmwrite(VMCS_GUEST_DS_ACCESS_RIGHTS,   segment_access(gdtr, read_ds()).flags);
+  vmx_vmwrite(VMCS_GUEST_ES_ACCESS_RIGHTS,   segment_access(gdtr, read_es()).flags);
+  vmx_vmwrite(VMCS_GUEST_FS_ACCESS_RIGHTS,   segment_access(gdtr, read_fs()).flags);
+  vmx_vmwrite(VMCS_GUEST_GS_ACCESS_RIGHTS,   segment_access(gdtr, read_gs()).flags);
+  vmx_vmwrite(VMCS_GUEST_TR_ACCESS_RIGHTS,   segment_access(gdtr, read_tr()).flags);
+  vmx_vmwrite(VMCS_GUEST_LDTR_ACCESS_RIGHTS, segment_access(gdtr, read_ldtr()).flags);
 
   vmx_vmwrite(VMCS_GUEST_GDTR_BASE, gdtr.base_address);
   vmx_vmwrite(VMCS_GUEST_IDTR_BASE, idtr.base_address);

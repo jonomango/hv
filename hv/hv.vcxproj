@@ -156,6 +156,7 @@
     <ClCompile Include="vmcs.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="arch.asm" />
     <MASM Include="exception-routines.asm" />
     <MASM Include="interrupt-handlers.asm" />
     <MASM Include="syscall-hook.asm" />

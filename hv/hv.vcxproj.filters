@@ -140,6 +140,9 @@
     <MASM Include="syscall-hook.asm">
       <Filter>Source Files</Filter>
     </MASM>
+    <MASM Include="arch.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
   <ItemGroup>
     <None Include="vmx.inl">
