@@ -175,6 +175,8 @@ void emulate_vmcall(vcpu* const cpu) {
   switch (code) {
   case hypercall_ping:              hc::ping(cpu);              return;
   case hypercall_test:              hc::test(cpu);              return;
+  case hypercall_read_phys_mem:     hc::read_phys_mem(cpu);     return;
+  case hypercall_write_phys_mem:    hc::write_phys_mem(cpu);    return;
   case hypercall_read_virt_mem:     hc::read_virt_mem(cpu);     return;
   case hypercall_write_virt_mem:    hc::write_virt_mem(cpu);    return;
   case hypercall_query_process_cr3: hc::query_process_cr3(cpu); return;

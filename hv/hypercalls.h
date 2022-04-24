@@ -14,6 +14,8 @@ inline constexpr uint64_t hypercall_key = 69420;
 enum hypercall_code : uint64_t {
   hypercall_ping = 0,
   hypercall_test,
+  hypercall_read_phys_mem,
+  hypercall_write_phys_mem,
   hypercall_read_virt_mem,
   hypercall_write_virt_mem,
   hypercall_query_process_cr3
@@ -39,10 +41,16 @@ void ping(vcpu* cpu);
 // a hypercall for quick testing
 void test(vcpu* cpu);
 
-// read from virtual memory from another process
+// read from arbitrary physical memory
+void read_phys_mem(vcpu* cpu);
+
+// write to arbitrary physical memory
+void write_phys_mem(vcpu* cpu);
+
+// read from virtual memory in another process
 void read_virt_mem(vcpu* cpu);
 
-// write to virtual memory from another process
+// write to virtual memory in another process
 void write_virt_mem(vcpu* cpu);
 
 // get the kernel CR3 value of an arbitrary process

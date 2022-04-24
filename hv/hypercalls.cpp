@@ -28,7 +28,31 @@ void test(vcpu* const cpu) {
   skip_instruction();
 }
 
-// read from virtual memory from another process
+// read from arbitrary physical memory
+void read_phys_mem(vcpu* const cpu) {
+  auto const ctx = cpu->ctx;
+
+  // arguments
+  auto const dst  = reinterpret_cast<uint8_t*>(ctx->rcx);
+  auto const src  = ctx->rdx;
+  auto const size = ctx->r8;
+
+  skip_instruction();
+}
+
+// write to arbitrary physical memory
+void write_phys_mem(vcpu* const cpu) {
+  auto const ctx = cpu->ctx;
+
+  // arguments
+  auto const dst  = ctx->rcx;
+  auto const src  = reinterpret_cast<uint8_t*>(ctx->rdx);
+  auto const size = ctx->r8;
+
+  skip_instruction();
+}
+
+// read from virtual memory in another process
 void read_virt_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
@@ -87,7 +111,7 @@ void read_virt_mem(vcpu* const cpu) {
   skip_instruction();
 }
 
-// write to virtual memory from another process
+// write to virtual memory in another process
 void write_virt_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
