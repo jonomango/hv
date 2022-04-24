@@ -7,26 +7,12 @@ namespace hv {
 
 hypervisor ghv;
 
-// create the hypervisor
-static bool create() {
-  ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
+// dynamically find the offsets for various kernel structures
+static bool find_offsets() {
+  ghv.system_eprocess = reinterpret_cast<uint8_t*>(PsInitialSystemProcess);
 
-  // size of the vcpu array
-  auto const arr_size = sizeof(vcpu) * ghv.vcpu_count;
-
-  // allocate an array of vcpus
-  ghv.vcpus = static_cast<vcpu*>(ExAllocatePoolWithTag(
-    NonPagedPoolNx, arr_size, 'fr0g'));
-
-  if (!ghv.vcpus) {
-    DbgPrint("[hv] Failed to allocate VCPUs.\n");
-    return false;
-  }
-
-  DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n", ghv.vcpu_count, arr_size);
-
-  // zero-initialize the vcpu array
-  memset(ghv.vcpus, 0, arr_size);
+  DbgPrint("[hv] System EPROCESS = 0x%zX.\n",
+    reinterpret_cast<size_t>(ghv.system_eprocess));
 
   // TODO: maybe dont hardcode this...
   ghv.kprocess_directory_table_base_offset = 0x28;
@@ -52,16 +38,37 @@ static bool create() {
   DbgPrint("[hv] EPROCESS::UniqueProcessId offset = 0x%zX.\n",
     ghv.eprocess_unique_process_id_offset);
 
-  ghv.system_eprocess = reinterpret_cast<uint8_t*>(PsInitialSystemProcess);
-
-  DbgPrint("[hv] System EPROCESS = 0x%zX.\n",
-    reinterpret_cast<size_t>(ghv.system_eprocess));
-
   // store the System cr3 value (found in the System EPROCESS structure)
   ghv.system_cr3 = *reinterpret_cast<cr3*>(ghv.system_eprocess +
     ghv.kprocess_directory_table_base_offset);
 
   DbgPrint("[hv] System CR3 = 0x%zX.\n", ghv.system_cr3.flags);
+
+  return true;
+}
+
+// allocate the hypervisor and vcpus
+static bool create() {
+  ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
+
+  // size of the vcpu array
+  auto const arr_size = sizeof(vcpu) * ghv.vcpu_count;
+
+  // allocate an array of vcpus
+  ghv.vcpus = static_cast<vcpu*>(ExAllocatePoolWithTag(
+    NonPagedPoolNx, arr_size, 'fr0g'));
+
+  if (!ghv.vcpus) {
+    DbgPrint("[hv] Failed to allocate VCPUs.\n");
+    return false;
+  }
+
+  // zero-initialize the vcpu array
+  memset(ghv.vcpus, 0, arr_size);
+
+  DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n", ghv.vcpu_count, arr_size);
+
+  find_offsets();
 
   prepare_host_page_tables();
 
