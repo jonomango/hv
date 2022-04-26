@@ -180,6 +180,7 @@ void emulate_vmcall(vcpu* const cpu) {
   case hypercall_read_virt_mem:     hc::read_virt_mem(cpu);     return;
   case hypercall_write_virt_mem:    hc::write_virt_mem(cpu);    return;
   case hypercall_query_process_cr3: hc::query_process_cr3(cpu); return;
+  case hypercall_install_ept_hook:  hc::install_ept_hook(cpu);  return;
   }
 
   inject_hw_exception(invalid_opcode);
@@ -246,7 +247,7 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
   // the guest tried to modify CR0.CD or CR0.NW, which must be updated manually
   if (new_cr0.cache_disable     != curr_cr0.cache_disable ||
       new_cr0.not_write_through != curr_cr0.not_write_through) {
-    // TODO: should we care about WT?
+    // TODO: should we care about NW?
     if (new_cr0.cache_disable)
       set_ept_memory_type(cpu->ept, MEMORY_TYPE_UNCACHEABLE);
     else

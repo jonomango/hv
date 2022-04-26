@@ -18,7 +18,8 @@ enum hypercall_code : uint64_t {
   hypercall_write_phys_mem,
   hypercall_read_virt_mem,
   hypercall_write_virt_mem,
-  hypercall_query_process_cr3
+  hypercall_query_process_cr3,
+  hypercall_install_ept_hook
 };
 
 // hypercall input
@@ -55,6 +56,9 @@ void write_virt_mem(vcpu* cpu);
 
 // get the kernel CR3 value of an arbitrary process
 void query_process_cr3(vcpu* cpu);
+
+// install an EPT hook for the CURRENT logical processor ONLY
+void install_ept_hook(vcpu* cpu);
 
 } // namespace hc
 

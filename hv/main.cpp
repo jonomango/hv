@@ -89,6 +89,17 @@ void remove_hook() {
   memcpy(g_bytepatch_addr, g_orig_bytes, sizeof(g_orig_bytes));
 }
 
+uint64_t read_phys_mem(void* const dst, uint64_t const src, size_t const size) {
+  hv::hypercall_input input;
+  input.code = hv::hypercall_read_phys_mem;
+  input.key  = hv::hypercall_key;
+  input.args[0] = reinterpret_cast<uint64_t>(dst);
+  input.args[1] = src;
+  input.args[2] = size;
+
+  return hv::vmx_vmcall(input);
+}
+
 void driver_unload(PDRIVER_OBJECT) {
   DbgPrint("[hv] Driver unloaded.\n");
 
@@ -105,6 +116,11 @@ NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
     DbgPrint("[hv] Failed to virtualize system.\n");
     return STATUS_HV_OPERATION_FAILED;
   }
+
+  int test_int = 69;
+  int test_buffer = 420;
+  read_phys_mem(&test_buffer, MmGetPhysicalAddress(&test_int).QuadPart, 4);
+  DbgPrint("test_buffer = %d.\n", test_buffer);
 
   g_bytepatch_addr = find_bytepatch_address();
   DbgPrint("Bytepatch address: 0x%p.\n", g_bytepatch_addr);
@@ -131,7 +147,7 @@ NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
     auto const orig_affinity = KeSetSystemAffinityThreadEx(1ull << i);
 
     hv::hypercall_input input;
-    input.code = hv::hypercall_test;
+    input.code = hv::hypercall_install_ept_hook;
     input.key  = hv::hypercall_key;
     input.args[0] = MmGetPhysicalAddress(g_bytepatch_addr).QuadPart;
     input.args[1] = MmGetPhysicalAddress(exec_page).QuadPart;

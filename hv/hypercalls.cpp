@@ -15,16 +15,7 @@ void ping(vcpu* const cpu) {
 }
 
 // a hypercall for quick testing
-void test(vcpu* const cpu) {
-  // arguments
-  auto const orig_page = cpu->ctx->rcx;
-  auto const exec_page = cpu->ctx->rdx;
-
-  if (!install_ept_hook(cpu->ept, orig_page >> 12, exec_page >> 12)) {
-    inject_hw_exception(general_protection, 0);
-    return;
-  }
-
+void test(vcpu* const) {
   skip_instruction();
 }
 
@@ -279,6 +270,20 @@ void query_process_cr3(vcpu* const cpu) {
       process + ghv.kprocess_directory_table_base_offset);
 
     break;
+  }
+
+  skip_instruction();
+}
+
+// install an EPT hook for the CURRENT logical processor ONLY
+void install_ept_hook(vcpu* const cpu) {
+  // arguments
+  auto const orig_page = cpu->ctx->rcx;
+  auto const exec_page = cpu->ctx->rdx;
+
+  if (!install_ept_hook(cpu->ept, orig_page >> 12, exec_page >> 12)) {
+    inject_hw_exception(general_protection, 0);
+    return;
   }
 
   skip_instruction();
