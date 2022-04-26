@@ -34,9 +34,45 @@ void read_phys_mem(vcpu* const cpu) {
 
   // arguments
   auto const dst  = reinterpret_cast<uint8_t*>(ctx->rcx);
-  auto const src  = ctx->rdx;
+  auto const src  = host_physical_memory_base + ctx->rdx;
   auto const size = ctx->r8;
 
+  size_t bytes_read = 0;
+
+  while (bytes_read < size) {
+    size_t dst_remaining = 0;
+
+    // translate the guest buffer into hypervisor space
+    auto const curr_dst = gva2hva(dst + bytes_read, &dst_remaining);
+
+    if (!curr_dst) {
+      // guest virtual address that caused the fault
+      ctx->cr2 = reinterpret_cast<uint64_t>(dst + bytes_read);
+
+      page_fault_exception error;
+      error.flags            = 0;
+      error.present          = 0;
+      error.write            = 1;
+      error.user_mode_access = (current_guest_cpl() == 3);
+
+      inject_hw_exception(page_fault, error.flags);
+      return;
+    }
+
+    auto const curr_size = min(dst_remaining, size - bytes_read);
+
+    host_exception_info e;
+    memcpy_safe(e, curr_dst, src + bytes_read, curr_size);
+
+    if (e.exception_occurred) {
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    bytes_read += dst_remaining;
+  }
+
+  ctx->rax = bytes_read;
   skip_instruction();
 }
 
@@ -45,10 +81,46 @@ void write_phys_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
   // arguments
-  auto const dst  = ctx->rcx;
+  auto const dst  = host_physical_memory_base + ctx->rcx;
   auto const src  = reinterpret_cast<uint8_t*>(ctx->rdx);
   auto const size = ctx->r8;
 
+  size_t bytes_read = 0;
+
+  while (bytes_read < size) {
+    size_t src_remaining = 0;
+
+    // translate the guest buffer into hypervisor space
+    auto const curr_src = gva2hva(src + bytes_read, &src_remaining);
+
+    if (!curr_src) {
+      // guest virtual address that caused the fault
+      ctx->cr2 = reinterpret_cast<uint64_t>(src + bytes_read);
+
+      page_fault_exception error;
+      error.flags            = 0;
+      error.present          = 0;
+      error.write            = 0;
+      error.user_mode_access = (current_guest_cpl() == 3);
+
+      inject_hw_exception(page_fault, error.flags);
+      return;
+    }
+
+    auto const curr_size = min(size - bytes_read, src_remaining);
+
+    host_exception_info e;
+    memcpy_safe(e, dst + bytes_read, curr_src, curr_size);
+
+    if (e.exception_occurred) {
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    bytes_read += curr_size;
+  }
+
+  ctx->rax = bytes_read;
   skip_instruction();
 }
 
