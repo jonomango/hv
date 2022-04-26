@@ -289,5 +289,15 @@ void install_ept_hook(vcpu* const cpu) {
   skip_instruction();
 }
 
+// remove a previously installed EPT hook
+void remove_ept_hook(vcpu* const cpu) {
+  // arguments
+  auto const orig_page = cpu->ctx->rcx;
+
+  remove_ept_hook(cpu->ept, orig_page >> 12);
+
+  skip_instruction();
+}
+
 } // namespace hv::hc
 

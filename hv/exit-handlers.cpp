@@ -181,6 +181,7 @@ void emulate_vmcall(vcpu* const cpu) {
   case hypercall_write_virt_mem:    hc::write_virt_mem(cpu);    return;
   case hypercall_query_process_cr3: hc::query_process_cr3(cpu); return;
   case hypercall_install_ept_hook:  hc::install_ept_hook(cpu);  return;
+  case hypercall_remove_ept_hook:   hc::remove_ept_hook(cpu);   return;
   }
 
   inject_hw_exception(invalid_opcode);

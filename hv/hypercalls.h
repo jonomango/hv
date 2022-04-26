@@ -19,7 +19,8 @@ enum hypercall_code : uint64_t {
   hypercall_read_virt_mem,
   hypercall_write_virt_mem,
   hypercall_query_process_cr3,
-  hypercall_install_ept_hook
+  hypercall_install_ept_hook,
+  hypercall_remove_ept_hook
 };
 
 // hypercall input
@@ -59,6 +60,9 @@ void query_process_cr3(vcpu* cpu);
 
 // install an EPT hook for the CURRENT logical processor ONLY
 void install_ept_hook(vcpu* cpu);
+
+// remove a previously installed EPT hook
+void remove_ept_hook(vcpu* cpu);
 
 } // namespace hc
 
