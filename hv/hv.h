@@ -8,6 +8,9 @@
 
 namespace hv {
 
+// signature that is returned by the ping hypercall
+inline constexpr uint64_t hypervisor_signature = 'fr0g';
+
 struct hypervisor {
   // host page tables that are shared between vcpus
   host_page_tables host_page_tables;

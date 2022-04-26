@@ -15,7 +15,7 @@ void ping(vcpu* const cpu) {
 }
 
 // a hypercall for quick testing
-void test(vcpu* const) {
+void test(vcpu*) {
   skip_instruction();
 }
 
@@ -60,7 +60,7 @@ void read_phys_mem(vcpu* const cpu) {
       return;
     }
 
-    bytes_read += dst_remaining;
+    bytes_read += curr_size;
   }
 
   ctx->rax = bytes_read;
@@ -281,10 +281,7 @@ void install_ept_hook(vcpu* const cpu) {
   auto const orig_page = cpu->ctx->rcx;
   auto const exec_page = cpu->ctx->rdx;
 
-  if (!install_ept_hook(cpu->ept, orig_page >> 12, exec_page >> 12)) {
-    inject_hw_exception(general_protection, 0);
-    return;
-  }
+  cpu->ctx->rax = install_ept_hook(cpu->ept, orig_page >> 12, exec_page >> 12);
 
   skip_instruction();
 }

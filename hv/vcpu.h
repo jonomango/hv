@@ -15,9 +15,6 @@ inline constexpr size_t host_stack_size = 0x6000;
 // guest virtual-processor identifier
 inline constexpr uint16_t guest_vpid = 1;
 
-// signature that is returned by the ping hypercall
-inline constexpr uint64_t hypervisor_signature = 'fr0g';
-
 struct vcpu_cached_data {
   // maximum number of bits in a physical address (MAXPHYSADDR)
   uint64_t max_phys_addr;
