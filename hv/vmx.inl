@@ -224,9 +224,23 @@ inline uint16_t current_guest_cpl() {
 
 // increment the instruction pointer after emulating an instruction
 inline void skip_instruction() {
-  // increment rip
-  vmx_vmwrite(VMCS_GUEST_RIP, vmx_vmread(VMCS_GUEST_RIP)
-    + vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH));
+  // increment RIP
+  auto const old_rip = vmx_vmread(VMCS_GUEST_RIP);
+  auto new_rip       = old_rip + vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH);
+
+  // handle wrap-around for 32-bit addresses
+  // https://patchwork.kernel.org/project/kvm/patch/20200427165917.31799-1-pbonzini@redhat.com/
+  if (old_rip < (1ull << 32) && new_rip >= (1ull << 32)) {
+    vmx_segment_access_rights cs_access_rights;
+    cs_access_rights.flags = static_cast<uint32_t>(
+      vmx_vmread(VMCS_GUEST_CS_ACCESS_RIGHTS));
+
+    // make sure guest is in 32-bit mode
+    if (!cs_access_rights.long_mode)
+      new_rip &= 0xFFFF'FFFF;
+  }
+
+  vmx_vmwrite(VMCS_GUEST_RIP, new_rip);
 
   // if we're currently blocking interrupts (due to mov ss or sti)
   // then we should unblock them since we just emulated an instruction
