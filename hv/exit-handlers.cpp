@@ -87,10 +87,14 @@ void emulate_invd(vcpu*) {
 void emulate_xsetbv(vcpu* const cpu) {
   // 3.2.6
 
+  // CR4.OSXSAVE must be 1
+  if (!read_effective_guest_cr4().os_xsave) {
+    inject_hw_exception(invalid_opcode);
+    return;
+  }
+
   xcr0 new_xcr0;
   new_xcr0.flags = (cpu->ctx->rdx << 32) | cpu->ctx->eax;
-
-  auto const curr_cr4 = read_effective_guest_cr4();
 
   // only XCR0 is supported
   if (cpu->ctx->ecx != 0) {
