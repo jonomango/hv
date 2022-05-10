@@ -33,14 +33,37 @@ void emulate_rdmsr(vcpu* const cpu) {
     return;
   }
 
-  // inject #GP(0) for reserved MSRs
-  inject_hw_exception(general_protection, 0);
-  return;
+  host_exception_info e;
+
+  // the guest could be reading from MSRs that are outside of the MSR bitmap
+  // range. refer to https://www.unknowncheats.me/forum/3425463-post15.html
+  auto const msr_value = rdmsr_safe(e, cpu->ctx->ecx);
+
+  if (e.exception_occurred) {
+    // reflect the exception back into the guest
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
+
+  cpu->ctx->rax = msr_value & 0xFFFF'FFFF;
+  cpu->ctx->rdx = msr_value >> 32;
+
+  cpu->hide_vm_exit_overhead = true;
+  skip_instruction();
 }
 
 void emulate_wrmsr(vcpu* const cpu) {
   auto const msr = cpu->ctx->ecx;
   auto const value = (cpu->ctx->rdx << 32) | cpu->ctx->eax;
+
+  // let the guest write to the MSRs
+  host_exception_info e;
+  wrmsr_safe(e, msr, value);
+
+  if (e.exception_occurred) {
+    inject_hw_exception(general_protection, 0);
+    return;
+  }
 
   // we need to make sure to update EPT memory types if the guest
   // modifies any of the MTRR registers
@@ -48,28 +71,15 @@ void emulate_wrmsr(vcpu* const cpu) {
       msr == IA32_MTRR_FIX16K_80000 || msr == IA32_MTRR_FIX16K_A0000 ||
      (msr >= IA32_MTRR_FIX4K_C0000  && msr <= IA32_MTRR_FIX4K_F8000) ||
      (msr >= IA32_MTRR_PHYSBASE0    && msr <= IA32_MTRR_PHYSBASE0 + 511)) {
-    // let the guest write to the (shared) MTRRs
-    host_exception_info e;
-    wrmsr_safe(e, msr, value);
-
-    if (e.exception_occurred) {
-      inject_hw_exception(general_protection, 0);
-      return;
-    }
-
     // update EPT memory types
     if (!read_effective_guest_cr0().cache_disable)
       update_ept_memory_type(cpu->ept);
 
     vmx_invept(invept_all_context, {});
-
-    cpu->hide_vm_exit_overhead = true;
-    skip_instruction();
-    return;
   }
 
-  // reserved MSR
-  inject_hw_exception(general_protection, 0);
+  cpu->hide_vm_exit_overhead = true;
+  skip_instruction();
   return;
 }
 
