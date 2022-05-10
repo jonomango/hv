@@ -25,5 +25,8 @@ void xsetbv_safe(host_exception_info& e, uint32_t idx, uint64_t value);
 // wrmsr with exception handling
 void wrmsr_safe(host_exception_info& e, uint32_t msr, uint64_t value);
 
+// rdmsr with exception handling
+uint64_t rdmsr_safe(host_exception_info& e, uint32_t msr);
+
 } // namespace hv
 
