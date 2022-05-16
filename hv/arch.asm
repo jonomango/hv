@@ -40,5 +40,35 @@
   ret
 ?read_ldtr@hv@@YA?ATsegment_selector@@XZ endp
 
+?write_ds@hv@@YAXG@Z proc
+  mov ds, cx
+  ret
+?write_ds@hv@@YAXG@Z endp
+
+?write_es@hv@@YAXG@Z proc
+  mov es, cx
+  ret
+?write_es@hv@@YAXG@Z endp
+
+?write_fs@hv@@YAXG@Z proc
+  mov fs, cx
+  ret
+?write_fs@hv@@YAXG@Z endp
+
+?write_gs@hv@@YAXG@Z proc
+  mov gs, cx
+  ret
+?write_gs@hv@@YAXG@Z endp
+
+?write_tr@hv@@YAXG@Z proc
+  ltr cx
+  ret
+?write_tr@hv@@YAXG@Z endp
+
+?write_ldtr@hv@@YAXG@Z proc
+  lldt cx
+  ret
+?write_ldtr@hv@@YAXG@Z endp
+
 end
 
