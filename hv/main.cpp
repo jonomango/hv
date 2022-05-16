@@ -63,8 +63,18 @@ static cr3 query_process_cr3(uint64_t const pid) {
   return cr3;
 }
 
-NTSTATUS driver_entry(PDRIVER_OBJECT, PUNICODE_STRING) {
+void driver_unload(PDRIVER_OBJECT) {
+  hv::stop();
+
+  DbgPrint("[hv] Devirtualized the system.\n");
+  DbgPrint("[hv] Driver unloaded.\n");
+}
+
+NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
   DbgPrint("[hv] Driver loaded.\n");
+
+  if (driver)
+    driver->DriverUnload = driver_unload;
 
   if (!hv::start()) {
     DbgPrint("[hv] Failed to virtualize system.\n");
