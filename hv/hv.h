@@ -36,5 +36,8 @@ extern hypervisor ghv;
 // virtualize the current system
 bool start();
 
+// devirtualize the current system
+void stop();
+
 } // namespace hv
 

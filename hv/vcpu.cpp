@@ -206,7 +206,7 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
 }
 
 // called for every vm-exit
-void handle_vm_exit(guest_context* const ctx) {
+bool handle_vm_exit(guest_context* const ctx) {
   // get the current vcpu
   auto const cpu = reinterpret_cast<vcpu*>(_readfsbase_u64());
   cpu->ctx = ctx;
@@ -216,8 +216,68 @@ void handle_vm_exit(guest_context* const ctx) {
 
   // dont hide tsc overhead by default
   cpu->hide_vm_exit_overhead = false;
+  cpu->stop_virtualization   = false;
 
   dispatch_vm_exit(cpu, reason);
+
+  // restore guest state. the assembly code is responsible for restoring
+  // RIP, CS, RFLAGS, RSP, SS, CR0, CR4, as well as the usual fields in
+  // the guest_context structure. the C++ code is responsible for the rest.
+  if (cpu->stop_virtualization) {
+    // TODO: assert that CPL is 0
+
+    // ensure that the control register shadows reflect the guest values
+    vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, read_effective_guest_cr0().flags);
+    vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, read_effective_guest_cr4().flags);
+
+    // DR7
+    __writedr(7, vmx_vmread(VMCS_GUEST_DR7));
+
+    // MSRs
+    __writemsr(IA32_SYSENTER_CS,      vmx_vmread(VMCS_GUEST_SYSENTER_CS));
+    __writemsr(IA32_SYSENTER_ESP,     vmx_vmread(VMCS_GUEST_SYSENTER_ESP));
+    __writemsr(IA32_SYSENTER_EIP,     vmx_vmread(VMCS_GUEST_SYSENTER_EIP));
+    __writemsr(IA32_PAT,              vmx_vmread(VMCS_GUEST_PAT));
+    __writemsr(IA32_DEBUGCTL,         vmx_vmread(VMCS_GUEST_DEBUGCTL));
+    __writemsr(IA32_PERF_GLOBAL_CTRL, cpu->msr_exit_store.perf_global_ctrl.msr_data);
+
+    // CR3
+    __writecr3(vmx_vmread(VMCS_GUEST_CR3));
+
+    // GDT
+    segment_descriptor_register_64 gdtr;
+    gdtr.base_address = vmx_vmread(VMCS_GUEST_GDTR_BASE);
+    gdtr.limit = static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_GDTR_LIMIT));
+    _lgdt(&gdtr);
+
+    // IDT
+    segment_descriptor_register_64 idtr;
+    idtr.base_address = vmx_vmread(VMCS_GUEST_IDTR_BASE);
+    idtr.limit = static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_IDTR_LIMIT));
+    __lidt(&idtr);
+
+    segment_selector guest_tr;
+    guest_tr.flags = static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_TR_SELECTOR));
+
+    // TSS
+    (reinterpret_cast<segment_descriptor_32*>(gdtr.base_address)
+      + guest_tr.index)->type = SEGMENT_DESCRIPTOR_TYPE_TSS_AVAILABLE;
+    write_tr(guest_tr.flags);
+
+    // segment selectors
+    write_ds(static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_DS_SELECTOR)));
+    write_es(static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_ES_SELECTOR)));
+    write_fs(static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_FS_SELECTOR)));
+    write_gs(static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_GS_SELECTOR)));
+    write_ldtr(static_cast<uint16_t>(vmx_vmread(VMCS_GUEST_LDTR_SELECTOR)));
+
+    // FS and GS base address
+    _writefsbase_u64(vmx_vmread(VMCS_GUEST_FS_BASE));
+    _writegsbase_u64(vmx_vmread(VMCS_GUEST_GS_BASE));
+
+    return true;
+  }
+
   hide_vm_exit_overhead(cpu);
 
   // sync the vmcs state with the vcpu state
@@ -225,6 +285,8 @@ void handle_vm_exit(guest_context* const ctx) {
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
 
   cpu->ctx = nullptr;
+
+  return false;
 }
 
 // called for every host interrupt

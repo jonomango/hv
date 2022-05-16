@@ -158,7 +158,6 @@ void write_vmcs_host_fields(vcpu const* const cpu) {
   host_cr4.flags = __readcr4();
 
   // these are flags that may or may not be set by Windows
-  host_cr4.pcid_enable     = 0;
   host_cr4.fsgsbase_enable = 1;
   host_cr4.os_xsave        = 1;
   host_cr4.smap_enable     = 0;

@@ -99,6 +99,9 @@ struct vcpu {
 
   // whether to use TSC offsetting for the current vm-exit--false by default
   bool hide_vm_exit_overhead;
+
+  // whether to devirtualize the current VCPU
+  bool stop_virtualization;
 };
 
 // virtualize the specified cpu. this assumes that execution is already

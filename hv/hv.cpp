@@ -104,5 +104,31 @@ bool start() {
   return true;
 }
 
+// devirtualize the current system
+void stop() {
+  // we need to be running at an IRQL below DISPATCH_LEVEL so
+  // that KeSetSystemAffinityThreadEx takes effect immediately
+  NT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
+
+  // virtualize every cpu
+  for (unsigned long i = 0; i < ghv.vcpu_count; ++i) {
+    // restrict execution to the specified cpu
+    auto const orig_affinity = KeSetSystemAffinityThreadEx(1ull << i);
+
+    // its possible that someone tried to call stop() when the hypervisor
+    // wasn't even running, so we're wrapping this in a nice try-except
+    // block. nice job.
+    __try {
+      hv::hypercall_input input;
+      input.code = hv::hypercall_unload;
+      input.key  = hv::hypercall_key;
+      vmx_vmcall(input);
+    }
+    __except (1) {}
+
+    KeRevertToUserAffinityThreadEx(orig_affinity);
+  }
+}
+
 } // namespace hv
 

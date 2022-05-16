@@ -14,6 +14,7 @@ inline constexpr uint64_t hypercall_key = 69420;
 enum hypercall_code : uint64_t {
   hypercall_ping = 0,
   hypercall_test,
+  hypercall_unload,
   hypercall_read_phys_mem,
   hypercall_write_phys_mem,
   hypercall_read_virt_mem,
@@ -42,6 +43,9 @@ void ping(vcpu* cpu);
 
 // a hypercall for quick testing
 void test(vcpu* cpu);
+
+// devirtualize the current VCPU
+void unload(vcpu* cpu);
 
 // read from arbitrary physical memory
 void read_phys_mem(vcpu* cpu);

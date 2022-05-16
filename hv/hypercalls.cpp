@@ -19,6 +19,12 @@ void test(vcpu*) {
   skip_instruction();
 }
 
+// devirtualize the current VCPU
+void unload(vcpu* cpu) {
+  cpu->stop_virtualization = true;
+  skip_instruction();
+}
+
 // read from arbitrary physical memory
 void read_phys_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;

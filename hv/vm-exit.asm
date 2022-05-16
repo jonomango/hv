@@ -32,7 +32,7 @@ guest_context struct
   $dr6 qword ?
 guest_context ends
 
-extern ?handle_vm_exit@hv@@YAXQEAUguest_context@1@@Z : proc
+extern ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z : proc
 
 ; execution starts here after a vm-exit
 ?vm_exit@hv@@YAXXZ proc
@@ -79,8 +79,11 @@ extern ?handle_vm_exit@hv@@YAXQEAUguest_context@1@@Z : proc
 
   ; call handle_vm_exit
   sub rsp, 28h
-  call ?handle_vm_exit@hv@@YAXQEAUguest_context@1@@Z
+  call ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z
   add rsp, 28h
+
+  ; handle_vm_exit returns true if we should stop virtualization
+  mov r15, rax
 
   ; debug registers
   mov rax, guest_context.$dr0[rsp]
@@ -115,9 +118,84 @@ extern ?handle_vm_exit@hv@@YAXQEAUguest_context@1@@Z : proc
   mov r12, guest_context.$r12[rsp]
   mov r13, guest_context.$r13[rsp]
   mov r14, guest_context.$r14[rsp]
-  mov r15, guest_context.$r15[rsp]
 
+  test r15b, r15b
+  mov r15, guest_context.$r15[rsp]
+  jnz stop_virtualization
+
+  ; if handle_exit returned false, perform a vm-enter as usual
   vmresume
+
+stop_virtualization:
+  ; we'll be dirtying these registers in order to setup the
+  ; stack so we need to store and restore them before we can use them.
+  ; also note that we're not allocating any stack space for the trap
+  ; frame since we can just reuse the space allocated for the guest
+  ; context.
+  push rax
+  push rdx
+  push rbp
+  lea rbp, [rsp + 38h]
+
+  ; push SS
+  mov rdx, 0804h; VMCS_GUEST_SS_SELECTOR
+  vmread rax, rdx
+  mov [rbp - 00h], rax
+
+  ; push RSP
+  mov rdx, 681Ch; VMCS_GUEST_RSP
+  vmread rax, rdx
+  mov [rbp - 08h], rax
+
+  ; push RFLAGS
+  mov rdx, 6820h; VMCS_GUEST_RFLAGS
+  vmread rax, rdx
+  mov [rbp - 10h], rax
+
+  ; push CS
+  mov rdx, 0802h; VMCS_GUEST_CS_SELECTOR
+  vmread rax, rdx
+  mov [rbp - 18h], rax
+
+  ; push RIP
+  mov rdx, 681Eh; VMCS_GUEST_RIP
+  vmread rax, rdx
+  mov [rbp - 20h], rax
+
+  ; the C++ exit-handler needs to ensure that the control register shadows
+  ; contain the current guest control register values (even the guest-owned
+  ; bits!) before returning.
+
+  ; store cr0 in rax
+  mov rax, 6004h ; VMCS_CTRL_CR0_READ_SHADOW
+  vmread rax, rax
+
+  ; store cr4 in rdx
+  mov rdx, 6006h ; VMCS_CTRL_CR4_READ_SHADOW
+  vmread rdx, rdx
+
+  ; execute vmxoff before we restore cr0 and cr4
+  vmxoff
+
+  ; restore cr0 and cr4
+  mov cr0, rax
+  mov cr4, rdx
+
+  ; restore the dirty registers
+  pop rbp
+  pop rdx
+  pop rax
+
+  ; we use iretq in order to do the following all in one instruction:
+  ;
+  ;   pop RIP
+  ;   pop CS
+  ;   pop RFLAGS
+  ;   pop RSP
+  ;   pop SS
+  ;
+  iretq
+
 ?vm_exit@hv@@YAXXZ endp
 
 end
