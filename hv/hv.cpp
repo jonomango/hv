@@ -49,6 +49,8 @@ static bool find_offsets() {
 
 // allocate the hypervisor and vcpus
 static bool create() {
+  memset(&ghv, 0, sizeof(ghv));
+
   ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
   // size of the vcpu array
@@ -100,6 +102,8 @@ bool start() {
 
     KeRevertToUserAffinityThreadEx(orig_affinity);
   }
+
+  ExFreePoolWithTag(ghv.vcpus, 'fr0g');
 
   return true;
 }
