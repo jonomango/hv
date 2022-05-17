@@ -76,6 +76,9 @@
     <ClInclude Include="vmcs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="introspection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="exit-handlers.cpp">
@@ -118,6 +121,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vmcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="introspection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

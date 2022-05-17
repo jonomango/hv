@@ -28,6 +28,10 @@ struct hypervisor {
   // windows specific offsets D:
   uint64_t kprocess_directory_table_base_offset;
   uint64_t eprocess_unique_process_id_offset;
+  uint64_t kpcr_pcrb_offset;
+  uint64_t kprcb_current_thread_offset;
+  uint64_t kthread_apc_state_offset;
+  uint64_t kapc_state_process_offset;
 };
 
 // global instance of the hypervisor

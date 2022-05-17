@@ -7,18 +7,22 @@ namespace hv {
 
 hypervisor ghv;
 
+// function prototype doesn't really matter
+// since we never call this function anyways
+extern "C" NTKERNELAPI void PsGetCurrentThreadProcess();
+
 // dynamically find the offsets for various kernel structures
 static bool find_offsets() {
+  // TODO: maybe dont hardcode this...
+  ghv.kprocess_directory_table_base_offset = 0x28;
+  ghv.kpcr_pcrb_offset                     = 0x180;
+  ghv.kprcb_current_thread_offset          = 0x8;
+  ghv.kapc_state_process_offset            = 0x20;
+
   ghv.system_eprocess = reinterpret_cast<uint8_t*>(PsInitialSystemProcess);
 
   DbgPrint("[hv] System EPROCESS = 0x%zX.\n",
     reinterpret_cast<size_t>(ghv.system_eprocess));
-
-  // TODO: maybe dont hardcode this...
-  ghv.kprocess_directory_table_base_offset = 0x28;
-
-  DbgPrint("[hv] KPROCESS::DirectoryTableBase offset = 0x%zX.\n",
-    ghv.kprocess_directory_table_base_offset);
 
   auto const ps_get_process_id = reinterpret_cast<uint8_t*>(PsGetProcessId);
 
@@ -28,7 +32,7 @@ static bool find_offsets() {
       ps_get_process_id[1] != 0x8B ||
       ps_get_process_id[2] != 0x81 ||
       ps_get_process_id[7] != 0xC3) {
-    DbgPrint("[hv] Failed to get offset of EPROCESS::UniqueProcessId.\n");
+    DbgPrint("[hv] Failed to get EPROCESS::UniqueProcessId offset.\n");
     return false;
   }
 
@@ -37,6 +41,27 @@ static bool find_offsets() {
 
   DbgPrint("[hv] EPROCESS::UniqueProcessId offset = 0x%zX.\n",
     ghv.eprocess_unique_process_id_offset);
+
+  auto const ps_get_current_thread_process =
+    reinterpret_cast<uint8_t*>(PsGetCurrentThreadProcess);
+
+  // mov rax, gs:188h
+  // mov rax, [rax + OFFSET]
+  // retn
+  if (ps_get_current_thread_process[0]  != 0x65 ||
+      ps_get_current_thread_process[1]  != 0x48 ||
+      ps_get_current_thread_process[2]  != 0x8B ||
+      ps_get_current_thread_process[3]  != 0x04 ||
+      ps_get_current_thread_process[4]  != 0x25 ||
+      ps_get_current_thread_process[9]  != 0x48 ||
+      ps_get_current_thread_process[10] != 0x8B ||
+      ps_get_current_thread_process[11] != 0x80) {
+    DbgPrint("[hv] Failed to get KAPC_STATE::Process offset.\n");
+    return false;
+  }
+
+  ghv.kapc_state_process_offset =
+    *reinterpret_cast<uint32_t*>(ps_get_current_thread_process + 12);
 
   // store the System cr3 value (found in the System EPROCESS structure)
   ghv.system_cr3 = *reinterpret_cast<cr3*>(ghv.system_eprocess +
@@ -70,7 +95,10 @@ static bool create() {
 
   DbgPrint("[hv] Allocated %u VCPUs (0x%zX bytes).\n", ghv.vcpu_count, arr_size);
 
-  find_offsets();
+  if (!find_offsets()) {
+    DbgPrint("[hv] Failed to find offsets.\n");
+    return false;
+  }
 
   prepare_host_page_tables();
 
