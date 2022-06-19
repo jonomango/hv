@@ -131,8 +131,6 @@ bool start() {
     KeRevertToUserAffinityThreadEx(orig_affinity);
   }
 
-  ExFreePoolWithTag(ghv.vcpus, 'fr0g');
-
   return true;
 }
 
@@ -160,6 +158,8 @@ void stop() {
 
     KeRevertToUserAffinityThreadEx(orig_affinity);
   }
+
+  ExFreePoolWithTag(ghv.vcpus, 'fr0g');
 }
 
 } // namespace hv
