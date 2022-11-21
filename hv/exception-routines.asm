@@ -5,6 +5,10 @@
   mov r11, rcx
   mov byte ptr [rcx], 0
 
+  ; store RSI and RDI
+  push rsi
+  push rdi
+
   mov rsi, r8
   mov rdi, rdx
   mov rcx, r9
@@ -12,6 +16,10 @@
   rep movsb
 
 ehandler:
+  ; restore RDI and RSI
+  pop rdi
+  pop rsi
+
   ret
 ?memcpy_safe@hv@@YAXAEAUhost_exception_info@1@PEAXPEBX_K@Z endp
 
