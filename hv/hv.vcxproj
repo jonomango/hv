@@ -47,16 +47,16 @@
   <PropertyGroup />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <OutDir>$(SolutionDir)build\$(ConfigurationName.toLower())\</OutDir>
-    <IntDir>$(SolutionDir)build\$(ConfigurationName.toLower())\intermediate\</IntDir>
+    <OutDir>$(SolutionDir)build\$(TargetName)\$(Configuration.toLower())\</OutDir>
+    <IntDir>$(SolutionDir)build\$(TargetName)\$(Configuration.toLower())\intermediate\</IntDir>
     <EnableInf2cat>false</EnableInf2cat>
     <ApiValidator_Enable>false</ApiValidator_Enable>
     <IncludePath>$(SolutionDir)extern\ia32-doc\out;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <OutDir>$(SolutionDir)build\$(ConfigurationName.toLower())\</OutDir>
-    <IntDir>$(SolutionDir)build\$(ConfigurationName.toLower())\intermediate\</IntDir>
+    <OutDir>$(SolutionDir)build\$(TargetName)\$(Configuration.toLower())\</OutDir>
+    <IntDir>$(SolutionDir)build\$(TargetName)\$(Configuration.toLower())\intermediate\</IntDir>
     <EnableInf2cat>false</EnableInf2cat>
     <ApiValidator_Enable>false</ApiValidator_Enable>
     <IncludePath>$(SolutionDir)extern\ia32-doc\out;$(IncludePath)</IncludePath>
