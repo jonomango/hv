@@ -17,6 +17,12 @@ bool vm_launch();
 // cache certain fixed values (CPUID results, MSRs, etc) that are used
 // frequently during VMX operation (to speed up vm-exit handling).
 static void cache_cpu_data(vcpu_cached_data& cached) {
+  __cpuid(reinterpret_cast<int*>(&cached.cpuid_01), 0x01);
+
+  // VMX needs to be enabled to read from certain VMX_* MSRS
+  if (!cached.cpuid_01.cpuid_feature_information_ecx.virtual_machine_extensions)
+    return;
+
   cpuid_eax_80000008 cpuid_80000008;
   __cpuid(reinterpret_cast<int*>(&cpuid_80000008), 0x80000008);
 
@@ -36,8 +42,6 @@ static void cache_cpu_data(vcpu_cached_data& cached) {
 
   cached.feature_control.flags = __readmsr(IA32_FEATURE_CONTROL);
   cached.vmx_misc.flags        = __readmsr(IA32_VMX_MISC);
-
-  __cpuid(reinterpret_cast<int*>(&cached.cpuid_01), 0x01);
 
   // create a fake guest FEATURE_CONTROL MSR that has VMX and SMX disabled
   cached.guest_feature_control                               = cached.feature_control;
