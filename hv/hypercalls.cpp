@@ -198,8 +198,8 @@ void write_virt_mem(vcpu* const cpu) {
 
     // translate the guest virtual addresses into host virtual addresses.
     // this has to be done 1 page at a time. :(
-    auto const curr_dst = gva2hva(dst + bytes_read, &dst_remaining);
-    auto const curr_src = gva2hva(guest_cr3, src + bytes_read, &src_remaining);
+    auto const curr_dst = gva2hva(guest_cr3, dst + bytes_read, &dst_remaining);
+    auto const curr_src = gva2hva(src + bytes_read, &src_remaining);
 
     if (!curr_src) {
       // guest virtual address that caused the fault
