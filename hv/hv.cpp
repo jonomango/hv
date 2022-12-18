@@ -76,6 +76,8 @@ static bool find_offsets() {
 static bool create() {
   memset(&ghv, 0, sizeof(ghv));
 
+  logger_init();
+
   ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 
   // size of the vcpu array

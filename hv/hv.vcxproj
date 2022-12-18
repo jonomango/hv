@@ -130,6 +130,7 @@
     <ClInclude Include="idt.h" />
     <ClInclude Include="interrupt-handlers.h" />
     <ClInclude Include="introspection.h" />
+    <ClInclude Include="logger.h" />
     <ClInclude Include="mm.h" />
     <ClInclude Include="mtrr.h" />
     <ClInclude Include="page-tables.h" />
@@ -148,6 +149,7 @@
     <ClCompile Include="hypercalls.cpp" />
     <ClCompile Include="idt.cpp" />
     <ClCompile Include="introspection.cpp" />
+    <ClCompile Include="logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mm.cpp" />
     <ClCompile Include="mtrr.cpp" />

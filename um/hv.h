@@ -10,6 +10,16 @@ inline constexpr uint64_t hypercall_key = 69420;
 // signature that is returned by the ping hypercall
 inline constexpr uint64_t hypervisor_signature = 'fr0g';
 
+struct logger_msg {
+  static constexpr uint32_t max_msg_length = 128;
+
+  // ID of the current message
+  uint32_t id;
+
+  // null-terminated message
+  char data[max_msg_length];
+};
+
 // hypercall indices
 enum hypercall_code : uint64_t {
   hypercall_ping = 0,
@@ -21,7 +31,8 @@ enum hypercall_code : uint64_t {
   hypercall_write_virt_mem,
   hypercall_query_process_cr3,
   hypercall_install_ept_hook,
-  hypercall_remove_ept_hook
+  hypercall_remove_ept_hook,
+  hypercall_flush_logs
 };
 
 // hypercall input
@@ -113,6 +124,15 @@ inline uint64_t query_process_cr3(uint64_t const pid) {
   input.key     = hv::hypercall_key;
   input.args[0] = pid;
   return hv::vmx_vmcall(input);
+}
+
+inline void flush_logs(uint32_t& count, logger_msg* msgs) {
+  hv::hypercall_input input;
+  input.code    = hv::hypercall_flush_logs;
+  input.key     = hv::hypercall_key;
+  input.args[0] = reinterpret_cast<uint64_t>(&count);
+  input.args[1] = reinterpret_cast<uint64_t>(msgs);
+  hv::vmx_vmcall(input);
 }
 
 } // namespace hv

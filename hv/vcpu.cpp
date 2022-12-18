@@ -181,19 +181,19 @@ static void prepare_external_structures(vcpu* const cpu) {
 // call the appropriate exit-handler for this vm-exit
 static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   switch (reason.basic_exit_reason) {
-  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:             handle_exception_or_nmi(cpu); break;
-  case VMX_EXIT_REASON_EXECUTE_GETSEC:               emulate_getsec(cpu);          break;
-  case VMX_EXIT_REASON_EXECUTE_INVD:                 emulate_invd(cpu);            break;
-  case VMX_EXIT_REASON_NMI_WINDOW:                   handle_nmi_window(cpu);       break;
-  case VMX_EXIT_REASON_EXECUTE_CPUID:                emulate_cpuid(cpu);           break;
-  case VMX_EXIT_REASON_MOV_CR:                       handle_mov_cr(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_RDMSR:                emulate_rdmsr(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_WRMSR:                emulate_wrmsr(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_XSETBV:               emulate_xsetbv(cpu);          break;
-  case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);           break;
-  case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);          break;
-  case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);   break;
-  case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);    break;
+  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:             handle_exception_or_nmi(cpu);   break;
+  case VMX_EXIT_REASON_EXECUTE_GETSEC:               emulate_getsec(cpu);            break;
+  case VMX_EXIT_REASON_EXECUTE_INVD:                 emulate_invd(cpu);              break;
+  case VMX_EXIT_REASON_NMI_WINDOW:                   handle_nmi_window(cpu);         break;
+  case VMX_EXIT_REASON_EXECUTE_CPUID:                emulate_cpuid(cpu);             break;
+  case VMX_EXIT_REASON_MOV_CR:                       handle_mov_cr(cpu);             break;
+  case VMX_EXIT_REASON_EXECUTE_RDMSR:                emulate_rdmsr(cpu);             break;
+  case VMX_EXIT_REASON_EXECUTE_WRMSR:                emulate_wrmsr(cpu);             break;
+  case VMX_EXIT_REASON_EXECUTE_XSETBV:               emulate_xsetbv(cpu);            break;
+  case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);             break;
+  case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);            break;
+  case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);     break;
+  case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);      break;
   // VMX instructions (except for VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:
@@ -205,7 +205,14 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   case VMX_EXIT_REASON_EXECUTE_VMRESUME:
   case VMX_EXIT_REASON_EXECUTE_VMWRITE:
   case VMX_EXIT_REASON_EXECUTE_VMXOFF:
-  case VMX_EXIT_REASON_EXECUTE_VMFUNC:               handle_vmx_instruction(cpu);  break;
+  case VMX_EXIT_REASON_EXECUTE_VMFUNC:               handle_vmx_instruction(cpu);    break;
+
+  // unhandled VM-exit
+  default:
+    cpu->stop_virtualization = true;
+    logger_write("Unhandled VM-exit. Exit Reason: %u RIP: %zX",
+      reason.basic_exit_reason, vmx_vmread(VMCS_GUEST_RIP));
+    break;
   }
 }
 
@@ -387,8 +394,7 @@ bool virtualize_cpu(vcpu* const cpu) {
     return false;
   }
 
-  DbgPrint("[hv] Launched virtual machine on VCPU#%i.\n",
-    KeGetCurrentProcessorIndex() + 1);
+  logger_write("Launched VM on VCPU#%i.", KeGetCurrentProcessorIndex() + 1);
 
   hypercall_input input;
   input.code = hypercall_ping;

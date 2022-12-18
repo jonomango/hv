@@ -302,5 +302,32 @@ void remove_ept_hook(vcpu* const cpu) {
   skip_instruction();
 }
 
+// flush the hypervisor logs into a specified buffer
+void flush_logs(vcpu* const cpu) {
+  // arguments
+  uint32_t&    count = *reinterpret_cast<uint32_t*>(cpu->ctx->rcx);
+  //logger_msg* buffer = reinterpret_cast<logger_msg*>(cpu->ctx->rdx);
+
+  // bruh
+  if (count <= 0)
+    return;
+
+  auto& l = ghv.logger;
+
+  // acquire the logger lock
+  while (1 == InterlockedCompareExchange(&l.lock, 1, 0))
+    _mm_pause();
+
+  // copy in 2 passes
+  // 1st:
+  //   c = min(count, l.max_count - l.start)
+  //   [buffer, buffer+c] = [l.buffer+start, l.buffer+start+c]
+  // 2nd:
+  //   c = 
+
+  // release the logger lock
+  l.lock = 0;
+}
+
 } // namespace hv::hc
 
