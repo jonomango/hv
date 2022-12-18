@@ -17,6 +17,10 @@ struct logger_msg {
 struct logger {
   static constexpr uint32_t max_msg_count = 512;
 
+  // signature to find logs in memory easier
+  // "hvloggerhvlogger"
+  char signature[16];
+
   volatile long lock;
 
   uint32_t msg_start;

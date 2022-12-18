@@ -9,6 +9,8 @@ namespace hv {
 void logger_init() {
   auto& l = ghv.logger;
 
+  memcpy(l.signature, "hvloggerhvlogger", 16);
+
   l.msg_start = 0;
   l.msg_count = 0;
   l.total_msg_count = 0;

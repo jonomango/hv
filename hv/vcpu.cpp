@@ -386,6 +386,8 @@ bool virtualize_cpu(vcpu* const cpu) {
   cpu->vm_exit_mperf_overhead    = 0;
   cpu->vm_exit_ref_tsc_overhead  = 0;
 
+  logger_write("Launching VM on VCPU#%i...", KeGetCurrentProcessorIndex() + 1);
+
   if (!vm_launch()) {
     DbgPrint("[hv] VMLAUNCH failed. Instruction error = %lli.\n",
       vmx_vmread(VMCS_VM_INSTRUCTION_ERROR));
