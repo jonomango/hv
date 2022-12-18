@@ -3,6 +3,7 @@
 #include "vmx.h"
 #include "vcpu.h"
 #include "segment.h"
+#include "timing.h"
 
 namespace hv {
 
@@ -18,7 +19,9 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   pin_based_ctrl.flags                         = 0;
   pin_based_ctrl.virtual_nmi                   = 1;
   pin_based_ctrl.nmi_exiting                   = 1;
+#ifdef HIDE_VM_OVERHEAD
   pin_based_ctrl.activate_vmx_preemption_timer = 1;
+#endif
   write_ctrl_pin_based_safe(pin_based_ctrl);
 
   // 3.24.6.2
@@ -29,7 +32,9 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   proc_based_ctrl.cr3_store_exiting           = 1;
 #endif
   proc_based_ctrl.use_msr_bitmaps             = 1;
+#ifdef HIDE_VM_OVERHEAD
   proc_based_ctrl.use_tsc_offsetting          = 1;
+#endif
   proc_based_ctrl.activate_secondary_controls = 1;
   write_ctrl_proc_based_safe(proc_based_ctrl);
 
@@ -53,7 +58,9 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   exit_ctrl.host_address_space_size    = 1;
   exit_ctrl.save_ia32_pat              = 1;
   exit_ctrl.load_ia32_pat              = 1;
+#ifdef HIDE_VM_OVERHEAD
   exit_ctrl.load_ia32_perf_global_ctrl = 1;
+#endif
   exit_ctrl.conceal_vmx_from_pt        = 1;
   write_ctrl_exit_safe(exit_ctrl);
 
@@ -63,7 +70,9 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   entry_ctrl.load_debug_controls        = 1;
   entry_ctrl.ia32e_mode_guest           = 1;
   entry_ctrl.load_ia32_pat              = 1;
+#ifdef HIDE_VM_OVERHEAD
   entry_ctrl.load_ia32_perf_global_ctrl = 1;
+#endif
   entry_ctrl.conceal_vmx_from_pt        = 1;
   write_ctrl_entry_safe(entry_ctrl);
 
@@ -115,6 +124,7 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   vmx_vmwrite(VMCS_CTRL_VIRTUAL_PROCESSOR_IDENTIFIER, guest_vpid);
 
   // 3.24.7.2
+#ifdef HIDE_VM_OVERHEAD
   cpu->msr_exit_store.perf_global_ctrl.msr_idx = IA32_PERF_GLOBAL_CTRL;
   cpu->msr_exit_store.aperf.msr_idx            = IA32_APERF;
   cpu->msr_exit_store.mperf.msr_idx            = IA32_MPERF;
@@ -122,18 +132,27 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
     sizeof(cpu->msr_exit_store) / 16);
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS,
     MmGetPhysicalAddress(&cpu->msr_exit_store).QuadPart);
+#else
+  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT, 0);
+  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS, 0);
+#endif
 
   // 3.24.7.2
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_COUNT,    0);
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_LOAD_ADDRESS,  0);
 
   // 3.24.8.2
+#ifdef HIDE_VM_OVERHEAD
   cpu->msr_entry_load.aperf.msr_idx = IA32_APERF;
   cpu->msr_entry_load.mperf.msr_idx = IA32_MPERF;
   vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT,
     sizeof(cpu->msr_entry_load) / 16);
   vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_ADDRESS,
     MmGetPhysicalAddress(&cpu->msr_entry_load).QuadPart);
+#else
+  vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT, 0);
+  vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_ADDRESS, 0);
+#endif
 
   // 3.24.8.3
   vmx_vmwrite(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD, 0);
@@ -205,8 +224,10 @@ void write_vmcs_host_fields(vcpu const* const cpu) {
   host_pat.pa7   = MEMORY_TYPE_UNCACHEABLE;
   vmx_vmwrite(VMCS_HOST_PAT, host_pat.flags);
 
+#ifdef HIDE_VM_OVERHEAD
   // disable every PMC
   vmx_vmwrite(VMCS_HOST_PERF_GLOBAL_CTRL, 0);
+#endif
 }
 
 // setup the guest state in the VMCS so that it mirrors the currently running system
@@ -292,3 +313,4 @@ void write_vmcs_guest_fields() {
 }
 
 } // namespace hv
+
