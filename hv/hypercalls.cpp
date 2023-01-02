@@ -307,11 +307,15 @@ void flush_logs(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
   // arguments
-  uint32_t&    count = *reinterpret_cast<uint32_t*>(ctx->rcx);
-  logger_msg* buffer = reinterpret_cast<logger_msg*>(ctx->rdx);
+  uint32_t count = ctx->ecx;
+  uint8_t* buffer = reinterpret_cast<uint8_t*>(ctx->rdx);
 
-  if (count <= 0)
+  ctx->eax = 0;
+
+  if (count <= 0) {
+    skip_instruction();
     return;
+  }
 
   auto& l = ghv.logger;
 
@@ -334,9 +338,9 @@ void flush_logs(vcpu* const cpu) {
       ctx->cr2 = reinterpret_cast<uint64_t>(buffer + bytes_read);
 
       page_fault_exception error;
-      error.flags            = 0;
-      error.present          = 0;
-      error.write            = 1;
+      error.flags = 0;
+      error.present = 0;
+      error.write = 1;
       error.user_mode_access = (current_guest_cpl() == 3);
 
       inject_hw_exception(page_fault, error.flags);
@@ -357,6 +361,50 @@ void flush_logs(vcpu* const cpu) {
 
     bytes_read += curr_size;
   }
+
+  buffer += size;
+  start = reinterpret_cast<uint8_t*>(&l.msgs[0]);
+  size = (count * sizeof(l.msgs[0])) - size;
+
+  for (size_t bytes_read = 0; bytes_read < size;) {
+    size_t dst_remaining = 0;
+
+    // translate the guest virtual address
+    auto const curr_dst = gva2hva(buffer + bytes_read, &dst_remaining);
+
+    if (!curr_dst) {
+      // guest virtual address that caused the fault
+      ctx->cr2 = reinterpret_cast<uint64_t>(buffer + bytes_read);
+
+      page_fault_exception error;
+      error.flags = 0;
+      error.present = 0;
+      error.write = 1;
+      error.user_mode_access = (current_guest_cpl() == 3);
+
+      inject_hw_exception(page_fault, error.flags);
+      return;
+    }
+
+    // the maximum allowed size that we can read at once with the translated HVAs
+    auto const curr_size = min(size - bytes_read, dst_remaining);
+
+    host_exception_info e;
+    memcpy_safe(e, curr_dst, start + bytes_read, curr_size);
+
+    if (e.exception_occurred) {
+      // this REALLY shouldn't happen... ever...
+      inject_hw_exception(general_protection, 0);
+      return;
+    }
+
+    bytes_read += curr_size;
+  }
+
+  l.msg_count -= count;
+  l.msg_start = (l.msg_start + count) % l.max_msg_count;
+
+  ctx->eax = count;
 
   skip_instruction();
 }

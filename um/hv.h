@@ -130,9 +130,9 @@ inline void flush_logs(uint32_t& count, logger_msg* msgs) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_flush_logs;
   input.key     = hv::hypercall_key;
-  input.args[0] = reinterpret_cast<uint64_t>(&count);
+  input.args[0] = count;
   input.args[1] = reinterpret_cast<uint64_t>(msgs);
-  hv::vmx_vmcall(input);
+  count = static_cast<uint32_t>(hv::vmx_vmcall(input));
 }
 
 } // namespace hv

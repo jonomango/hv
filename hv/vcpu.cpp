@@ -210,7 +210,7 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   // unhandled VM-exit
   default:
     cpu->stop_virtualization = true;
-    logger_write("Unhandled VM-exit. Exit Reason: %u RIP: %zX",
+    logger_write("Unhandled VM-exit. Exit Reason: %u. RIP: %zX.",
       reason.basic_exit_reason, vmx_vmread(VMCS_GUEST_RIP));
     break;
   }
@@ -228,6 +228,8 @@ bool handle_vm_exit(guest_context* const ctx) {
   // dont hide tsc overhead by default
   cpu->hide_vm_exit_overhead = false;
   cpu->stop_virtualization   = false;
+
+  logger_write("Handling VM-Exit. Exit reason: %u.", reason.basic_exit_reason);
 
   dispatch_vm_exit(cpu, reason);
 
