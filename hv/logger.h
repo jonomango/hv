@@ -2,6 +2,8 @@
 
 #include <ia32.hpp>
 
+#include "spin-lock.h"
+
 namespace hv {
 
 struct logger_msg {
@@ -21,7 +23,7 @@ struct logger {
   // "hvloggerhvlogger"
   char signature[16];
 
-  volatile long lock;
+  spin_lock lock;
 
   uint32_t msg_start;
   uint32_t msg_count;

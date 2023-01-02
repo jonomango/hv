@@ -11,6 +11,7 @@ void logger_init() {
 
   memcpy(l.signature, "hvloggerhvlogger", 16);
 
+  l.lock.initialize();
   l.msg_start = 0;
   l.msg_count = 0;
   l.total_msg_count = 0;
@@ -20,9 +21,7 @@ void logger_init() {
 void logger_flush(uint32_t& count, logger_msg* const buffer) {
   auto& l = ghv.logger;
 
-  // acquire the logger lock
-  while (1 == InterlockedCompareExchange(&l.lock, 1, 0))
-    _mm_pause();
+  scoped_spin_lock lock(l.lock);
 
   count = min(count, l.msg_count);
 
@@ -35,9 +34,6 @@ void logger_flush(uint32_t& count, logger_msg* const buffer) {
   }
 
   l.msg_count -= count;
-
-  // release the logger lock
-  l.lock = 0;
 }
 
 // write a printf-style string to the logger
@@ -53,9 +49,7 @@ void logger_write(char const* const format, ...) {
 
   auto& l = ghv.logger;
 
-  // acquire the logger lock
-  while (1 == InterlockedCompareExchange(&l.lock, 1, 0))
-    _mm_pause();
+  scoped_spin_lock lock(l.lock);
 
   auto& msg = l.msgs[(l.msg_start + l.msg_count) % l.max_msg_count];
   
@@ -72,9 +66,6 @@ void logger_write(char const* const format, ...) {
   // set the ID of the msg
   l.total_msg_count += 1;
   msg.id = l.total_msg_count;
-
-  // release the logger lock
-  l.lock = 0;
 }
 
 } // namespace hv
