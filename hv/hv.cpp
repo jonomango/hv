@@ -77,7 +77,6 @@ static bool create() {
   memset(&ghv, 0, sizeof(ghv));
 
   logger_init();
-  logger_write("Logger initialized.");
 
   ghv.vcpu_count = KeQueryActiveProcessorCount(nullptr);
 

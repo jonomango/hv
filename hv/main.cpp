@@ -34,6 +34,13 @@ NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
   else
     DbgPrint("[client] Failed to ping hypervisor!\n");
 
+  uint32_t count = 32;
+  hv::logger_msg msgs[32];
+  hv::logger_flush(count, msgs);
+
+  for (uint32_t i = 0; i < count; ++i)
+    DbgPrint("[%u] %s\n", msgs[i].id, msgs[i].data);
+
   return STATUS_SUCCESS;
 }
 

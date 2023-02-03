@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ia32.hpp>
+#include <ntddk.h>
 
 namespace hv {
 
@@ -119,11 +120,27 @@ struct alignas(16) guest_context {
   uint64_t dr3;
   uint64_t dr6;
 
-  // TODO: SSE registers...
+  // SSE registers
+  M128A xmm0;
+  M128A xmm1;
+  M128A xmm2;
+  M128A xmm3;
+  M128A xmm4;
+  M128A xmm5;
+  M128A xmm6;
+  M128A xmm7;
+  M128A xmm8;
+  M128A xmm9;
+  M128A xmm10;
+  M128A xmm11;
+  M128A xmm12;
+  M128A xmm13;
+  M128A xmm14;
+  M128A xmm15;
 };
 
 // remember to update this value in vm-exit.asm
-static_assert(sizeof(guest_context) == 0xC0);
+static_assert(sizeof(guest_context) == 0x1C0);
 
 } // namespace hv
 

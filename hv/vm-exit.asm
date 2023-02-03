@@ -30,6 +30,24 @@ guest_context struct
   $dr2 qword ?
   $dr3 qword ?
   $dr6 qword ?
+
+  ; SSE registers
+  $xmm0 oword ?
+  $xmm1 oword ?
+  $xmm2 oword ?
+  $xmm3 oword ?
+  $xmm4 oword ?
+  $xmm5 oword ?
+  $xmm6 oword ?
+  $xmm7 oword ?
+  $xmm8 oword ?
+  $xmm9 oword ?
+  $xmm10 oword ?
+  $xmm11 oword ?
+  $xmm12 oword ?
+  $xmm13 oword ?
+  $xmm14 oword ?
+  $xmm15 oword ?
 guest_context ends
 
 extern ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z : proc
@@ -37,7 +55,7 @@ extern ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z : proc
 ; execution starts here after a vm-exit
 ?vm_exit@hv@@YAXXZ proc
   ; allocate space on the stack to store the guest context
-  sub rsp, 0C0h
+  sub rsp, 1C0h
 
   ; general-purpose registers
   mov guest_context.$rax[rsp], rax
@@ -74,6 +92,24 @@ extern ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z : proc
   mov rax, dr6
   mov guest_context.$dr6[rsp], rax
 
+  ; SSE registers
+  movaps guest_context.$xmm0[rsp], xmm0
+  movaps guest_context.$xmm1[rsp], xmm1
+  movaps guest_context.$xmm2[rsp], xmm2
+  movaps guest_context.$xmm3[rsp], xmm3
+  movaps guest_context.$xmm4[rsp], xmm4
+  movaps guest_context.$xmm5[rsp], xmm5
+  movaps guest_context.$xmm6[rsp], xmm6
+  movaps guest_context.$xmm7[rsp], xmm7
+  movaps guest_context.$xmm8[rsp], xmm8
+  movaps guest_context.$xmm9[rsp], xmm9
+  movaps guest_context.$xmm10[rsp], xmm10
+  movaps guest_context.$xmm11[rsp], xmm11
+  movaps guest_context.$xmm12[rsp], xmm12
+  movaps guest_context.$xmm13[rsp], xmm13
+  movaps guest_context.$xmm14[rsp], xmm14
+  movaps guest_context.$xmm15[rsp], xmm15
+
   ; first argument is the guest context
   mov rcx, rsp
 
@@ -81,6 +117,24 @@ extern ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z : proc
   sub rsp, 28h
   call ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z
   add rsp, 28h
+
+  ; SSE registers
+  movaps xmm0, guest_context.$xmm0[rsp]
+  movaps xmm1, guest_context.$xmm1[rsp]
+  movaps xmm2, guest_context.$xmm2[rsp]
+  movaps xmm3, guest_context.$xmm3[rsp]
+  movaps xmm4, guest_context.$xmm4[rsp]
+  movaps xmm5, guest_context.$xmm5[rsp]
+  movaps xmm6, guest_context.$xmm6[rsp]
+  movaps xmm7, guest_context.$xmm7[rsp]
+  movaps xmm8, guest_context.$xmm8[rsp]
+  movaps xmm9, guest_context.$xmm9[rsp]
+  movaps xmm10, guest_context.$xmm10[rsp]
+  movaps xmm11, guest_context.$xmm11[rsp]
+  movaps xmm12, guest_context.$xmm12[rsp]
+  movaps xmm13, guest_context.$xmm13[rsp]
+  movaps xmm14, guest_context.$xmm14[rsp]
+  movaps xmm15, guest_context.$xmm15[rsp]
 
   ; handle_vm_exit returns true if we should stop virtualization
   mov r15, rax
