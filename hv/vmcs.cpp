@@ -48,7 +48,6 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   proc_based_ctrl2.enable_xsaves                    = 1;
   proc_based_ctrl2.enable_user_wait_pause           = 1;
   proc_based_ctrl2.conceal_vmx_from_pt              = 1;
-  proc_based_ctrl2.pt_uses_guest_physical_addresses = 1;
   write_ctrl_proc_based2_safe(proc_based_ctrl2);
 
   // 3.24.7
@@ -133,7 +132,7 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS,
     MmGetPhysicalAddress(&cpu->msr_exit_store).QuadPart);
 #else
-  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT, 0);
+  vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_COUNT,   0);
   vmx_vmwrite(VMCS_CTRL_VMEXIT_MSR_STORE_ADDRESS, 0);
 #endif
 
