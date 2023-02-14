@@ -15,7 +15,8 @@ void ping(vcpu* const cpu) {
 }
 
 // a hypercall for quick testing
-void test(vcpu*) {
+void test(vcpu* const cpu) {
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 

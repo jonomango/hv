@@ -1,6 +1,7 @@
 #include "timing.h"
 #include "vcpu.h"
 #include "vmx.h"
+#include "logger.h"
 
 #include <ntdef.h>
 
@@ -21,8 +22,8 @@ void hide_vm_exit_overhead(vcpu* const cpu) {
   perf_global_ctrl.flags = cpu->msr_exit_store.perf_global_ctrl.msr_data;
 
   // make sure the CPU loads the previously stored guest state on vm-entry
-  cpu->msr_entry_load.aperf.msr_data     = cpu->msr_exit_store.aperf.msr_data;
-  cpu->msr_entry_load.mperf.msr_data     = cpu->msr_exit_store.mperf.msr_data;
+  cpu->msr_entry_load.aperf.msr_data = cpu->msr_exit_store.aperf.msr_data;
+  cpu->msr_entry_load.mperf.msr_data = cpu->msr_exit_store.mperf.msr_data;
   vmx_vmwrite(VMCS_GUEST_PERF_GLOBAL_CTRL, perf_global_ctrl.flags);
 
   // account for the constant overhead associated with loading/storing MSRs

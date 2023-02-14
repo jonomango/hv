@@ -44,7 +44,8 @@ void logger_flush(uint32_t& count, logger_msg* const buffer) {
  * Released under GPLv3.
  * https://stackoverflow.com/a/23840699
  */
-static char* lukas_itoa(int value, char* result, int base) {
+template <typename T>
+static char* lukas_itoa(T value, char* result, int base, bool upper = false) {
   // check that the base if valid
   if (base < 2 || base > 36) {
     *result = '\0';
@@ -52,14 +53,23 @@ static char* lukas_itoa(int value, char* result, int base) {
   }
 
   char* ptr = result, *ptr1 = result, tmp_char;
-  int tmp_value;
+  T tmp_value;
 
-  do {
-    tmp_value = value;
-    value /= base;
-    *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"
-      [35 + (tmp_value - value * base)];
-  } while ( value );
+  if (upper) {
+    do {
+      tmp_value = value;
+      value /= base;
+      *ptr++ = "ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        [35 + (tmp_value - value * base)];
+    } while ( value );
+  } else {
+    do {
+      tmp_value = value;
+      value /= base;
+      *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"
+        [35 + (tmp_value - value * base)];
+    } while ( value );
+  }
 
   // Apply negative sign
   if (tmp_value < 0)
@@ -75,9 +85,24 @@ static char* lukas_itoa(int value, char* result, int base) {
   return result;
 }
 
+// copy the src string to the logger format buffer
+static bool logger_format_copy_str(char* const buffer, char const* const src, uint32_t& idx) {
+  for (uint32_t i = 0; src[i]; ++i) {
+    buffer[idx++] = src[i];
+
+    // buffer end has been reached
+    if (idx >= logger_msg::max_msg_length - 1) {
+      buffer[logger_msg::max_msg_length - 1] = '\0';
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // format a string into a logger buffer, using
 // a limited subset of printf specifiers:
-//   %s, %i, %d
+//   %s, %i, %d, %u, %x, %X, %p
 static void logger_format(char* const buffer, char const* const format, va_list& args) {
   uint32_t buffer_idx = 0;
   uint32_t format_idx = 0;
@@ -109,49 +134,44 @@ static void logger_format(char* const buffer, char const* const format, va_list&
       continue;
     }
 
+    char fmt_buffer[128];
+
     // format the string according to the specifier
     switch (c) {
     case 's': {
-      auto const arg = va_arg(args, char const*);
-
-      for (uint32_t i = 0; arg[i]; ++i) {
-        buffer[buffer_idx++] = arg[i];
-
-        // buffer end has been reached
-        if (buffer_idx >= logger_msg::max_msg_length - 1) {
-          buffer[logger_msg::max_msg_length - 1] = '\0';
-          return;
-        }
-      }
-
+      if (logger_format_copy_str(buffer, va_arg(args, char const*), buffer_idx))
+        return;
       break;
     }
     case 'd':
     case 'i': {
-      char int_buffer[128];
-
-      // convert the int to a string
-      auto const int_buffer_ptr = lukas_itoa(va_arg(args, int), int_buffer, 10);
-
-      for (uint32_t i = 0; int_buffer_ptr[i]; ++i) {
-        buffer[buffer_idx++] = int_buffer_ptr[i];
-
-        // buffer end has been reached
-        if (buffer_idx >= logger_msg::max_msg_length - 1) {
-          buffer[logger_msg::max_msg_length - 1] = '\0';
-          return;
-        }
-      }
-
+      if (logger_format_copy_str(buffer,
+          lukas_itoa(va_arg(args, int), fmt_buffer, 10), buffer_idx))
+        return;
       break;
     }
     case 'u': {
+      if (logger_format_copy_str(buffer,
+          lukas_itoa(va_arg(args, unsigned int), fmt_buffer, 10), buffer_idx))
+        return;
+      break;
+    }
+    case 'x': {
+      if (logger_format_copy_str(buffer,
+          lukas_itoa(va_arg(args, unsigned int), fmt_buffer, 16), buffer_idx))
+        return;
       break;
     }
     case 'X': {
+      if (logger_format_copy_str(buffer,
+          lukas_itoa(va_arg(args, unsigned int), fmt_buffer, 16, true), buffer_idx))
+        return;
       break;
     }
     case 'p': {
+      if (logger_format_copy_str(buffer,
+          lukas_itoa(va_arg(args, uint64_t), fmt_buffer, 16, true), buffer_idx))
+        return;
       break;
     }
     }
@@ -162,7 +182,9 @@ static void logger_format(char* const buffer, char const* const format, va_list&
   buffer[buffer_idx] = '\0';
 }
 
-// write a printf-style string to the logger
+// write a printf-style string to the logger using
+// a limited subset of printf specifiers:
+//   %s, %i, %d, %u, %x, %X, %p
 void logger_write(char const* const format, ...) {
   char str[logger_msg::max_msg_length];
 

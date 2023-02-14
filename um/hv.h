@@ -16,6 +16,12 @@ struct logger_msg {
   // ID of the current message
   uint32_t id;
 
+  // index of the VCPU that sent this message
+  uint32_t core;
+
+  // timestamp counter of the current message
+  uint64_t tsc;
+
   // null-terminated message
   char data[max_msg_length];
 };
@@ -57,9 +63,9 @@ inline uint64_t ping() {
   return hv::vmx_vmcall(input);
 }
 
-inline uint64_t test(uint64_t const a1, uint64_t const a2,
-                     uint64_t const a3, uint64_t const a4,
-                     uint64_t const a5, uint64_t const a6) {
+inline uint64_t test(uint64_t const a1 = 0, uint64_t const a2 = 0,
+                     uint64_t const a3 = 0, uint64_t const a4 = 0,
+                     uint64_t const a5 = 0, uint64_t const a6 = 0) {
   hv::hypercall_input input;
   input.code = hv::hypercall_test;
   input.key  = hv::hypercall_key;

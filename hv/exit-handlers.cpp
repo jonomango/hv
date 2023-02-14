@@ -4,6 +4,7 @@
 #include "hypercalls.h"
 #include "vcpu.h"
 #include "vmx.h"
+#include "logger.h"
 
 namespace hv {
 

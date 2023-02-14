@@ -229,8 +229,8 @@ bool handle_vm_exit(guest_context* const ctx) {
   cpu->hide_vm_exit_overhead = false;
   cpu->stop_virtualization   = false;
 
-  if (reason.basic_exit_reason != VMX_EXIT_REASON_EXECUTE_VMCALL)
-    logger_write("Handling VM-Exit. Exit reason: %i.", reason.basic_exit_reason);
+  //if (reason.basic_exit_reason != VMX_EXIT_REASON_EXECUTE_VMCALL)
+    //logger_write("Handling VM-Exit. Exit reason: %i.", reason.basic_exit_reason);
 
   dispatch_vm_exit(cpu, reason);
 

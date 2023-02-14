@@ -12,7 +12,13 @@ struct logger_msg {
   // ID of the current message
   uint32_t id;
 
-  // null-terminated message
+  // index of the VCPU that sent this message
+  uint32_t core;
+
+  // timestamp counter of the current message
+  uint64_t tsc;
+
+  // null-terminated ascii string
   char data[max_msg_length];
 };
 
@@ -41,7 +47,9 @@ void logger_init();
 // flush log messages to the provided buffer
 void logger_flush(uint32_t& count, logger_msg* buffer);
 
-// write a printf-style string to the logger
+// write a printf-style string to the logger using
+// a limited subset of printf specifiers:
+//   %s, %i, %d, %u, %x, %X, %p
 void logger_write(char const* format, ...);
 
 } // namespace hv
