@@ -97,21 +97,16 @@ uint64_t measure_vm_exit_tsc_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    //auto const adjusted = (vm_exit_overhead - timing_overhead);
-
-    /*if (adjusted < lowest) {
-        lowest = adjusted;
-    }*/
+    
     if (vm_exit_overhead < lowest_vm_exit_overhead) {
         lowest_vm_exit_overhead = vm_exit_overhead;
     }
     if (timing_overhead < lowest_timing_overhead) {
         lowest_timing_overhead = timing_overhead;
     }
-    lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
-      
+  
   }
-
+  lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
   _enable();
   return lowest;
 }
@@ -170,20 +165,16 @@ uint64_t measure_vm_exit_ref_tsc_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    //auto const adjusted = (vm_exit_overhead - timing_overhead);
-
-    /*if (adjusted < lowest) {
-        lowest = adjusted;
-    }*/
+    
     if (vm_exit_overhead < lowest_vm_exit_overhead) {
         lowest_vm_exit_overhead = vm_exit_overhead;
     }
     if (timing_overhead < lowest_timing_overhead) {
         lowest_timing_overhead = timing_overhead;
     }
-    lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
+    
   }
-
+  lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
   // restore MSRs
   __writemsr(IA32_PERF_GLOBAL_CTRL, curr_perf_global_ctrl.flags);
   __writemsr(IA32_FIXED_CTR_CTRL, curr_fixed_ctr_ctrl.flags);
@@ -227,20 +218,16 @@ uint64_t measure_vm_exit_mperf_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    //auto const adjusted = (vm_exit_overhead - timing_overhead);
-
-    /*if (adjusted < lowest) {
-        lowest = adjusted;
-    }*/
+    
     if (vm_exit_overhead < lowest_vm_exit_overhead) {
         lowest_vm_exit_overhead = vm_exit_overhead;
     }
     if (timing_overhead < lowest_timing_overhead) {
         lowest_timing_overhead = timing_overhead;
     }
-    lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
+    
   }
-
+  lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
   _enable();
   return lowest;
 }
