@@ -71,6 +71,8 @@ uint64_t measure_vm_exit_tsc_overhead() {
   hv_input.key  = hypercall_key;
 
   uint64_t lowest = ~0ull;
+  uint64_t lowest_vm_exit_overhead = ~0ull;
+  uint64_t lowest_timing_overhead = ~0ull;
 
   // perform the measurement 10 times and use the smallest time
   for (int i = 0; i < 10; ++i) {
@@ -95,10 +97,19 @@ uint64_t measure_vm_exit_tsc_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    auto const adjusted = (vm_exit_overhead - timing_overhead);
+    //auto const adjusted = (vm_exit_overhead - timing_overhead);
 
-    if (adjusted < lowest)
-      lowest = adjusted;
+    /*if (adjusted < lowest) {
+        lowest = adjusted;
+    }*/
+    if (vm_exit_overhead < lowest_vm_exit_overhead) {
+        lowest_vm_exit_overhead = vm_exit_overhead;
+    }
+    if (timing_overhead < lowest_timing_overhead) {
+        lowest_timing_overhead = timing_overhead;
+    }
+    lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
+      
   }
 
   _enable();
@@ -133,6 +144,8 @@ uint64_t measure_vm_exit_ref_tsc_overhead() {
   __writemsr(IA32_PERF_GLOBAL_CTRL, new_perf_global_ctrl.flags);
 
   uint64_t lowest = ~0ull;
+  uint64_t lowest_vm_exit_overhead = ~0ull;
+  uint64_t lowest_timing_overhead = ~0ull;
 
   // perform the measurement 10 times and use the smallest time
   for (int i = 0; i < 10; ++i) {
@@ -157,10 +170,18 @@ uint64_t measure_vm_exit_ref_tsc_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    auto const adjusted = (vm_exit_overhead - timing_overhead);
+    //auto const adjusted = (vm_exit_overhead - timing_overhead);
 
-    if (adjusted < lowest)
-      lowest = adjusted;
+    /*if (adjusted < lowest) {
+        lowest = adjusted;
+    }*/
+    if (vm_exit_overhead < lowest_vm_exit_overhead) {
+        lowest_vm_exit_overhead = vm_exit_overhead;
+    }
+    if (timing_overhead < lowest_timing_overhead) {
+        lowest_timing_overhead = timing_overhead;
+    }
+    lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
   }
 
   // restore MSRs
@@ -180,6 +201,8 @@ uint64_t measure_vm_exit_mperf_overhead() {
   hv_input.key  = hypercall_key;
 
   uint64_t lowest = ~0ull;
+  uint64_t lowest_vm_exit_overhead = ~0ull;
+  uint64_t lowest_timing_overhead = ~0ull;
 
   // perform the measurement 10 times and use the smallest time
   for (int i = 0; i < 10; ++i) {
@@ -204,10 +227,18 @@ uint64_t measure_vm_exit_mperf_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    auto const adjusted = (vm_exit_overhead - timing_overhead);
+    //auto const adjusted = (vm_exit_overhead - timing_overhead);
 
-    if (adjusted < lowest)
-      lowest = adjusted;
+    /*if (adjusted < lowest) {
+        lowest = adjusted;
+    }*/
+    if (vm_exit_overhead < lowest_vm_exit_overhead) {
+        lowest_vm_exit_overhead = vm_exit_overhead;
+    }
+    if (timing_overhead < lowest_timing_overhead) {
+        lowest_timing_overhead = timing_overhead;
+    }
+    lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
   }
 
   _enable();
