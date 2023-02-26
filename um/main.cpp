@@ -9,36 +9,38 @@ int main() {
     if (hv::ping() != hv::hypervisor_signature) {
       printf("Failed to ping the hypervisor... :(\n");
       getchar();
-      //return 0;
+      return 0;
     }
   } __except (1) {
     printf("Failed to ping the hypervisor... :(\n");
     getchar();
-    //return 0;
+    return 0;
   }
 
   int info[4];
-  int fish[10];
+  uint64_t fish[10];
+
+  double monkey = 0.0;
 
   for (int i = 0; i < 10; ++i) {
-    _mm_lfence();
+    // measure the time it takes to execute CPUID
     auto const start = __rdtsc();
-    _mm_lfence();
-
     __cpuidex(info, 0, 0);
-
-    _mm_lfence();
     auto const end = __rdtsc();
-    _mm_lfence();
 
     fish[i] = end - start;
 
     // ADDING A SLEEP BREAKS IT WHATTTTTT?
-    Sleep(1);
+    //Sleep(1);
+
+    //for (int i = 0; i < 100000; ++i)
+      //monkey += sqrt((double)i);
+
+    //__cpuidex(info, 0, 0);
   }
 
   for (int i = 0; i < 10; ++i)
-    printf("%i\n", fish[i]);
+    printf("%zu %i\n", fish[i], (int)monkey);
 
   printf("Pinged the hypervisor! Flushing logs...\n");
 

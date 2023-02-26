@@ -21,7 +21,7 @@ void test(vcpu* const cpu) {
 }
 
 // devirtualize the current VCPU
-void unload(vcpu* cpu) {
+void unload(vcpu* const cpu) {
   cpu->stop_virtualization = true;
   skip_instruction();
 }

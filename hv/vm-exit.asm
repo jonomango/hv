@@ -173,6 +173,8 @@ extern ?handle_vm_exit@hv@@YA_NQEAUguest_context@1@@Z : proc
   mov r13, guest_context.$r13[rsp]
   mov r14, guest_context.$r14[rsp]
 
+  ; check the return value of handle_vm_exit() to see if we should terminate
+  ; the virtual machine
   test r15b, r15b
   mov r15, guest_context.$r15[rsp]
   jnz stop_virtualization

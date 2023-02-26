@@ -46,5 +46,9 @@ void handle_vmx_instruction(vcpu* cpu);
 
 void handle_ept_violation(vcpu* cpu);
 
+void emulate_rdtsc(vcpu* cpu);
+
+void emulate_rdtscp(vcpu* cpu);
+
 } // namespace hv
 

@@ -194,6 +194,8 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);            break;
   case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);     break;
   case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);      break;
+  case VMX_EXIT_REASON_EXECUTE_RDTSC:                emulate_rdtsc(cpu);             break;
+  case VMX_EXIT_REASON_EXECUTE_RDTSCP:               emulate_rdtscp(cpu);            break;
   // VMX instructions (except for VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:
@@ -294,11 +296,11 @@ bool handle_vm_exit(guest_context* const ctx) {
 
 #ifdef HIDE_VM_OVERHEAD
   hide_vm_exit_overhead(cpu);
+#endif
 
   // sync the vmcs state with the vcpu state
   vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
-#endif
 
   cpu->ctx = nullptr;
 

@@ -10,10 +10,7 @@ struct logger_msg {
   static constexpr uint32_t max_msg_length = 128;
 
   // ID of the current message
-  uint32_t id;
-
-  // index of the VCPU that sent this message
-  uint32_t core;
+  uint64_t id;
 
   // timestamp counter of the current message
   uint64_t tsc;
@@ -35,7 +32,7 @@ struct logger {
   uint32_t msg_count;
 
   // the total messages sent
-  uint32_t total_msg_count;
+  uint64_t total_msg_count;
 
   // an array of messages
   logger_msg msgs[max_msg_count];

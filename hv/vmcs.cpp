@@ -35,6 +35,7 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
 #ifdef HIDE_VM_OVERHEAD
   proc_based_ctrl.use_tsc_offsetting          = 1;
 #endif
+  //proc_based_ctrl.rdtsc_exiting               = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
   write_ctrl_proc_based_safe(proc_based_ctrl);
 
@@ -124,6 +125,7 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
 
   // 3.24.7.2
 #ifdef HIDE_VM_OVERHEAD
+  cpu->msr_exit_store.tsc.msr_idx              = IA32_TIME_STAMP_COUNTER;
   cpu->msr_exit_store.perf_global_ctrl.msr_idx = IA32_PERF_GLOBAL_CTRL;
   cpu->msr_exit_store.aperf.msr_idx            = IA32_APERF;
   cpu->msr_exit_store.mperf.msr_idx            = IA32_MPERF;
@@ -144,12 +146,14 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
 #ifdef HIDE_VM_OVERHEAD
   cpu->msr_entry_load.aperf.msr_idx = IA32_APERF;
   cpu->msr_entry_load.mperf.msr_idx = IA32_MPERF;
+  cpu->msr_entry_load.aperf.msr_data = __readmsr(IA32_APERF);
+  cpu->msr_entry_load.mperf.msr_data = __readmsr(IA32_MPERF);
   vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT,
     sizeof(cpu->msr_entry_load) / 16);
   vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_ADDRESS,
     MmGetPhysicalAddress(&cpu->msr_entry_load).QuadPart);
 #else
-  vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT, 0);
+  vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_COUNT,   0);
   vmx_vmwrite(VMCS_CTRL_VMENTRY_MSR_LOAD_ADDRESS, 0);
 #endif
 

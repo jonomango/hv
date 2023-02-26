@@ -564,5 +564,25 @@ void handle_ept_violation(vcpu* const cpu) {
   }
 }
 
+void emulate_rdtsc(vcpu* const cpu) {
+  auto const tsc = __rdtsc();
+
+  cpu->ctx->rax = tsc & 0xFFFFFFFF;
+  cpu->ctx->rdx = (tsc >> 32) & 0xFFFFFFFF;
+
+  skip_instruction();
+}
+
+void emulate_rdtscp(vcpu* const cpu) {
+  unsigned int aux = 0;
+  auto const tsc = __rdtscp(&aux);
+
+  cpu->ctx->rcx = aux;
+  cpu->ctx->rax = tsc & 0xFFFFFFFF;
+  cpu->ctx->rdx = (tsc >> 32) & 0xFFFFFFFF;
+
+  skip_instruction();
+}
+
 } // namespace hv
 

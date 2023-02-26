@@ -210,9 +210,11 @@ void logger_write(char const* const format, ...) {
   for (size_t i = 0; (i < msg.max_msg_length - 1) && str[i]; ++i)
     msg.data[i] = str[i];
 
-  // set the ID of the msg
   l.total_msg_count += 1;
-  msg.id = l.total_msg_count;
+
+  // set the metadata info about this message
+  msg.id  = l.total_msg_count;
+  msg.tsc = __rdtsc();
 }
 
 } // namespace hv

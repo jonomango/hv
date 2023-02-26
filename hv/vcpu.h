@@ -66,6 +66,7 @@ struct vcpu {
 
   // vm-exit MSR store area
   struct alignas(0x10) {
+    vmx_msr_entry tsc;
     vmx_msr_entry perf_global_ctrl;
     vmx_msr_entry aperf;
     vmx_msr_entry mperf;
