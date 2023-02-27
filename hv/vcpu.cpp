@@ -294,9 +294,7 @@ bool handle_vm_exit(guest_context* const ctx) {
     return true;
   }
 
-#ifdef HIDE_VM_OVERHEAD
   hide_vm_exit_overhead(cpu);
-#endif
 
   // sync the vmcs state with the vcpu state
   vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
@@ -412,7 +410,6 @@ bool virtualize_cpu(vcpu* const cpu) {
   if (vmx_vmcall(input) == hypervisor_signature)
     DbgPrint("[hv] Successfully pinged the hypervisor.\n");
 
-#ifdef HIDE_VM_OVERHEAD
   cpu->vm_exit_tsc_overhead      = measure_vm_exit_tsc_overhead();
   cpu->vm_exit_mperf_overhead    = measure_vm_exit_mperf_overhead();
   cpu->vm_exit_ref_tsc_overhead  = measure_vm_exit_ref_tsc_overhead();
@@ -423,7 +420,6 @@ bool virtualize_cpu(vcpu* const cpu) {
     cpu->vm_exit_mperf_overhead);
   DbgPrint("[hv] Measured VM-exit overhead (CPU_CLK_UNHALTED.REF_TSC = %zi).\n",
     cpu->vm_exit_ref_tsc_overhead);
-#endif
 
   return true;
 }

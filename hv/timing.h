@@ -2,8 +2,6 @@
 
 #include <ia32.hpp>
 
-#define HIDE_VM_OVERHEAD
-
 namespace hv {
 
 struct vcpu;
