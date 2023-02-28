@@ -385,6 +385,7 @@ bool virtualize_cpu(vcpu* const cpu) {
   // TODO: should these fields really be set here? lol
   cpu->ctx                       = nullptr;
   cpu->queued_nmis               = 0;
+  cpu->virtualized_tsc           = 0;
   cpu->tsc_offset                = 0;
   cpu->preemption_timer          = 0;
   cpu->vm_exit_tsc_overhead      = 0;

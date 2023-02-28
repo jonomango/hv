@@ -30,7 +30,7 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   proc_based_ctrl.cr3_store_exiting           = 1;
 #endif
   proc_based_ctrl.use_msr_bitmaps             = 1;
-  proc_based_ctrl.use_tsc_offsetting          = 1;
+  //proc_based_ctrl.use_tsc_offsetting          = 1;
   //proc_based_ctrl.rdtsc_exiting               = 1;
   proc_based_ctrl.activate_secondary_controls = 1;
   write_ctrl_proc_based_safe(proc_based_ctrl);

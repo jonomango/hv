@@ -31,7 +31,7 @@ int main() {
     fish[i] = end - start;
 
     // ADDING A SLEEP BREAKS IT WHATTTTTT?
-    //Sleep(1);
+    Sleep(1);
 
     //for (int i = 0; i < 100000; ++i)
       //monkey += sqrt((double)i);

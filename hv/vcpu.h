@@ -87,6 +87,9 @@ struct vcpu {
   // the number of NMIs that need to be delivered
   uint32_t volatile queued_nmis;
 
+  // virtualized TSC for when RDTSC exiting is enabled
+  uint64_t virtualized_tsc;
+
   // current TSC offset
   uint64_t tsc_offset;
 

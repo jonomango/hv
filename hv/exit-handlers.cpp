@@ -565,22 +565,30 @@ void handle_ept_violation(vcpu* const cpu) {
 }
 
 void emulate_rdtsc(vcpu* const cpu) {
-  auto const tsc = __rdtsc();
+  // virtualized TSC strayed too far from the real TSC... resynchronize.
+  if (cpu->msr_exit_store.tsc.msr_data - cpu->virtualized_tsc > 40000)
+    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data - 200;
 
-  cpu->ctx->rax = tsc & 0xFFFFFFFF;
-  cpu->ctx->rdx = (tsc >> 32) & 0xFFFFFFFF;
+  cpu->ctx->rax = cpu->virtualized_tsc & 0xFFFFFFFF;
+  cpu->ctx->rdx = (cpu->virtualized_tsc >> 32) & 0xFFFFFFFF;
 
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
 void emulate_rdtscp(vcpu* const cpu) {
   unsigned int aux = 0;
-  auto const tsc = __rdtscp(&aux);
+  __rdtscp(&aux);
+
+  // virtualized TSC strayed too far from the real TSC... resynchronize.
+  if (cpu->msr_exit_store.tsc.msr_data - cpu->virtualized_tsc > 40000)
+    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data - 200;
 
   cpu->ctx->rcx = aux;
-  cpu->ctx->rax = tsc & 0xFFFFFFFF;
-  cpu->ctx->rdx = (tsc >> 32) & 0xFFFFFFFF;
+  cpu->ctx->rax = cpu->virtualized_tsc & 0xFFFFFFFF;
+  cpu->ctx->rdx = (cpu->virtualized_tsc >> 32) & 0xFFFFFFFF;
 
+  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
