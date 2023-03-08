@@ -1,5 +1,6 @@
 #include <iostream>
 #include <Windows.h>
+#include <intrin.h>
 
 #include "hv.h"
 
@@ -19,19 +20,21 @@ int main() {
 
   int info[4];
   uint64_t fish[10];
+  unsigned int fish2[10];
+  unsigned int fish3[10];
 
   double monkey = 0.0;
 
   for (int i = 0; i < 10; ++i) {
     // measure the time it takes to execute CPUID
-    auto const start = __rdtsc();
+    auto const start = __rdtscp(&fish2[i]);
     __cpuidex(info, 0, 0);
-    auto const end = __rdtsc();
+    auto const end = __rdtscp(&fish3[i]);
 
     fish[i] = end - start;
 
     // ADDING A SLEEP BREAKS IT WHATTTTTT?
-    Sleep(1);
+    Sleep(100);
 
     //for (int i = 0; i < 100000; ++i)
       //monkey += sqrt((double)i);
@@ -40,7 +43,9 @@ int main() {
   }
 
   for (int i = 0; i < 10; ++i)
-    printf("%zu %i\n", fish[i], (int)monkey);
+    printf("%zu %i %u %u\n", fish[i], (int)monkey, fish2[i], fish3[i]);
+
+  printf("%p %p\n", &Sleep, hv::get_physical_address(hv::query_process_cr3(GetProcessId(GetCurrentProcess())), &Sleep));
 
   printf("Pinged the hypervisor! Flushing logs...\n");
 

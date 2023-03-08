@@ -17,6 +17,16 @@ union pml4_virtual_address {
   };
 };
 
+// translate a GVA to a GPA. offset_to_next_page is the number of bytes to
+// the next page (i.e. the number of bytes that can be safely accessed through
+// the GPA in order to modify the GVA.
+uint64_t gva2gpa(cr3 guest_cr3, void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
+
+// translate a GVA to a GPA. offset_to_next_page is the number of bytes to
+// the next page (i.e. the number of bytes that can be safely accessed through
+// the GPA in order to modify the GVA.
+uint64_t gva2gpa(void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
+
 // translate a GVA to an HVA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the HVA in order to modify the GVA.

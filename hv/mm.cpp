@@ -5,10 +5,10 @@
 
 namespace hv {
 
-// translate a GVA to an HVA. offset_to_next_page is the number of bytes to
+// translate a GVA to a GPA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
-// the HVA in order to modify the GVA.
-void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* const offset_to_next_page) {
+// the GPA in order to modify the GVA.
+uint64_t gva2gpa(cr3 const guest_cr3, void* const guest_virtual_address, size_t* const offset_to_next_page) {
   if (offset_to_next_page)
     *offset_to_next_page = 0;
 
@@ -20,7 +20,7 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
   auto const pml4e = pml4[vaddr.pml4_idx];
 
   if (!pml4e.present)
-    return nullptr;
+    return 0;
 
   // guest PDPT
   auto const pdpt = reinterpret_cast<pdpte_64*>(host_physical_memory_base
@@ -28,7 +28,7 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
   auto const pdpte = pdpt[vaddr.pdpt_idx];
 
   if (!pdpte.present)
-    return nullptr;
+    return 0;
 
   if (pdpte.large_page) {
     pdpte_1gb_64 pdpte_1gb;
@@ -40,7 +40,7 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
     if (offset_to_next_page)
       *offset_to_next_page = 0x40000000 - offset;
 
-    return host_physical_memory_base + (pdpte_1gb.page_frame_number << 30) + offset;
+    return (pdpte_1gb.page_frame_number << 30) + offset;
   }
 
   // guest PD
@@ -49,7 +49,7 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
   auto const pde = pd[vaddr.pd_idx];
 
   if (!pde.present)
-    return nullptr;
+    return 0;
 
   if (pde.large_page) {
     pde_2mb_64 pde_2mb;
@@ -61,7 +61,7 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
     if (offset_to_next_page)
       *offset_to_next_page = 0x200000 - offset;
 
-    return host_physical_memory_base + (pde_2mb.page_frame_number << 21) + offset;
+    return (pde_2mb.page_frame_number << 21) + offset;
   }
 
   // guest PT
@@ -70,13 +70,32 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
   auto const pte = pt[vaddr.pt_idx];
 
   if (!pte.present)
-    return nullptr;
+    return 0;
 
   // 4KB page
   if (offset_to_next_page)
     *offset_to_next_page = 0x1000 - vaddr.offset;
 
-  return host_physical_memory_base + (pte.page_frame_number << 12) + vaddr.offset;
+  return (pte.page_frame_number << 12) + vaddr.offset;
+}
+
+// translate a GVA to a GPA. offset_to_next_page is the number of bytes to
+// the next page (i.e. the number of bytes that can be safely accessed through
+// the GPA in order to modify the GVA.
+uint64_t gva2gpa(void* const guest_virtual_address, size_t* const offset_to_next_page) {
+  cr3 guest_cr3;
+  guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
+  return gva2gpa(guest_cr3, guest_virtual_address, offset_to_next_page);
+}
+
+// translate a GVA to an HVA. offset_to_next_page is the number of bytes to
+// the next page (i.e. the number of bytes that can be safely accessed through
+// the HVA in order to modify the GVA.
+void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* const offset_to_next_page) {
+  auto const gpa = gva2gpa(guest_cr3, guest_virtual_address, offset_to_next_page);
+  if (!gpa)
+    return nullptr;
+  return host_physical_memory_base + gpa;
 }
 
 // translate a GVA to an HVA. offset_to_next_page is the number of bytes to

@@ -35,7 +35,8 @@ enum hypercall_code : uint64_t {
   hypercall_query_process_cr3,
   hypercall_install_ept_hook,
   hypercall_remove_ept_hook,
-  hypercall_flush_logs
+  hypercall_flush_logs,
+  hypercall_get_physical_address
 };
 
 // hypercall input
@@ -136,6 +137,15 @@ inline void flush_logs(uint32_t& count, logger_msg* msgs) {
   input.args[0] = count;
   input.args[1] = reinterpret_cast<uint64_t>(msgs);
   count = static_cast<uint32_t>(hv::vmx_vmcall(input));
+}
+
+inline uint64_t get_physical_address(uint64_t const cr3, void const* const address) {
+  hv::hypercall_input input;
+  input.code    = hv::hypercall_get_physical_address;
+  input.key     = hv::hypercall_key;
+  input.args[0] = cr3;
+  input.args[1] = reinterpret_cast<uint64_t>(address);
+  return hv::vmx_vmcall(input);
 }
 
 } // namespace hv

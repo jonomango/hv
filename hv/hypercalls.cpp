@@ -410,5 +410,15 @@ void flush_logs(vcpu* const cpu) {
   skip_instruction();
 }
 
+// translate a virtual address to its virtual address
+void get_physical_address(vcpu* const cpu) {
+  cr3 guest_cr3;
+  guest_cr3.flags = cpu->ctx->rcx;
+
+  cpu->ctx->rax = gva2gpa(guest_cr3, reinterpret_cast<void*>(cpu->ctx->rdx));
+
+  skip_instruction();
+}
+
 } // namespace hv::hc
 

@@ -58,10 +58,10 @@ void hide_vm_exit_overhead(vcpu* const cpu) {
   }
 
   if (cpu->virtualized_tsc == 0)
-    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data - 200;
+    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data;
 
   // increment the virtual TSC
-  cpu->virtualized_tsc += 50;
+  cpu->virtualized_tsc += 30;
 
   // enable RDTSC exiting
   if (auto controls = read_ctrl_proc_based(); !controls.rdtsc_exiting) {

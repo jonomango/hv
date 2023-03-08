@@ -22,7 +22,8 @@ enum hypercall_code : uint64_t {
   hypercall_query_process_cr3,
   hypercall_install_ept_hook,
   hypercall_remove_ept_hook,
-  hypercall_flush_logs
+  hypercall_flush_logs,
+  hypercall_get_physical_address
 };
 
 // hypercall input
@@ -71,6 +72,9 @@ void remove_ept_hook(vcpu* cpu);
 
 // flush the hypervisor logs into a specified buffer
 void flush_logs(vcpu* cpu);
+
+// translate a virtual address to its virtual address
+void get_physical_address(vcpu* cpu);
 
 } // namespace hc
 
