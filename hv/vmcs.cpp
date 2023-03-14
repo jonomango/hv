@@ -83,7 +83,8 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
 #ifdef NDEBUG
   // only vm-exit when guest tries to change a reserved bit
   vmx_vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK,
-    cpu->cached.vmx_cr0_fixed0 | ~cpu->cached.vmx_cr0_fixed1);
+    cpu->cached.vmx_cr0_fixed0 | ~cpu->cached.vmx_cr0_fixed1 |
+    CR0_CACHE_DISABLE_FLAG | CR0_WRITE_PROTECT_FLAG);
   vmx_vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK,
     cpu->cached.vmx_cr4_fixed0 | ~cpu->cached.vmx_cr4_fixed1);
 #else
