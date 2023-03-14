@@ -15,6 +15,9 @@ struct logger_msg {
   // timestamp counter of the current message
   uint64_t tsc;
 
+  // process ID of the VCPU that sent the message
+  uint32_t aux;
+
   // null-terminated ascii string
   char data[max_msg_length];
 };

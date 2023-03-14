@@ -214,7 +214,7 @@ void logger_write(char const* const format, ...) {
 
   // set the metadata info about this message
   msg.id  = l.total_msg_count;
-  msg.tsc = __rdtsc();
+  msg.tsc = __rdtscp(&msg.aux);
 }
 
 } // namespace hv
