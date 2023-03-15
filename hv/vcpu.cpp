@@ -8,6 +8,7 @@
 #include "trap-frame.h"
 #include "exit-handlers.h"
 #include "exception-routines.h"
+#include "introspection.h"
 
 namespace hv {
 
@@ -212,7 +213,7 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   // unhandled VM-exit
   default:
     cpu->stop_virtualization = true;
-    logger_write("Unhandled VM-exit. Exit Reason: %u. RIP: %p.",
+    HV_LOG_ERROR("Unhandled VM-exit. Exit Reason: %u. RIP: %p.",
       reason.basic_exit_reason, vmx_vmread(VMCS_GUEST_RIP));
     break;
   }
@@ -231,10 +232,16 @@ bool handle_vm_exit(guest_context* const ctx) {
   cpu->hide_vm_exit_overhead = false;
   cpu->stop_virtualization   = false;
 
-  //if (reason.basic_exit_reason != VMX_EXIT_REASON_EXECUTE_VMCALL)
-    //logger_write("Handling VM-Exit. Exit reason: %i.", reason.basic_exit_reason);
-
   dispatch_vm_exit(cpu, reason);
+
+  vmentry_interrupt_information interrupt_info;
+  interrupt_info.flags = static_cast<uint32_t>(
+    vmx_vmread(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD));
+
+  if (interrupt_info.valid) {
+    HV_LOG_VERBOSE("Injecting interrupt into guest. Vector=%i. Error=%i.",
+      interrupt_info.vector, vmx_vmread(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE));
+  }
 
   // restore guest state. the assembly code is responsible for restoring
   // RIP, CS, RFLAGS, RSP, SS, CR0, CR4, as well as the usual fields in
@@ -322,8 +329,14 @@ void handle_host_interrupt(trap_frame* const frame) {
   // host exceptions
   default: {
     // no registered exception handler
-    if (!frame->r10 || !frame->r11)
+    if (!frame->r10 || !frame->r11) {
+      HV_LOG_ERROR("Unhandled exception. RIP=%p. Vector=%u.",
+        frame->rip, frame->vector);
       break;
+    }
+
+    HV_LOG_VERBOSE("Handling host exception. RIP=%p. Vector=%u",
+      frame->rip, frame->vector);
 
     // jump to the exception handler
     frame->rip = frame->r10;
@@ -385,14 +398,13 @@ bool virtualize_cpu(vcpu* const cpu) {
   // TODO: should these fields really be set here? lol
   cpu->ctx                       = nullptr;
   cpu->queued_nmis               = 0;
-  cpu->virtualized_tsc           = 0;
   cpu->tsc_offset                = 0;
   cpu->preemption_timer          = 0;
   cpu->vm_exit_tsc_overhead      = 0;
   cpu->vm_exit_mperf_overhead    = 0;
   cpu->vm_exit_ref_tsc_overhead  = 0;
 
-  logger_write("Launching VM on VCPU#%i...", KeGetCurrentProcessorIndex() + 1);
+  DbgPrint("Launching VM on VCPU#%i...\n", KeGetCurrentProcessorIndex() + 1);
 
   if (!vm_launch()) {
     DbgPrint("[hv] VMLAUNCH failed. Instruction error = %lli.\n",
@@ -402,7 +414,7 @@ bool virtualize_cpu(vcpu* const cpu) {
     return false;
   }
 
-  logger_write("Launched VM on VCPU#%i.", KeGetCurrentProcessorIndex() + 1);
+  DbgPrint("[hv] Launched VM on VCPU#%i.\n", KeGetCurrentProcessorIndex() + 1);
 
   hypercall_input input;
   input.code = hypercall_ping;

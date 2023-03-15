@@ -41,37 +41,6 @@ void hide_vm_exit_overhead(vcpu* const cpu) {
     if ((cpl == 0 && fixed_ctr_ctrl.en2_os) || (cpl == 3 && fixed_ctr_ctrl.en2_usr))
       __writemsr(IA32_FIXED_CTR2, __readmsr(IA32_FIXED_CTR2) - cpu->vm_exit_ref_tsc_overhead);
   }
-
-  if (!cpu->hide_vm_exit_overhead) {
-    // disable RDTSC exiting
-    if (auto controls = read_ctrl_proc_based(); controls.rdtsc_exiting) {
-      controls.rdtsc_exiting = 0;
-      write_ctrl_proc_based(controls);
-    }
-
-    cpu->virtualized_tsc = 0;
-
-    // soft disable the VMX preemption timer
-    cpu->preemption_timer = ~0ull;
-
-    return;
-  }
-
-  if (cpu->virtualized_tsc == 0)
-    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data;
-
-  // increment the virtual TSC
-  cpu->virtualized_tsc += 30;
-
-  // enable RDTSC exiting
-  if (auto controls = read_ctrl_proc_based(); !controls.rdtsc_exiting) {
-    controls.rdtsc_exiting = 1;
-    write_ctrl_proc_based(controls);
-  }
-
-  // set the preemption timer to cause an exit after 50000 guest TSC ticks have passed
-  cpu->preemption_timer = max(2,
-    50000 >> cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
 }
 
 // measure the overhead of a vm-exit (RDTSC)

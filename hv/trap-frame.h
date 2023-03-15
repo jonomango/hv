@@ -100,7 +100,7 @@ struct trap_frame {
   };
 
   // interrupt vector
-  uint64_t vector;
+  uint8_t vector;
 
   // _MACHINE_FRAME
   uint64_t error;

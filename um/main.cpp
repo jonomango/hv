@@ -28,13 +28,15 @@ int main() {
   for (int i = 0; i < 10; ++i) {
     // measure the time it takes to execute CPUID
     auto const start = __rdtscp(&fish2[i]);
+    //auto const start = __rdtsc();
     __cpuidex(info, 0, 0);
+    //auto const end = __rdtsc();
     auto const end = __rdtscp(&fish3[i]);
 
     fish[i] = end - start;
 
     // ADDING A SLEEP BREAKS IT WHATTTTTT?
-    Sleep(100);
+    Sleep(1);
 
     //for (int i = 0; i < 100000; ++i)
       //monkey += sqrt((double)i);
@@ -45,17 +47,17 @@ int main() {
   for (int i = 0; i < 10; ++i)
     printf("%zu %i %u %u\n", fish[i], (int)monkey, fish2[i], fish3[i]);
 
-  printf("%p %p\n", &Sleep, hv::get_physical_address(hv::query_process_cr3(GetProcessId(GetCurrentProcess())), &Sleep));
+  printf("%p %zX\n", &Sleep, hv::get_physical_address(hv::query_process_cr3(GetProcessId(GetCurrentProcess())), &Sleep));
 
   printf("Pinged the hypervisor! Flushing logs...\n");
 
   while (true) {
-    uint32_t count = 128;
-    hv::logger_msg msgs[128];
+    uint32_t count = 512;
+    hv::logger_msg msgs[512];
     hv::flush_logs(count, msgs);
 
     for (uint32_t i = 0; i < count; ++i)
-      printf("[%u] %s\n", msgs[i].id, msgs[i].data);
+      printf("[%u][%I64u][%I64u] %s\n", msgs[i].aux, msgs[i].id, msgs[i].tsc, msgs[i].data);
 
     Sleep(1);
   }

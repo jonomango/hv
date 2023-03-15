@@ -159,6 +159,8 @@ void emulate_xsetbv(vcpu* const cpu) {
     return;
   }
 
+  HV_LOG_VERBOSE("Wrote %p to XCR0.", new_xcr0.flags);
+
   cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
@@ -201,6 +203,8 @@ void emulate_vmcall(vcpu* const cpu) {
   case hypercall_flush_logs:           hc::flush_logs(cpu);           return;
   case hypercall_get_physical_address: hc::get_physical_address(cpu); return;
   }
+
+  HV_LOG_VERBOSE("Unhandled VMCALL. RIP=%p.", vmx_vmread(VMCS_GUEST_RIP));
 
   inject_hw_exception(invalid_opcode);
 }
@@ -274,6 +278,8 @@ void emulate_mov_to_cr0(vcpu* const cpu, uint64_t const gpr) {
 
     vmx_invept(invept_all_context, {});
   }
+
+  HV_LOG_VERBOSE("Writing %p to CR0.", new_cr0.flags);
 
   vmx_vmwrite(VMCS_CTRL_CR0_READ_SHADOW, new_cr0.flags);
 
@@ -392,6 +398,8 @@ void emulate_mov_to_cr4(vcpu* const cpu, uint64_t const gpr) {
     vmx_invvpid(invvpid_single_context, desc);
   }
   
+  HV_LOG_VERBOSE("Writing %p to CR4.", new_cr4.flags);
+
   vmx_vmwrite(VMCS_CTRL_CR4_READ_SHADOW, new_cr4.flags);
 
   // make sure to account for VMX reserved bits when setting the real CR4
@@ -496,6 +504,8 @@ void handle_nmi_window(vcpu* const cpu) {
   // inject the NMI into the guest
   inject_nmi();
 
+  HV_LOG_VERBOSE("Injecting NMI into guest.");
+
   if (cpu->queued_nmis == 0) {
     // disable NMI-window exiting since we have no more NMIs to inject
     auto ctrl = read_ctrl_proc_based();
@@ -537,7 +547,7 @@ void handle_ept_violation(vcpu* const cpu) {
 
   if (qualification.execute_access &&
      (qualification.write_access || qualification.read_access)) {
-    // TODO: assert
+    HV_LOG_ERROR("Invalid EPT access combination. PhysAddr = %p.", physical_address);
     inject_hw_exception(machine_check);
     return;
   }
@@ -545,7 +555,7 @@ void handle_ept_violation(vcpu* const cpu) {
   auto const hook = find_ept_hook(cpu->ept, physical_address >> 12);
 
   if (!hook) {
-    // TODO: assert
+    HV_LOG_ERROR("Failed to find EPT hook. PhysAddr = %p.", physical_address);
     inject_hw_exception(machine_check);
     return;
   }
@@ -566,30 +576,24 @@ void handle_ept_violation(vcpu* const cpu) {
 }
 
 void emulate_rdtsc(vcpu* const cpu) {
-  // virtualized TSC strayed too far from the real TSC... resynchronize.
-  if (cpu->msr_exit_store.tsc.msr_data - cpu->virtualized_tsc > 40000)
-    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data;
+  auto const tsc = __rdtsc();
 
-  cpu->ctx->rax = cpu->virtualized_tsc & 0xFFFFFFFF;
-  cpu->ctx->rdx = (cpu->virtualized_tsc >> 32) & 0xFFFFFFFF;
+  // return current TSC
+  cpu->ctx->rax = tsc & 0xFFFFFFFF;
+  cpu->ctx->rdx = (tsc >> 32) & 0xFFFFFFFF;
 
-  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 
 void emulate_rdtscp(vcpu* const cpu) {
   unsigned int aux = 0;
-  __rdtscp(&aux);
+  auto const tsc = __rdtscp(&aux);
 
-  // virtualized TSC strayed too far from the real TSC... resynchronize.
-  if (cpu->msr_exit_store.tsc.msr_data - cpu->virtualized_tsc > 40000)
-    cpu->virtualized_tsc = cpu->msr_exit_store.tsc.msr_data;
-
+  // return current TSC
+  cpu->ctx->rax = tsc & 0xFFFFFFFF;
+  cpu->ctx->rdx = (tsc >> 32) & 0xFFFFFFFF;
   cpu->ctx->rcx = aux;
-  cpu->ctx->rax = cpu->virtualized_tsc & 0xFFFFFFFF;
-  cpu->ctx->rdx = (cpu->virtualized_tsc >> 32) & 0xFFFFFFFF;
 
-  cpu->hide_vm_exit_overhead = true;
   skip_instruction();
 }
 

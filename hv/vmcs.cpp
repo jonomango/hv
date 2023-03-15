@@ -19,7 +19,7 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   pin_based_ctrl.flags                         = 0;
   pin_based_ctrl.virtual_nmi                   = 1;
   pin_based_ctrl.nmi_exiting                   = 1;
-  pin_based_ctrl.activate_vmx_preemption_timer = 1;
+  //pin_based_ctrl.activate_vmx_preemption_timer = 1;
   write_ctrl_pin_based_safe(pin_based_ctrl);
 
   // 3.24.6.2
