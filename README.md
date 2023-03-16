@@ -3,9 +3,8 @@
 `hv` is an x86-64 [Intel VT-x](https://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_(VT-x)) 
 hypervisor that aims to be simple and lightweight, while still following the Intel SDM as closely as possible.
 This allows it to evade detections that take advantage of common hypervisor bugs, such as improper
-vm-exit handling. Other detections, such as
-[timing checks](https://github.com/jonomango/hv/blob/main/hv/timing.cpp#L9-L62), are *mostly* mitigated,
-although staying fully undetected is nearly impossible.
+vm-exit handling. Other detections, such as timing checks, are ~~*mostly* mitigated~~, although staying
+fully undetected is nearly impossible.
 
 ## Installation
 
@@ -28,7 +27,7 @@ the driver will result in `hv::stop()` being called, which will devirtualize the
 
 `hv` has a full hypercall interface that can be used from both ring-0 and ring-3. It relies on the `VMCALL`
 instruction and has a particular calling convention that must be followed. Check out
-[hv/vmx.asm](https://github.com/jonomango/hv/blob/main/hv/vmx.asm#L13-L26) for how this can be implemented.
+[um/hv.asm](https://github.com/jonomango/hv/blob/main/um/hv.asm) for how this can be implemented.
 
 Additionally, hypercalls will not function correctly unless provided with the correct
 [hypercall_key](https://github.com/jonomango/hv/blob/main/hv/hypercalls.h#L11). This can be easily modified
@@ -54,5 +53,5 @@ if (value == hv::hypervisor_signature)
 Extending the hypercall interface is pretty simple. Add your new hypercall handler to
 [hv/hypercalls.h](https://github.com/jonomango/hv/blob/main/hv/hypercalls.h) and
 [hv/hypercalls.cpp](https://github.com/jonomango/hv/blob/main/hv/hypercalls.cpp), then modify
-[emulate_vmcall()](https://github.com/jonomango/hv/blob/main/hv/exit-handlers.cpp#L188-L199) to call
-your added code.
+[emulate_vmcall()](https://github.com/jonomango/hv/blob/main/hv/exit-handlers.cpp#L193-L204) to call
+your added function.
