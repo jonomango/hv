@@ -2,6 +2,8 @@
 #include "arch.h"
 #include "page-tables.h"
 #include "vmx.h"
+#include "exception-routines.h"
+#include "logger.h"
 
 namespace hv {
 
@@ -105,6 +107,53 @@ void* gva2hva(void* const guest_virtual_address, size_t* const offset_to_next_pa
   cr3 guest_cr3;
   guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
   return gva2hva(guest_cr3, guest_virtual_address, offset_to_next_page);
+}
+
+// attempt to read the memory at the specified guest virtual address from root-mode
+size_t read_guest_virtual_memory(cr3 const guest_cr3,
+    void* const guest_virtual_address, void* const buffer, size_t const size) {
+  // the GVA that we're reading from
+  auto const src = reinterpret_cast<uint8_t*>(guest_virtual_address);
+
+  // the HVA that we're writing to
+  auto const dst = reinterpret_cast<uint8_t*>(buffer);
+
+  size_t bytes_read = 0;
+
+  // translate and read 1 page at a time
+  while (bytes_read < size) {
+    size_t src_remaining = 0;
+
+    // translate the guest virtual address to a host virtual address
+    auto const curr_src = gva2hva(guest_cr3, src + bytes_read, &src_remaining);
+
+    // paged out
+    if (!curr_src)
+      return bytes_read;
+
+    // the maximum allowed size that we can read at once with the translated HVA
+    auto const curr_size = min(size - bytes_read, src_remaining);
+
+    host_exception_info e;
+    memcpy_safe(e, dst + bytes_read, curr_src, curr_size);
+
+    // this shouldn't ever happen...
+    if (e.exception_occurred) {
+      HV_LOG_ERROR("Failed to memcpy in read_guest_virtual_memory().");
+      return bytes_read;
+    }
+
+    bytes_read += curr_size;
+  }
+
+  return bytes_read;
+}
+
+// attempt to read the memory at the specified guest virtual address from root-mode
+size_t read_guest_virtual_memory( void* const guest_virtual_address, void* const buffer, size_t const size) {
+  cr3 guest_cr3;
+  guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
+  return read_guest_virtual_memory(guest_cr3, guest_virtual_address, buffer, size);
 }
 
 } // namespace hv

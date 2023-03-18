@@ -37,5 +37,11 @@ void* gva2hva(cr3 guest_cr3, void* guest_virtual_address, size_t* offset_to_next
 // the HVA in order to modify the GVA.
 void* gva2hva(void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
 
+// attempt to read the memory at the specified guest virtual address from root-mode
+size_t read_guest_virtual_memory(cr3 guest_cr3, void* guest_virtual_address, void* buffer, size_t size);
+
+// attempt to read the memory at the specified guest virtual address from root-mode
+size_t read_guest_virtual_memory(void* guest_virtual_address, void* buffer, size_t size);
+
 } // namespace hv
 
