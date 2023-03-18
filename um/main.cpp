@@ -51,6 +51,8 @@ int main() {
 
   printf("Pinged the hypervisor! Flushing logs...\n");
 
+  hv::test();
+
   while (true) {
     uint32_t count = 512;
     hv::logger_msg msgs[512];

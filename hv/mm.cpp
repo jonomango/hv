@@ -150,7 +150,7 @@ size_t read_guest_virtual_memory(cr3 const guest_cr3,
 }
 
 // attempt to read the memory at the specified guest virtual address from root-mode
-size_t read_guest_virtual_memory( void* const guest_virtual_address, void* const buffer, size_t const size) {
+size_t read_guest_virtual_memory(void* const guest_virtual_address, void* const buffer, size_t const size) {
   cr3 guest_cr3;
   guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
   return read_guest_virtual_memory(guest_cr3, guest_virtual_address, buffer, size);

@@ -4,6 +4,7 @@
 #include "mm.h"
 #include "hv.h"
 #include "exception-routines.h"
+#include "introspection.h"
 
 namespace hv::hc {
 
@@ -15,8 +16,9 @@ void ping(vcpu* const cpu) {
 }
 
 // a hypercall for quick testing
-void test(vcpu* const cpu) {
-  cpu->hide_vm_exit_overhead = true;
+void test(vcpu* const) {
+  HV_LOG_INFO("EPROCESS: %p.", current_guest_eprocess());
+  HV_LOG_INFO("ETHREAD:  %p.", current_guest_ethread());
   skip_instruction();
 }
 

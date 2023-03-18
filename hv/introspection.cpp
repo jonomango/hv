@@ -1,9 +1,8 @@
 #include "introspection.h"
+#include "mm.h"
 #include "hv.h"
 
 namespace hv {
-
-// TODO: translate using gva2hva instead of directly reading guest memory...
 
 // get the KPCR of the current guest (the pointer should stay constant per-vcpu)
 PKPCR current_guest_kpcr() {
@@ -28,8 +27,11 @@ PETHREAD current_guest_ethread() {
     + ghv.kpcr_pcrb_offset;
 
   // KPCRB::CurrentThread
-  return *reinterpret_cast<PETHREAD*>(kprcb
-    + ghv.kprcb_current_thread_offset);
+  PETHREAD current_thread = nullptr;
+  read_guest_virtual_memory(ghv.system_cr3,
+    kprcb + ghv.kprcb_current_thread_offset, &current_thread, sizeof(current_thread));
+
+  return current_thread;
 }
 
 // get the EPROCESS of the current guest
@@ -37,13 +39,19 @@ PEPROCESS current_guest_eprocess() {
   // ETHREAD (KTHREAD is first field as well)
   auto const ethread = current_guest_ethread();
 
+  if (!ethread)
+    return nullptr;
+
   // KTHREAD::ApcState
   auto const kapc_state = reinterpret_cast<uint8_t*>(ethread)
     + ghv.kthread_apc_state_offset;
 
   // KAPC_STATE::Process
-  return *reinterpret_cast<PEPROCESS*>(kapc_state
-    + ghv.kapc_state_process_offset);
+  PEPROCESS process = nullptr;
+  read_guest_virtual_memory(ghv.system_cr3,
+    kapc_state + ghv.kapc_state_process_offset, &process, sizeof(process));
+
+  return process;
 }
 
 } // namespace hv
