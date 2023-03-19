@@ -36,7 +36,7 @@ uint64_t gva2gpa(cr3 const guest_cr3, void* const guest_virtual_address, size_t*
     pdpte_1gb_64 pdpte_1gb;
     pdpte_1gb.flags = pdpte.flags;
 
-    auto const offset = (vaddr.pd_idx << 18) + (vaddr.pt_idx << 9) + vaddr.offset;
+    auto const offset = (vaddr.pd_idx << 21) + (vaddr.pt_idx << 12) + vaddr.offset;
 
     // 1GB
     if (offset_to_next_page)
@@ -57,7 +57,7 @@ uint64_t gva2gpa(cr3 const guest_cr3, void* const guest_virtual_address, size_t*
     pde_2mb_64 pde_2mb;
     pde_2mb.flags = pde.flags;
 
-    auto const offset = (vaddr.pt_idx << 9) + vaddr.offset;
+    auto const offset = (vaddr.pt_idx << 12) + vaddr.offset;
 
     // 2MB page
     if (offset_to_next_page)

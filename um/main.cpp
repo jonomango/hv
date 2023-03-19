@@ -47,8 +47,6 @@ int main() {
   for (int i = 0; i < 10; ++i)
     printf("%zu %i %u %u\n", fish[i], (int)monkey, fish2[i], fish3[i]);
 
-  printf("%p %zX\n", &Sleep, hv::get_physical_address(hv::query_process_cr3(GetProcessId(GetCurrentProcess())), &Sleep));
-
   printf("Pinged the hypervisor! Flushing logs...\n");
 
   hv::test();
