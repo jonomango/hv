@@ -54,5 +54,20 @@ PEPROCESS current_guest_eprocess() {
   return process;
 }
 
+// get the PID of the current guest
+uint64_t current_guest_pid() {
+  // EPROCESS
+  auto const process = reinterpret_cast<uint8_t*>(current_guest_eprocess());
+  if (!process)
+    return 0;
+
+  // EPROCESS::UniqueProcessId
+  uint64_t pid = 0;
+  read_guest_virtual_memory(ghv.system_cr3,
+    process + ghv.eprocess_unique_process_id_offset, &pid, sizeof(pid));
+
+  return pid;
+}
+
 } // namespace hv
 

@@ -19,6 +19,7 @@ void ping(vcpu* const cpu) {
 void test(vcpu* const) {
   HV_LOG_INFO("EPROCESS: %p.", current_guest_eprocess());
   HV_LOG_INFO("ETHREAD:  %p.", current_guest_ethread());
+  HV_LOG_INFO("PID:      %p.", current_guest_pid());
   skip_instruction();
 }
 

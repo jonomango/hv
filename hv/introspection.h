@@ -15,5 +15,8 @@ PETHREAD current_guest_ethread();
 // get the EPROCESS of the current guest
 PEPROCESS current_guest_eprocess();
 
+// get the PID of the current guest
+uint64_t current_guest_pid();
+
 } // namespace hv
 
