@@ -1,12 +1,13 @@
 #pragma once
 
 #include "vmx.h"
+#include "mm.h"
 
 #include <ntddk.h>
 
 namespace hv {
 
-// get the KPCR of the current guest (the pointer should stay constant per-vcpu)
+// get the KPCR of the current guest (this pointer should stay constant per-vcpu)
 PKPCR current_guest_kpcr();
 
 // get the ETHREAD of the current guest

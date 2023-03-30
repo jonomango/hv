@@ -10,11 +10,11 @@ namespace hv {
 // translate a GVA to a GPA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the GPA in order to modify the GVA.
-uint64_t gva2gpa(cr3 const guest_cr3, void* const guest_virtual_address, size_t* const offset_to_next_page) {
+uint64_t gva2gpa(cr3 const guest_cr3, void* const gva, size_t* const offset_to_next_page) {
   if (offset_to_next_page)
     *offset_to_next_page = 0;
 
-  pml4_virtual_address const vaddr = { guest_virtual_address };
+  pml4_virtual_address const vaddr = { gva };
 
   // guest PML4
   auto const pml4 = reinterpret_cast<pml4e_64*>(host_physical_memory_base
@@ -84,17 +84,17 @@ uint64_t gva2gpa(cr3 const guest_cr3, void* const guest_virtual_address, size_t*
 // translate a GVA to a GPA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the GPA in order to modify the GVA.
-uint64_t gva2gpa(void* const guest_virtual_address, size_t* const offset_to_next_page) {
+uint64_t gva2gpa(void* const gva, size_t* const offset_to_next_page) {
   cr3 guest_cr3;
   guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
-  return gva2gpa(guest_cr3, guest_virtual_address, offset_to_next_page);
+  return gva2gpa(guest_cr3, gva, offset_to_next_page);
 }
 
 // translate a GVA to an HVA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the HVA in order to modify the GVA.
-void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* const offset_to_next_page) {
-  auto const gpa = gva2gpa(guest_cr3, guest_virtual_address, offset_to_next_page);
+void* gva2hva(cr3 const guest_cr3, void* const gva, size_t* const offset_to_next_page) {
+  auto const gpa = gva2gpa(guest_cr3, gva, offset_to_next_page);
   if (!gpa)
     return nullptr;
   return host_physical_memory_base + gpa;
@@ -103,17 +103,17 @@ void* gva2hva(cr3 const guest_cr3, void* const guest_virtual_address, size_t* co
 // translate a GVA to an HVA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the HVA in order to modify the GVA.
-void* gva2hva(void* const guest_virtual_address, size_t* const offset_to_next_page) {
+void* gva2hva(void* const gva, size_t* const offset_to_next_page) {
   cr3 guest_cr3;
   guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
-  return gva2hva(guest_cr3, guest_virtual_address, offset_to_next_page);
+  return gva2hva(guest_cr3, gva, offset_to_next_page);
 }
 
 // attempt to read the memory at the specified guest virtual address from root-mode
 size_t read_guest_virtual_memory(cr3 const guest_cr3,
-    void* const guest_virtual_address, void* const buffer, size_t const size) {
+    void* const gva, void* const buffer, size_t const size) {
   // the GVA that we're reading from
-  auto const src = reinterpret_cast<uint8_t*>(guest_virtual_address);
+  auto const src = reinterpret_cast<uint8_t*>(gva);
 
   // the HVA that we're writing to
   auto const dst = reinterpret_cast<uint8_t*>(buffer);
@@ -150,10 +150,17 @@ size_t read_guest_virtual_memory(cr3 const guest_cr3,
 }
 
 // attempt to read the memory at the specified guest virtual address from root-mode
-size_t read_guest_virtual_memory(void* const guest_virtual_address, void* const buffer, size_t const size) {
+size_t read_guest_virtual_memory(void* const gva, void* const buffer, size_t const size) {
   cr3 guest_cr3;
   guest_cr3.flags = vmx_vmread(VMCS_GUEST_CR3);
-  return read_guest_virtual_memory(guest_cr3, guest_virtual_address, buffer, size);
+  return read_guest_virtual_memory(guest_cr3, gva, buffer, size);
+}
+
+// attempt to read the memory at the specified guest physical address from root-mode
+bool read_guest_physical_memory(uint64_t const gpa, void* const buffer, size_t const size) {
+  host_exception_info e;
+  memcpy_safe(e, buffer, host_physical_memory_base + gpa, size);
+  return !e.exception_occurred;
 }
 
 } // namespace hv

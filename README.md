@@ -55,3 +55,74 @@ Extending the hypercall interface is pretty simple. Add your new hypercall handl
 [hv/hypercalls.cpp](https://github.com/jonomango/hv/blob/main/hv/hypercalls.cpp), then modify
 [emulate_vmcall()](https://github.com/jonomango/hv/blob/main/hv/exit-handlers.cpp#L193-L204) to call
 your added function.
+
+## Important Root-Mode Functions
+
+Below is a list of important functions that can be safely called from root-mode,
+which can be used by including `introspection.h`. It is important to note that
+any code that lies outside of the hypervisor (i.e. kernel code) cannot be called
+from root-mode, and the following functions should be used instead.
+
+```cpp
+// get the KPCR of the current guest (this pointer should stay constant per-vcpu)
+PKPCR current_guest_kpcr();
+
+// get the ETHREAD of the current guest
+PETHREAD current_guest_ethread();
+
+// get the EPROCESS of the current guest
+PEPROCESS current_guest_eprocess();
+
+// get the PID of the current guest
+uint64_t current_guest_pid();
+
+// get the CPL (current privilege level) of the current guest
+uint16_t current_guest_cpl();
+
+// attempt to read the memory at the specified guest virtual address from root-mode
+size_t read_guest_virtual_memory(cr3 guest_cr3, void* gva, void* buffer, size_t size);
+
+// attempt to read the memory at the specified guest virtual address from root-mode
+size_t read_guest_virtual_memory(void* gva, void* buffer, size_t size);
+
+// attempt to read the memory at the specified guest physical address from root-mode
+bool read_guest_physical_memory(uint64_t gpa, void* buffer, size_t size);
+```
+
+## Logging
+
+`hv` has a simple printf-style logger that can be used from both root-mode or
+guest-mode. It can be found in `logger.h` and the logs can be retrieved through
+the `flush_logs` hypercall. Different log types can be omitted by simply modifying
+the defines in `logger.h`.
+
+```cpp
+// 3 different log types are supported:
+HV_LOG_INFO("Hello world!");
+HV_LOG_ERROR("Error on line %i.", 69);
+HV_LOG_VERBOSE("Junk... %s", "More junk...");
+```
+
+The logger supports a small subset of printf-style formatting:
+
+```
+%s             c-style strings
+%i or %d       32-bit signed integer
+%u             32-bit unsigned integer
+%x             32-bit unsigned integer (printed in hex, lowercase)
+%X             32-bit unsigned integer (printed in hex, uppercase)
+%p             64-bit unsigned integer (printed in hex)
+```
+
+Below is an example of reading the logs, which can be done from ring-0 or ring-3.
+
+```cpp
+// read the logs into a buffer
+uint32_t count = 512;
+hv::logger_msg msgs[512];
+hv::flush_logs(count, msgs);
+
+// print every log message
+for (uint32_t i = 0; i < count; ++i)
+  printf("%s\n", msgs[i].data);
+```

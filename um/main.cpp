@@ -56,6 +56,10 @@ int main() {
     hv::logger_msg msgs[512];
     hv::flush_logs(count, msgs);
 
+    for (uint32_t i = 0; i < count; ++i) {
+      auto const& msg = msgs[i];
+      printf("%s\n", msg.data);
+    }
     for (uint32_t i = 0; i < count; ++i)
       printf("[%u][%I64u][%I64u] %s\n", msgs[i].aux, msgs[i].id, msgs[i].tsc, msgs[i].data);
 

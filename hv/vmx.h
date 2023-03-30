@@ -105,7 +105,7 @@ ia32_vmx_exit_ctls_register read_ctrl_exit();
 // read the vm-entry controls
 ia32_vmx_entry_ctls_register read_ctrl_entry();
 
-// get the guest's CPL (current privilege level)
+// get the CPL (current privilege level) of the current guest
 uint16_t current_guest_cpl();
 
 // increment the instruction pointer after emulating an instruction

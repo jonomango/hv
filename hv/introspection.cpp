@@ -4,7 +4,7 @@
 
 namespace hv {
 
-// get the KPCR of the current guest (the pointer should stay constant per-vcpu)
+// get the KPCR of the current guest (this pointer should stay constant per-vcpu)
 PKPCR current_guest_kpcr() {
   // GS base holds the KPCR when in ring-0
   if (current_guest_cpl() == 0)

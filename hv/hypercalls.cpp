@@ -17,9 +17,11 @@ void ping(vcpu* const cpu) {
 
 // a hypercall for quick testing
 void test(vcpu* const) {
+  HV_LOG_INFO("KPCR:     %p.", current_guest_kpcr());
   HV_LOG_INFO("EPROCESS: %p.", current_guest_eprocess());
   HV_LOG_INFO("ETHREAD:  %p.", current_guest_ethread());
   HV_LOG_INFO("PID:      %p.", current_guest_pid());
+  HV_LOG_INFO("CPL:      %u.", current_guest_cpl());
   skip_instruction();
 }
 

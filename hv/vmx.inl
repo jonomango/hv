@@ -215,7 +215,7 @@ inline ia32_vmx_entry_ctls_register read_ctrl_entry() {
   return value;
 }
 
-// get the guest's CPL (current privilege level)
+// get the CPL (current privilege level) of the current guest
 inline uint16_t current_guest_cpl() {
   vmx_segment_access_rights ss;
   ss.flags = static_cast<uint32_t>(vmx_vmread(VMCS_GUEST_SS_ACCESS_RIGHTS));

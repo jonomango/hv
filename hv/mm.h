@@ -20,28 +20,31 @@ union pml4_virtual_address {
 // translate a GVA to a GPA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the GPA in order to modify the GVA.
-uint64_t gva2gpa(cr3 guest_cr3, void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
+uint64_t gva2gpa(cr3 guest_cr3, void* gva, size_t* offset_to_next_page = nullptr);
 
 // translate a GVA to a GPA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the GPA in order to modify the GVA.
-uint64_t gva2gpa(void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
+uint64_t gva2gpa(void* gva, size_t* offset_to_next_page = nullptr);
 
 // translate a GVA to an HVA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the HVA in order to modify the GVA.
-void* gva2hva(cr3 guest_cr3, void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
+void* gva2hva(cr3 guest_cr3, void* gva, size_t* offset_to_next_page = nullptr);
 
 // translate a GVA to an HVA. offset_to_next_page is the number of bytes to
 // the next page (i.e. the number of bytes that can be safely accessed through
 // the HVA in order to modify the GVA.
-void* gva2hva(void* guest_virtual_address, size_t* offset_to_next_page = nullptr);
+void* gva2hva(void* gva, size_t* offset_to_next_page = nullptr);
 
 // attempt to read the memory at the specified guest virtual address from root-mode
-size_t read_guest_virtual_memory(cr3 guest_cr3, void* guest_virtual_address, void* buffer, size_t size);
+size_t read_guest_virtual_memory(cr3 guest_cr3, void* gva, void* buffer, size_t size);
 
 // attempt to read the memory at the specified guest virtual address from root-mode
-size_t read_guest_virtual_memory(void* guest_virtual_address, void* buffer, size_t size);
+size_t read_guest_virtual_memory(void* gva, void* buffer, size_t size);
+
+// attempt to read the memory at the specified guest physical address from root-mode
+bool read_guest_physical_memory(uint64_t gpa, void* buffer, size_t size);
 
 } // namespace hv
 
