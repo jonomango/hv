@@ -299,10 +299,10 @@ void query_process_cr3(vcpu* const cpu) {
 // install an EPT hook for the CURRENT logical processor ONLY
 void install_ept_hook(vcpu* const cpu) {
   // arguments
-  auto const orig_page = cpu->ctx->rcx;
-  auto const exec_page = cpu->ctx->rdx;
+  auto const orig_page_pfn = cpu->ctx->rcx;
+  auto const exec_page_pfn = cpu->ctx->rdx;
 
-  cpu->ctx->rax = install_ept_hook(cpu->ept, orig_page >> 12, exec_page >> 12);
+  cpu->ctx->rax = install_ept_hook(cpu->ept, orig_page_pfn, exec_page_pfn);
 
   skip_instruction();
 }
@@ -310,9 +310,9 @@ void install_ept_hook(vcpu* const cpu) {
 // remove a previously installed EPT hook
 void remove_ept_hook(vcpu* const cpu) {
   // arguments
-  auto const orig_page = cpu->ctx->rcx;
+  auto const orig_page_pfn = cpu->ctx->rcx;
 
-  remove_ept_hook(cpu->ept, orig_page >> 12);
+  remove_ept_hook(cpu->ept, orig_page_pfn);
 
   skip_instruction();
 }

@@ -135,7 +135,24 @@ inline uint64_t query_process_cr3(uint64_t const pid) {
   return hv::vmx_vmcall(input);
 }
 
-inline void flush_logs(uint32_t& count, logger_msg* msgs) {
+inline bool install_ept_hook(uint64_t const orig_page_pfn, uint64_t const exec_page_pfn) {
+  hv::hypercall_input input;
+  input.code    = hv::hypercall_install_ept_hook;
+  input.key     = hv::hypercall_key;
+  input.args[0] = orig_page_pfn;
+  input.args[1] = exec_page_pfn;
+  return hv::vmx_vmcall(input);
+}
+
+inline void remove_ept_hook(uint64_t const orig_page_pfn) {
+  hv::hypercall_input input;
+  input.code    = hv::hypercall_remove_ept_hook;
+  input.key     = hv::hypercall_key;
+  input.args[0] = orig_page_pfn;
+  hv::vmx_vmcall(input);
+}
+
+inline void flush_logs(uint32_t& count, logger_msg* const msgs) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_flush_logs;
   input.key     = hv::hypercall_key;
@@ -155,16 +172,16 @@ inline uint64_t get_physical_address(uint64_t const cr3, void const* const addre
 
 inline bool hide_physical_page(uint64_t const pfn) {
   hv::hypercall_input input;
-  input.code = hv::hypercall_hide_physical_page;
-  input.key = hv::hypercall_key;
+  input.code    = hv::hypercall_hide_physical_page;
+  input.key     = hv::hypercall_key;
   input.args[0] = pfn;
   return hv::vmx_vmcall(input);
 }
 
 inline void unhide_physical_page(uint64_t const pfn) {
   hv::hypercall_input input;
-  input.code = hv::hypercall_unhide_physical_page;
-  input.key = hv::hypercall_key;
+  input.code    = hv::hypercall_unhide_physical_page;
+  input.key     = hv::hypercall_key;
   input.args[0] = pfn;
   hv::vmx_vmcall(input);
 }
