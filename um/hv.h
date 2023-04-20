@@ -56,9 +56,57 @@ struct hypercall_input {
   uint64_t args[6];
 };
 
+// ping the hypervisor to make sure it is running (returns hypervisor_signature)
+uint64_t ping();
+
+// a hypercall for quick testing
+uint64_t test(uint64_t a1 = 0, uint64_t a2 = 0,
+              uint64_t a3 = 0, uint64_t a4 = 0,
+              uint64_t a5 = 0, uint64_t a6 = 0);
+
+// read from arbitrary physical memory
+size_t read_phys_mem(void* dst, uint64_t src, size_t size);
+
+// write to arbitrary physical memory
+size_t write_phys_mem(uint64_t dst, void const* src, size_t size);
+
+// read from virtual memory in another process
+size_t read_virt_mem(uint64_t cr3, void* dst, void const* src, size_t size);
+
+// write to virtual memory in another process
+size_t write_virt_mem(uint64_t cr3, void* dst, void const* src, size_t size);
+
+// get the kernel CR3 value of an arbitrary process
+uint64_t query_process_cr3(uint64_t pid);
+
+// install an EPT hook for the CURRENT logical processor ONLY
+bool install_ept_hook(uint64_t orig_page_pfn, uint64_t exec_page_pfn);
+
+// remove a previously installed EPT hook
+void remove_ept_hook(uint64_t orig_page_pfn);
+
+// flush the hypervisor logs into a buffer
+void flush_logs(uint32_t& count, logger_msg* msgs);
+
+// translate a virtual address to its physical address
+uint64_t get_physical_address(uint64_t cr3, void const* address);
+
+// hide a physical page from the guest
+bool hide_physical_page(uint64_t pfn);
+
+// unhide a physical page from the guest
+void unhide_physical_page(uint64_t pfn);
+
 // VMCALL instruction, defined in hv.asm
 uint64_t vmx_vmcall(hypercall_input& input);
 
+/**
+* 
+* hypercall definitions:
+* 
+**/
+
+// ping the hypervisor to make sure it is running (returns hypervisor_signature)
 inline uint64_t ping() {
   hv::hypercall_input input;
   input.code = hv::hypercall_ping;
@@ -66,9 +114,10 @@ inline uint64_t ping() {
   return hv::vmx_vmcall(input);
 }
 
-inline uint64_t test(uint64_t const a1 = 0, uint64_t const a2 = 0,
-                     uint64_t const a3 = 0, uint64_t const a4 = 0,
-                     uint64_t const a5 = 0, uint64_t const a6 = 0) {
+// a hypercall for quick testing
+inline uint64_t test(uint64_t const a1, uint64_t const a2,
+                     uint64_t const a3, uint64_t const a4,
+                     uint64_t const a5, uint64_t const a6) {
   hv::hypercall_input input;
   input.code = hv::hypercall_test;
   input.key  = hv::hypercall_key;
@@ -81,6 +130,7 @@ inline uint64_t test(uint64_t const a1 = 0, uint64_t const a2 = 0,
   return hv::vmx_vmcall(input);
 }
 
+// read from arbitrary physical memory
 inline size_t read_phys_mem(void* const dst, uint64_t const src,
                             size_t const size) {
   hv::hypercall_input input;
@@ -92,6 +142,7 @@ inline size_t read_phys_mem(void* const dst, uint64_t const src,
   return hv::vmx_vmcall(input);
 }
 
+// write to arbitrary physical memory
 inline size_t write_phys_mem(uint64_t const dst, void const* const src,
                              size_t const size) {
   hv::hypercall_input input;
@@ -103,6 +154,7 @@ inline size_t write_phys_mem(uint64_t const dst, void const* const src,
   return hv::vmx_vmcall(input);
 }
 
+// read from virtual memory in another process
 inline size_t read_virt_mem(uint64_t const cr3, void* const dst,
                             void const* const src, size_t const size) {
   hv::hypercall_input input;
@@ -115,6 +167,7 @@ inline size_t read_virt_mem(uint64_t const cr3, void* const dst,
   return hv::vmx_vmcall(input);
 }
 
+// write to virtual memory in another process
 inline size_t write_virt_mem(uint64_t const cr3, void* const dst,
                              void const* const src, size_t const size) {
   hv::hypercall_input input;
@@ -127,6 +180,7 @@ inline size_t write_virt_mem(uint64_t const cr3, void* const dst,
   return hv::vmx_vmcall(input);
 }
 
+// get the kernel CR3 value of an arbitrary process
 inline uint64_t query_process_cr3(uint64_t const pid) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_query_process_cr3;
@@ -135,6 +189,7 @@ inline uint64_t query_process_cr3(uint64_t const pid) {
   return hv::vmx_vmcall(input);
 }
 
+// install an EPT hook for the CURRENT logical processor ONLY
 inline bool install_ept_hook(uint64_t const orig_page_pfn, uint64_t const exec_page_pfn) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_install_ept_hook;
@@ -144,6 +199,7 @@ inline bool install_ept_hook(uint64_t const orig_page_pfn, uint64_t const exec_p
   return hv::vmx_vmcall(input);
 }
 
+// remove a previously installed EPT hook
 inline void remove_ept_hook(uint64_t const orig_page_pfn) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_remove_ept_hook;
@@ -152,6 +208,7 @@ inline void remove_ept_hook(uint64_t const orig_page_pfn) {
   hv::vmx_vmcall(input);
 }
 
+// flush the hypervisor logs into a buffer
 inline void flush_logs(uint32_t& count, logger_msg* const msgs) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_flush_logs;
@@ -161,6 +218,7 @@ inline void flush_logs(uint32_t& count, logger_msg* const msgs) {
   count = static_cast<uint32_t>(hv::vmx_vmcall(input));
 }
 
+// translate a virtual address to its physical address
 inline uint64_t get_physical_address(uint64_t const cr3, void const* const address) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_get_physical_address;
@@ -170,6 +228,7 @@ inline uint64_t get_physical_address(uint64_t const cr3, void const* const addre
   return hv::vmx_vmcall(input);
 }
 
+// hide a physical page from the guest
 inline bool hide_physical_page(uint64_t const pfn) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_hide_physical_page;
@@ -178,6 +237,7 @@ inline bool hide_physical_page(uint64_t const pfn) {
   return hv::vmx_vmcall(input);
 }
 
+// unhide a physical page from the guest
 inline void unhide_physical_page(uint64_t const pfn) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_unhide_physical_page;

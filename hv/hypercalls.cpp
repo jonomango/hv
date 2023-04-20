@@ -6,6 +6,9 @@
 #include "exception-routines.h"
 #include "introspection.h"
 
+// first byte at the start of the image
+extern "C" uint8_t __ImageBase;
+
 namespace hv::hc {
 
 // ping the hypervisor to make sure it is running
@@ -17,11 +20,12 @@ void ping(vcpu* const cpu) {
 
 // a hypercall for quick testing
 void test(vcpu* const) {
-  HV_LOG_INFO("KPCR:     %p.", current_guest_kpcr());
-  HV_LOG_INFO("EPROCESS: %p.", current_guest_eprocess());
-  HV_LOG_INFO("ETHREAD:  %p.", current_guest_ethread());
-  HV_LOG_INFO("PID:      %p.", current_guest_pid());
-  HV_LOG_INFO("CPL:      %u.", current_guest_cpl());
+  HV_LOG_INFO("IMAGEBASE: %p.", &__ImageBase);
+  HV_LOG_INFO("KPCR:      %p.", current_guest_kpcr());
+  HV_LOG_INFO("EPROCESS:  %p.", current_guest_eprocess());
+  HV_LOG_INFO("ETHREAD:   %p.", current_guest_ethread());
+  HV_LOG_INFO("PID:       %p.", current_guest_pid());
+  HV_LOG_INFO("CPL:       %u.", current_guest_cpl());
   skip_instruction();
 }
 
@@ -317,7 +321,7 @@ void remove_ept_hook(vcpu* const cpu) {
   skip_instruction();
 }
 
-// flush the hypervisor logs into a specified buffer
+// flush the hypervisor logs into a buffer
 void flush_logs(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
@@ -424,7 +428,7 @@ void flush_logs(vcpu* const cpu) {
   skip_instruction();
 }
 
-// translate a virtual address to its virtual address
+// translate a virtual address to its physical address
 void get_physical_address(vcpu* const cpu) {
   cr3 guest_cr3;
   guest_cr3.flags = cpu->ctx->rcx;
@@ -434,7 +438,7 @@ void get_physical_address(vcpu* const cpu) {
   skip_instruction();
 }
 
-// hide the physical page from the guest
+// hide a physical page from the guest
 void hide_physical_page(vcpu* const cpu) {
   auto const pfn = cpu->ctx->rcx;
   auto const pte = get_ept_pte(cpu->ept, pfn << 12, true);
@@ -453,7 +457,7 @@ void hide_physical_page(vcpu* const cpu) {
   skip_instruction();
 }
 
-// unhide the physical page from the guest
+// unhide a physical page from the guest
 void unhide_physical_page(vcpu* const cpu) {
   auto const pfn = cpu->ctx->rcx;
   auto const pte = get_ept_pte(cpu->ept, pfn << 12, false);

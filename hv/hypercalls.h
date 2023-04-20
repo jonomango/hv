@@ -72,16 +72,16 @@ void install_ept_hook(vcpu* cpu);
 // remove a previously installed EPT hook
 void remove_ept_hook(vcpu* cpu);
 
-// flush the hypervisor logs into a specified buffer
+// flush the hypervisor logs into a buffer
 void flush_logs(vcpu* cpu);
 
-// translate a virtual address to its virtual address
+// translate a virtual address to its physical address
 void get_physical_address(vcpu* cpu);
 
-// hide the physical page from the guest
+// hide a physical page from the guest
 void hide_physical_page(vcpu* cpu);
 
-// unhide the physical page from the guest
+// unhide a physical page from the guest
 void unhide_physical_page(vcpu* cpu);
 
 } // namespace hc
