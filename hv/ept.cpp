@@ -10,6 +10,8 @@ namespace hv {
 void prepare_ept(vcpu_ept_data& ept) {
   memset(&ept, 0, sizeof(ept));
 
+  ept.dummy_page_pfn = MmGetPhysicalAddress(ept.dummy_page).QuadPart >> 12;
+
   ept.num_used_free_pages = 0;
 
   for (size_t i = 0; i < ept_free_page_count; ++i)

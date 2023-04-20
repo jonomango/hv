@@ -202,6 +202,8 @@ void emulate_vmcall(vcpu* const cpu) {
   case hypercall_remove_ept_hook:      hc::remove_ept_hook(cpu);      return;
   case hypercall_flush_logs:           hc::flush_logs(cpu);           return;
   case hypercall_get_physical_address: hc::get_physical_address(cpu); return;
+  case hypercall_hide_physical_page:   hc::hide_physical_page(cpu);   return;
+  case hypercall_unhide_physical_page: hc::unhide_physical_page(cpu); return;
   }
 
   HV_LOG_VERBOSE("Unhandled VMCALL. RIP=%p.", vmx_vmread(VMCS_GUEST_RIP));

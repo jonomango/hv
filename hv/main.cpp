@@ -34,6 +34,30 @@ NTSTATUS driver_entry(PDRIVER_OBJECT const driver, PUNICODE_STRING) {
   else
     DbgPrint("[client] Failed to ping hypervisor!\n");
 
+  auto const mem = (uint8_t*)ExAllocatePool(NonPagedPool, 0x1000);
+  memset(mem, 69, 0x1000);
+
+  DbgPrint("MEM[0]=%X.\n", mem[0]);
+
+  auto const irql = KeRaiseIrqlToDpcLevel();
+
+  hv::hypercall_input input;
+  input.key = hv::hypercall_key;
+  input.code = hv::hypercall_hide_physical_page;
+  input.args[0] = MmGetPhysicalAddress(mem).QuadPart >> 12;
+  hv::vmx_vmcall(input);
+
+  DbgPrint("MEM[0]=%X.\n", mem[0]);
+
+  input.key = hv::hypercall_key;
+  input.code = hv::hypercall_unhide_physical_page;
+  input.args[0] = MmGetPhysicalAddress(mem).QuadPart >> 12;
+  hv::vmx_vmcall(input);
+
+  DbgPrint("MEM[0]=%X.\n", mem[0]);
+
+  KeLowerIrql(irql);
+
   return STATUS_SUCCESS;
 }
 

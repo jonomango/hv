@@ -23,7 +23,9 @@ enum hypercall_code : uint64_t {
   hypercall_install_ept_hook,
   hypercall_remove_ept_hook,
   hypercall_flush_logs,
-  hypercall_get_physical_address
+  hypercall_get_physical_address,
+  hypercall_hide_physical_page,
+  hypercall_unhide_physical_page
 };
 
 // hypercall input
@@ -75,6 +77,12 @@ void flush_logs(vcpu* cpu);
 
 // translate a virtual address to its virtual address
 void get_physical_address(vcpu* cpu);
+
+// hide the physical page from the guest
+void hide_physical_page(vcpu* cpu);
+
+// unhide the physical page from the guest
+void unhide_physical_page(vcpu* cpu);
 
 } // namespace hc
 

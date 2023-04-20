@@ -49,6 +49,10 @@ struct vcpu_ept_data {
   // free pages that can be used to split PDEs or for other purposes
   alignas(0x1000) uint8_t free_pages[ept_free_page_count][0x1000];
 
+  // a dummy page that hidden pages are pointed to
+  alignas(0x1000) uint8_t dummy_page[0x1000];
+  uint64_t dummy_page_pfn;
+
   // an array of PFNs that point to each free page in the free page array
   uint64_t free_page_pfns[ept_free_page_count];
 

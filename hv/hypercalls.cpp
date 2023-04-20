@@ -434,5 +434,41 @@ void get_physical_address(vcpu* const cpu) {
   skip_instruction();
 }
 
+// hide the physical page from the guest
+void hide_physical_page(vcpu* const cpu) {
+  auto const pfn = cpu->ctx->rcx;
+  auto const pte = get_ept_pte(cpu->ept, pfn << 12, true);
+
+  // this can occur if we failed to split the PDE
+  if (!pte) {
+    cpu->ctx->rax = 0;
+    skip_instruction();
+    return;
+  }
+
+  pte->page_frame_number = cpu->ept.dummy_page_pfn;
+  vmx_invept(invept_all_context, {});
+
+  cpu->ctx->rax = 1;
+  skip_instruction();
+}
+
+// unhide the physical page from the guest
+void unhide_physical_page(vcpu* const cpu) {
+  auto const pfn = cpu->ctx->rcx;
+  auto const pte = get_ept_pte(cpu->ept, pfn << 12, false);
+
+  // this can occur if we never hid the page in the first place
+  if (!pte) {
+    skip_instruction();
+    return;
+  }
+
+  pte->page_frame_number = pfn;
+  vmx_invept(invept_all_context, {});
+
+  skip_instruction();
+}
+
 } // namespace hv::hc
 

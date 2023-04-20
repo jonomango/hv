@@ -39,7 +39,9 @@ enum hypercall_code : uint64_t {
   hypercall_install_ept_hook,
   hypercall_remove_ept_hook,
   hypercall_flush_logs,
-  hypercall_get_physical_address
+  hypercall_get_physical_address,
+  hypercall_hide_physical_page,
+  hypercall_unhide_physical_page
 };
 
 // hypercall input
@@ -149,6 +151,22 @@ inline uint64_t get_physical_address(uint64_t const cr3, void const* const addre
   input.args[0] = cr3;
   input.args[1] = reinterpret_cast<uint64_t>(address);
   return hv::vmx_vmcall(input);
+}
+
+inline bool hide_physical_page(uint64_t const pfn) {
+  hv::hypercall_input input;
+  input.code = hv::hypercall_hide_physical_page;
+  input.key = hv::hypercall_key;
+  input.args[0] = pfn;
+  return hv::vmx_vmcall(input);
+}
+
+inline void unhide_physical_page(uint64_t const pfn) {
+  hv::hypercall_input input;
+  input.code = hv::hypercall_unhide_physical_page;
+  input.key = hv::hypercall_key;
+  input.args[0] = pfn;
+  hv::vmx_vmcall(input);
 }
 
 } // namespace hv
