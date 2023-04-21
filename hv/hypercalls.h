@@ -25,7 +25,8 @@ enum hypercall_code : uint64_t {
   hypercall_flush_logs,
   hypercall_get_physical_address,
   hypercall_hide_physical_page,
-  hypercall_unhide_physical_page
+  hypercall_unhide_physical_page,
+  hypercall_get_hv_base
 };
 
 // hypercall input
@@ -83,6 +84,9 @@ void hide_physical_page(vcpu* cpu);
 
 // unhide a physical page from the guest
 void unhide_physical_page(vcpu* cpu);
+
+// get the base address of the hypervisor
+void get_hv_base(vcpu* cpu);
 
 } // namespace hc
 

@@ -430,8 +430,11 @@ void flush_logs(vcpu* const cpu) {
 
 // translate a virtual address to its physical address
 void get_physical_address(vcpu* const cpu) {
-  cr3 guest_cr3;
-  guest_cr3.flags = cpu->ctx->rcx;
+  auto guest_cr3 = ghv.system_cr3;
+
+  // use the system CR3 if none is provided
+  if (cpu->ctx->rcx)
+    guest_cr3.flags = cpu->ctx->rcx;
 
   cpu->ctx->rax = gva2gpa(guest_cr3, reinterpret_cast<void*>(cpu->ctx->rdx));
 
@@ -471,6 +474,12 @@ void unhide_physical_page(vcpu* const cpu) {
   pte->page_frame_number = pfn;
   vmx_invept(invept_all_context, {});
 
+  skip_instruction();
+}
+
+// get the base address of the hypervisor
+void get_hv_base(vcpu* const cpu) {
+  cpu->ctx->rax = reinterpret_cast<uint64_t>(&__ImageBase);
   skip_instruction();
 }
 

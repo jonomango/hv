@@ -41,7 +41,8 @@ enum hypercall_code : uint64_t {
   hypercall_flush_logs,
   hypercall_get_physical_address,
   hypercall_hide_physical_page,
-  hypercall_unhide_physical_page
+  hypercall_unhide_physical_page,
+  hypercall_get_hv_base
 };
 
 // hypercall input
@@ -96,6 +97,9 @@ bool hide_physical_page(uint64_t pfn);
 
 // unhide a physical page from the guest
 void unhide_physical_page(uint64_t pfn);
+
+// get the base address of the hypervisor
+void* get_hv_base();
 
 // VMCALL instruction, defined in hv.asm
 uint64_t vmx_vmcall(hypercall_input& input);
@@ -244,6 +248,14 @@ inline void unhide_physical_page(uint64_t const pfn) {
   input.key     = hv::hypercall_key;
   input.args[0] = pfn;
   hv::vmx_vmcall(input);
+}
+
+// get the base address of the hypervisor
+inline void* get_hv_base() {
+  hv::hypercall_input input;
+  input.code = hv::hypercall_get_hv_base;
+  input.key  = hv::hypercall_key;
+  return reinterpret_cast<void*>(hv::vmx_vmcall(input));
 }
 
 } // namespace hv
