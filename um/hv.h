@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <Windows.h>
 
 namespace hv {
 
@@ -57,6 +58,10 @@ struct hypercall_input {
   uint64_t args[6];
 };
 
+// call fn() on each logical processor
+template <typename Fn>
+void for_each_cpu(Fn fn);
+
 // ping the hypervisor to make sure it is running (returns hypervisor_signature)
 uint64_t ping();
 
@@ -106,9 +111,22 @@ uint64_t vmx_vmcall(hypercall_input& input);
 
 /**
 * 
-* hypercall definitions:
+* implementation:
 * 
 **/
+
+// call fn() on each logical processor
+template <typename Fn>
+inline void for_each_cpu(Fn const fn) {
+  SYSTEM_INFO info = {};
+  GetSystemInfo(&info);
+
+  for (unsigned int i = 0; i < info.dwNumberOfProcessors; ++i) {
+    auto const prev_affinity = SetThreadAffinityMask(GetCurrentThread(), 1ull << i);
+    fn();
+    SetThreadAffinityMask(GetCurrentThread(), prev_affinity);
+  }
+}
 
 // ping the hypervisor to make sure it is running (returns hypervisor_signature)
 inline uint64_t ping() {

@@ -1,6 +1,4 @@
 #include <iostream>
-#include <Windows.h>
-#include <intrin.h>
 
 #include "hv.h"
 
@@ -18,7 +16,9 @@ int main() {
     return 0;
   }
 
-  hv::test();
+  hv::for_each_cpu([]() {
+    hv::test();
+  });
 
   printf("Pinged the hypervisor! Flushing logs...\n");
 
@@ -30,7 +30,7 @@ int main() {
 
     // print the logs
     for (uint32_t i = 0; i < count; ++i)
-      printf("[%u][%I64u][%I64u] %s\n", msgs[i].aux, msgs[i].id, msgs[i].tsc, msgs[i].data);
+      printf("[%I64u][CPU=%u] %s\n", msgs[i].id, msgs[i].aux, msgs[i].data);
 
     Sleep(1);
   }
