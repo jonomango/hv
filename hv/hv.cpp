@@ -7,9 +7,14 @@ namespace hv {
 
 hypervisor ghv;
 
+extern "C" {
+
 // function prototype doesn't really matter
-// since we never call this function anyways
-extern "C" NTKERNELAPI void PsGetCurrentThreadProcess();
+// since we never call these functions anyways
+NTKERNELAPI void PsGetCurrentThreadProcess();
+NTKERNELAPI void PsGetProcessImageFileName();
+
+}
 
 // dynamically find the offsets for various kernel structures
 static bool find_offsets() {
@@ -41,6 +46,24 @@ static bool find_offsets() {
 
   DbgPrint("[hv] EPROCESS::UniqueProcessId offset = 0x%zX.\n",
     ghv.eprocess_unique_process_id_offset);
+
+  auto const ps_get_process_image_file_name = reinterpret_cast<uint8_t*>(PsGetProcessImageFileName);
+
+  // lea rax, [rcx + OFFSET]
+  // retn
+  if (ps_get_process_image_file_name[0] != 0x48 ||
+      ps_get_process_image_file_name[1] != 0x8D ||
+      ps_get_process_image_file_name[2] != 0x81 ||
+      ps_get_process_image_file_name[7] != 0xC3) {
+    DbgPrint("[hv] Failed to get EPROCESS::ImageFileName offset.\n");
+    return false;
+  }
+
+  ghv.eprocess_image_file_name =
+    *reinterpret_cast<uint32_t*>(ps_get_process_image_file_name + 3);
+
+  DbgPrint("[hv] EPROCESS::ImageFileName offset = 0x%zX.\n",
+    ghv.eprocess_image_file_name);
 
   auto const ps_get_current_thread_process =
     reinterpret_cast<uint8_t*>(PsGetCurrentThreadProcess);

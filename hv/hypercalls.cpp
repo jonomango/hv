@@ -20,7 +20,11 @@ void ping(vcpu* const cpu) {
 
 // a hypercall for quick testing
 void test(vcpu* const cpu) {
+  char image_name[16];
+  current_guest_image_file_name(image_name);
+
   HV_LOG_INFO("IMAGEBASE:      %p.", &__ImageBase);
+  HV_LOG_INFO("IMAGENAME:      %s.", image_name);
   HV_LOG_INFO("KPCR:           %p.", current_guest_kpcr());
   HV_LOG_INFO("EPROCESS:       %p.", current_guest_eprocess());
   HV_LOG_INFO("ETHREAD:        %p.", current_guest_ethread());

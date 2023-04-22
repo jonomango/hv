@@ -69,5 +69,19 @@ uint64_t current_guest_pid() {
   return pid;
 }
 
+// get the image file name (up to 15 chars) of the current guest process
+bool current_guest_image_file_name(char (&name)[16]) {
+  memset(name, 0, sizeof(name));
+
+  // EPROCESS
+  auto const process = reinterpret_cast<uint8_t*>(current_guest_eprocess());
+  if (!process)
+    return false;
+
+  // EPROCESS::ImageFileName
+  return 15 == read_guest_virtual_memory(ghv.system_cr3,
+    process + ghv.eprocess_image_file_name, name, 15);
+}
+
 } // namespace hv
 
