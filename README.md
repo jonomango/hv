@@ -76,6 +76,9 @@ PEPROCESS current_guest_eprocess();
 // get the PID of the current guest
 uint64_t current_guest_pid();
 
+// get the image file name (up to 15 chars) of the current guest process
+bool current_guest_image_file_name(char (&name)[16]);
+
 // get the CPL (current privilege level) of the current guest
 uint16_t current_guest_cpl();
 
