@@ -304,7 +304,7 @@ bool handle_vm_exit(guest_context* const ctx) {
   hide_vm_exit_overhead(cpu);
 
   // sync the vmcs state with the vcpu state
-  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET, cpu->tsc_offset);
+  vmx_vmwrite(VMCS_CTRL_TSC_OFFSET,                  cpu->tsc_offset);
   vmx_vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, cpu->preemption_timer);
 
   cpu->ctx = nullptr;

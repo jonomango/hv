@@ -40,7 +40,26 @@ void hide_vm_exit_overhead(vcpu* const cpu) {
     // this also needs to be done for many other PMCs, but whatever
     if ((cpl == 0 && fixed_ctr_ctrl.en2_os) || (cpl == 3 && fixed_ctr_ctrl.en2_usr))
       __writemsr(IA32_FIXED_CTR2, __readmsr(IA32_FIXED_CTR2) - cpu->vm_exit_ref_tsc_overhead);
+  }  
+  
+  // this usually occurs for vm-exits that are unlikely to be reliably timed,
+  // such as when an exception occurs or if the preemption timer fired
+  if (!cpu->hide_vm_exit_overhead || cpu->vm_exit_tsc_overhead > 10000) {
+    // this is our chance to resync the TSC
+    cpu->tsc_offset = 0;
+
+    // soft disable the VMX preemption timer
+    cpu->preemption_timer = ~0ull;
+
+    return;
   }
+
+  // set the preemption timer to cause an exit after 10000 guest TSC ticks have passed
+  cpu->preemption_timer = max(2,
+    10000 >> cpu->cached.vmx_misc.preemption_timer_tsc_relationship);
+
+  // use TSC offsetting to hide from timing attacks that use the TSC
+  cpu->tsc_offset -= cpu->vm_exit_tsc_overhead;
 }
 
 // measure the overhead of a vm-exit (RDTSC)
@@ -51,9 +70,8 @@ uint64_t measure_vm_exit_tsc_overhead() {
   hv_input.code = hypercall_ping;
   hv_input.key  = hypercall_key;
 
-  uint64_t lowest = ~0ull;
   uint64_t lowest_vm_exit_overhead = ~0ull;
-  uint64_t lowest_timing_overhead = ~0ull;
+  uint64_t lowest_timing_overhead  = ~0ull;
 
   // perform the measurement 10 times and use the smallest time
   for (int i = 0; i < 10; ++i) {
@@ -67,6 +85,8 @@ uint64_t measure_vm_exit_tsc_overhead() {
 
     auto const timing_overhead = (end - start);
 
+    vmx_vmcall(hv_input);
+
     _mm_lfence();
     start = __rdtsc();
     _mm_lfence();
@@ -78,18 +98,15 @@ uint64_t measure_vm_exit_tsc_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    
-    if (vm_exit_overhead < lowest_vm_exit_overhead) {
-        lowest_vm_exit_overhead = vm_exit_overhead;
-    }
-    if (timing_overhead < lowest_timing_overhead) {
-        lowest_timing_overhead = timing_overhead;
-    }
-  
+
+    if (vm_exit_overhead < lowest_vm_exit_overhead)
+      lowest_vm_exit_overhead = vm_exit_overhead;
+    if (timing_overhead < lowest_timing_overhead)
+      lowest_timing_overhead = timing_overhead;
   }
-  lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
+
   _enable();
-  return lowest;
+  return lowest_vm_exit_overhead - lowest_timing_overhead;
 }
 
 // measure the overhead of a vm-exit (CPU_CLK_UNHALTED.REF_TSC)
@@ -119,9 +136,8 @@ uint64_t measure_vm_exit_ref_tsc_overhead() {
   new_perf_global_ctrl.en_fixed_ctrn |= (1ull << 2);
   __writemsr(IA32_PERF_GLOBAL_CTRL, new_perf_global_ctrl.flags);
 
-  uint64_t lowest = ~0ull;
   uint64_t lowest_vm_exit_overhead = ~0ull;
-  uint64_t lowest_timing_overhead = ~0ull;
+  uint64_t lowest_timing_overhead  = ~0ull;
 
   // perform the measurement 10 times and use the smallest time
   for (int i = 0; i < 10; ++i) {
@@ -135,6 +151,8 @@ uint64_t measure_vm_exit_ref_tsc_overhead() {
 
     auto const timing_overhead = (end - start);
 
+    vmx_vmcall(hv_input);
+
     _mm_lfence();
     start = __readmsr(IA32_FIXED_CTR2);
     _mm_lfence();
@@ -146,22 +164,19 @@ uint64_t measure_vm_exit_ref_tsc_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    
-    if (vm_exit_overhead < lowest_vm_exit_overhead) {
-        lowest_vm_exit_overhead = vm_exit_overhead;
-    }
-    if (timing_overhead < lowest_timing_overhead) {
-        lowest_timing_overhead = timing_overhead;
-    }
-    
+
+    if (vm_exit_overhead < lowest_vm_exit_overhead)
+      lowest_vm_exit_overhead = vm_exit_overhead;
+    if (timing_overhead < lowest_timing_overhead)
+      lowest_timing_overhead = timing_overhead;
   }
-  lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
+
   // restore MSRs
   __writemsr(IA32_PERF_GLOBAL_CTRL, curr_perf_global_ctrl.flags);
   __writemsr(IA32_FIXED_CTR_CTRL, curr_fixed_ctr_ctrl.flags);
 
   _enable();
-  return lowest;
+  return lowest_vm_exit_overhead - lowest_timing_overhead;
 }
 
 // measure the overhead of a vm-exit (IA32_MPERF)
@@ -172,9 +187,8 @@ uint64_t measure_vm_exit_mperf_overhead() {
   hv_input.code = hypercall_ping;
   hv_input.key  = hypercall_key;
 
-  uint64_t lowest = ~0ull;
   uint64_t lowest_vm_exit_overhead = ~0ull;
-  uint64_t lowest_timing_overhead = ~0ull;
+  uint64_t lowest_timing_overhead  = ~0ull;
 
   // perform the measurement 10 times and use the smallest time
   for (int i = 0; i < 10; ++i) {
@@ -188,6 +202,8 @@ uint64_t measure_vm_exit_mperf_overhead() {
 
     auto const timing_overhead = (end - start);
 
+    vmx_vmcall(hv_input);
+
     _mm_lfence();
     start = __readmsr(IA32_MPERF);
     _mm_lfence();
@@ -199,18 +215,15 @@ uint64_t measure_vm_exit_mperf_overhead() {
     _mm_lfence();
 
     auto const vm_exit_overhead = (end - start);
-    
-    if (vm_exit_overhead < lowest_vm_exit_overhead) {
-        lowest_vm_exit_overhead = vm_exit_overhead;
-    }
-    if (timing_overhead < lowest_timing_overhead) {
-        lowest_timing_overhead = timing_overhead;
-    }
-    
+
+    if (vm_exit_overhead < lowest_vm_exit_overhead)
+      lowest_vm_exit_overhead = vm_exit_overhead;
+    if (timing_overhead < lowest_timing_overhead)
+      lowest_timing_overhead = timing_overhead;
   }
-  lowest = (lowest_vm_exit_overhead - lowest_timing_overhead);
+
   _enable();
-  return lowest;
+  return lowest_vm_exit_overhead - lowest_timing_overhead;
 }
 
 } // namespace hv
