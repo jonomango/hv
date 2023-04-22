@@ -157,18 +157,24 @@ static void logger_format(char* const buffer, char const* const format, va_list&
       break;
     }
     case 'x': {
+      if (logger_format_copy_str(buffer, "0x", buffer_idx))
+        return;
       if (logger_format_copy_str(buffer,
           lukas_itoa(va_arg(args, unsigned int), fmt_buffer, 16), buffer_idx))
         return;
       break;
     }
     case 'X': {
+      if (logger_format_copy_str(buffer, "0x", buffer_idx))
+        return;
       if (logger_format_copy_str(buffer,
           lukas_itoa(va_arg(args, unsigned int), fmt_buffer, 16, true), buffer_idx))
         return;
       break;
     }
     case 'p': {
+      if (logger_format_copy_str(buffer, "0x", buffer_idx))
+        return;
       if (logger_format_copy_str(buffer,
           lukas_itoa(va_arg(args, uint64_t), fmt_buffer, 16, true), buffer_idx))
         return;
