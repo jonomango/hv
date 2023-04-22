@@ -3,7 +3,7 @@
 `hv` is an x86-64 [Intel VT-x](https://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_(VT-x)) 
 hypervisor that aims to be simple and lightweight, while still following the Intel SDM as closely as possible.
 This allows it to evade detections that take advantage of common hypervisor bugs, such as improper
-vm-exit handling. Other detections, such as timing checks, are ~~*mostly* mitigated~~, although staying
+vm-exit handling. Other detections, such as timing checks, are *mostly* mitigated, although staying
 fully undetected is nearly impossible.
 
 ## Installation
