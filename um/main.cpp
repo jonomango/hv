@@ -1,23 +1,31 @@
 #include <iostream>
 
 #include "hv.h"
+#include "dumper.h"
 
 int main() {
-  // check to see if the hypervisor is loaded...
-  __try {
-    if (hv::ping() != hv::hypervisor_signature) {
-      printf("Failed to ping the hypervisor... :(\n");
-      getchar();
-      return 0;
-    }
-  } __except (1) {
-    printf("Failed to ping the hypervisor... :(\n");
-    getchar();
+  if (!hv::is_hv_running()) {
+    printf("HV not running.\n");
     return 0;
   }
 
-  hv::for_each_cpu([]() {
-    hv::test();
+  auto const hv_base = static_cast<uint8_t*>(hv::get_hv_base());
+  auto const hv_size = 0x63000;
+
+  // hide the hypervisor
+  hv::for_each_cpu([&]() {
+    for (size_t i = 0; i < hv_size; i += 0x1000) {
+      auto const virt = hv_base + i;
+      auto const phys = hv::get_physical_address(0, virt);
+
+      if (!phys) {
+        printf("Failed to get physical address for 0x%p.\n", virt);
+        continue;
+      }
+
+      if (!hv::hide_physical_page(phys >> 12))
+        printf("Failed to hide physical page: 0x%p.\n", virt);
+    }
   });
 
   printf("Pinged the hypervisor! Flushing logs...\n");

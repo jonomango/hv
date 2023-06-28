@@ -1,10 +1,12 @@
 #include "exit-handlers.h"
 #include "guest-context.h"
 #include "exception-routines.h"
+#include "introspection.h"
 #include "hypercalls.h"
 #include "vcpu.h"
 #include "vmx.h"
 #include "logger.h"
+#include "hv.h"
 
 namespace hv {
 
@@ -551,7 +553,7 @@ void handle_ept_violation(vcpu* const cpu) {
   if (qualification.execute_access &&
      (qualification.write_access || qualification.read_access)) {
     HV_LOG_ERROR("Invalid EPT access combination. PhysAddr = %p.", physical_address);
-    inject_hw_exception(machine_check);
+    inject_hw_exception(general_protection, 0);
     return;
   }
 
@@ -559,7 +561,7 @@ void handle_ept_violation(vcpu* const cpu) {
 
   if (!hook) {
     HV_LOG_ERROR("Failed to find EPT hook. PhysAddr = %p.", physical_address);
-    inject_hw_exception(machine_check);
+    inject_hw_exception(general_protection, 0);
     return;
   }
 

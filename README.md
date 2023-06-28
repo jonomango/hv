@@ -76,6 +76,9 @@ PEPROCESS current_guest_eprocess();
 // get the PID of the current guest
 uint64_t current_guest_pid();
 
+// get the kernel CR3 of the current guest
+cr3 current_guest_cr3();
+
 // get the image file name (up to 15 chars) of the current guest process
 bool current_guest_image_file_name(char (&name)[16]);
 

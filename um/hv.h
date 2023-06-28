@@ -58,6 +58,9 @@ struct hypercall_input {
   uint64_t args[6];
 };
 
+// check if the system is virtualized
+bool is_hv_running();
+
 // call fn() on each logical processor
 template <typename Fn>
 void for_each_cpu(Fn fn);
@@ -114,6 +117,15 @@ uint64_t vmx_vmcall(hypercall_input& input);
 * implementation:
 * 
 **/
+
+// check if the system is virtualized
+inline bool is_hv_running() {
+  __try {
+    return hv::ping() == hv::hypervisor_signature;
+  } __except (1) {}
+
+  return false;
+}
 
 // call fn() on each logical processor
 template <typename Fn>

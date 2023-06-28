@@ -25,10 +25,10 @@ void write_vmcs_ctrl_fields(vcpu* const cpu) {
   // 3.24.6.2
   ia32_vmx_procbased_ctls_register proc_based_ctrl;
   proc_based_ctrl.flags                       = 0;
-#ifndef NDEBUG
+//#ifndef NDEBUG
   proc_based_ctrl.cr3_load_exiting            = 1;
-  proc_based_ctrl.cr3_store_exiting           = 1;
-#endif
+  //proc_based_ctrl.cr3_store_exiting           = 1;
+//#endif
   proc_based_ctrl.use_msr_bitmaps             = 1;
   proc_based_ctrl.use_tsc_offsetting          = 1;
   proc_based_ctrl.activate_secondary_controls = 1;

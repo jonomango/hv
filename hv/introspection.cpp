@@ -69,6 +69,23 @@ uint64_t current_guest_pid() {
   return pid;
 }
 
+// get the kernel CR3 of the current guest
+cr3 current_guest_cr3() {
+  cr3 cr3;
+  cr3.flags = 0;
+
+  // EPROCESS
+  auto const process = reinterpret_cast<uint8_t*>(current_guest_eprocess());
+  if (!process)
+    return cr3;
+
+  // EPROCESS::DirectoryTableBase
+  read_guest_virtual_memory(ghv.system_cr3,
+    process + ghv.kprocess_directory_table_base_offset, &cr3, sizeof(cr3));
+
+  return cr3;
+}
+
 // get the image file name (up to 15 chars) of the current guest process
 bool current_guest_image_file_name(char (&name)[16]) {
   memset(name, 0, sizeof(name));

@@ -10,6 +10,9 @@
 #include "exception-routines.h"
 #include "introspection.h"
 
+// first byte at the start of the image
+extern "C" uint8_t __ImageBase;
+
 namespace hv {
 
 // defined in vm-launch.asm
@@ -212,9 +215,9 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
 
   // unhandled VM-exit
   default:
-    cpu->stop_virtualization = true;
     HV_LOG_ERROR("Unhandled VM-exit. Exit Reason: %u. RIP: %p.",
       reason.basic_exit_reason, vmx_vmread(VMCS_GUEST_RIP));
+    inject_hw_exception(general_protection, 0);
     break;
   }
 }
@@ -239,8 +242,10 @@ bool handle_vm_exit(guest_context* const ctx) {
     vmx_vmread(VMCS_CTRL_VMENTRY_INTERRUPTION_INFORMATION_FIELD));
 
   if (interrupt_info.valid) {
-    HV_LOG_VERBOSE("Injecting interrupt into guest. Vector=%i. Error=%i.",
-      interrupt_info.vector, vmx_vmread(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE));
+    char name[16] = {};
+    current_guest_image_file_name(name);
+    HV_LOG_VERBOSE("Injecting interrupt into guest (%s). BasicExitReason=%i, Vector=%i, Error=%i.",
+      name, reason.basic_exit_reason, interrupt_info.vector, vmx_vmread(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE));
   }
 
   // restore guest state. the assembly code is responsible for restoring
@@ -330,13 +335,20 @@ void handle_host_interrupt(trap_frame* const frame) {
   default: {
     // no registered exception handler
     if (!frame->r10 || !frame->r11) {
-      HV_LOG_ERROR("Unhandled exception. RIP=%p. Vector=%u.",
-        frame->rip, frame->vector);
+      HV_LOG_ERROR("Unhandled exception. RIP=hv.sys+%p. Vector=%u.",
+        frame->rip - reinterpret_cast<UINT64>(&__ImageBase), frame->vector);
+
+      // ensure a triple-fault
+      segment_descriptor_register_64 idtr;
+      idtr.base_address = frame->rsp;
+      idtr.limit = 0xFFF;
+      __lidt(&idtr);
+
       break;
     }
 
-    HV_LOG_VERBOSE("Handling host exception. RIP=%p. Vector=%u",
-      frame->rip, frame->vector);
+    HV_LOG_VERBOSE("Handling host exception. RIP=hv.sys+%p. Vector=%u",
+      frame->rip - reinterpret_cast<UINT64>(&__ImageBase), frame->vector);
 
     // jump to the exception handler
     frame->rip = frame->r10;

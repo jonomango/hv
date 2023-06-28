@@ -18,9 +18,15 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="dumper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dumper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -144,8 +144,10 @@ void read_virt_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
   // arguments
-  cr3 guest_cr3;
-  guest_cr3.flags = ctx->rcx;
+  cr3 guest_cr3 = ghv.system_cr3;
+  if (ctx->rcx)
+    guest_cr3.flags = ctx->rcx;
+
   auto const dst  = reinterpret_cast<uint8_t*>(ctx->rdx);
   auto const src  = reinterpret_cast<uint8_t*>(ctx->r8);
   auto const size = ctx->r9;
@@ -203,8 +205,10 @@ void write_virt_mem(vcpu* const cpu) {
   auto const ctx = cpu->ctx;
 
   // arguments
-  cr3 guest_cr3;
-  guest_cr3.flags = ctx->rcx;
+  cr3 guest_cr3 = ghv.system_cr3;
+  if (ctx->rcx)
+    guest_cr3.flags = ctx->rcx;
+
   auto const dst  = reinterpret_cast<uint8_t*>(ctx->rdx);
   auto const src  = reinterpret_cast<uint8_t*>(ctx->r8);
   auto const size = ctx->r9;
