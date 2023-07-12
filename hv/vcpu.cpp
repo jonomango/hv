@@ -200,6 +200,7 @@ static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);      break;
   case VMX_EXIT_REASON_EXECUTE_RDTSC:                emulate_rdtsc(cpu);             break;
   case VMX_EXIT_REASON_EXECUTE_RDTSCP:               emulate_rdtscp(cpu);            break;
+  case VMX_EXIT_REASON_MONITOR_TRAP_FLAG:            handle_monitor_trap_flag(cpu);  break;
   // VMX instructions (except for VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:

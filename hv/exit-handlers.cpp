@@ -207,6 +207,8 @@ void emulate_vmcall(vcpu* const cpu) {
   case hypercall_hide_physical_page:   hc::hide_physical_page(cpu);   return;
   case hypercall_unhide_physical_page: hc::unhide_physical_page(cpu); return;
   case hypercall_get_hv_base:          hc::get_hv_base(cpu);          return;
+  case hypercall_install_mmr:          hc::install_mmr(cpu);          return;
+  case hypercall_remove_mmr:           hc::remove_mmr(cpu);           return;
   }
 
   HV_LOG_VERBOSE("Unhandled VMCALL. RIP=%p.", vmx_vmread(VMCS_GUEST_RIP));
@@ -550,6 +552,34 @@ void handle_ept_violation(vcpu* const cpu) {
   auto const physical_address = vmx_vmread(qualification.caused_by_translation ?
     VMCS_GUEST_PHYSICAL_ADDRESS : VMCS_EXIT_GUEST_LINEAR_ADDRESS);
 
+  auto const pte = get_ept_pte(cpu->ept, physical_address);
+
+  for (auto const& entry : cpu->ept.mmr) {
+    // ignore pages that aren't being monitored
+    if (physical_address < (entry.start & ~0xFFFull))
+      continue;
+    if (physical_address >= ((entry.start + entry.size + 0xFFF) & ~0xFFFull))
+      continue;
+
+    pte->read_access    = 1;
+    pte->write_access   = 1;
+    pte->execute_access = 1;
+
+    if (physical_address >= entry.start && physical_address < (entry.start + entry.size)) {
+      char name[16] = {};
+      current_guest_image_file_name(name);
+      HV_LOG_MONITOR_MEMORY_RANGE("%s <%p> accessed memory at address %p.",
+        name, vmx_vmread(VMCS_GUEST_RIP), physical_address);
+    }
+
+    cpu->ept.mmr_mtf_pte  = pte;
+    cpu->ept.mmr_mtf_mode = entry.mode;
+
+    enable_monitor_trap_flag();
+
+    return;
+  }
+
   if (qualification.execute_access &&
      (qualification.write_access || qualification.read_access)) {
     HV_LOG_ERROR("Invalid EPT access combination. PhysAddr = %p.", physical_address);
@@ -564,8 +594,6 @@ void handle_ept_violation(vcpu* const cpu) {
     inject_hw_exception(general_protection, 0);
     return;
   }
-
-  auto const pte = get_ept_pte(cpu->ept, physical_address);
 
   if (qualification.execute_access) {
     pte->read_access       = 0;
@@ -600,6 +628,23 @@ void emulate_rdtscp(vcpu* const cpu) {
   cpu->ctx->rcx = aux;
 
   skip_instruction();
+}
+
+void handle_monitor_trap_flag(vcpu* const cpu) {
+  auto& pte       = cpu->ept.mmr_mtf_pte;
+  auto const mode = cpu->ept.mmr_mtf_mode;
+
+  // restore MMR mode
+  if (pte) {
+    pte->read_access    = !(mode & mmr_memory_mode_r);
+    pte->write_access   = !(mode & mmr_memory_mode_w);
+    pte->execute_access = !(mode & mmr_memory_mode_x);
+    pte = nullptr;
+
+    vmx_invept(invept_all_context, {});
+  }
+
+  disable_monitor_trap_flag();
 }
 
 } // namespace hv

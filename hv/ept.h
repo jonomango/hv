@@ -10,6 +10,9 @@ struct vcpu;
 inline constexpr size_t ept_pd_count = 64;
 inline constexpr size_t ept_free_page_count = 100;
 
+// max number of MMRs
+inline constexpr size_t ept_mmr_count = 100;
+
 struct vcpu_ept_hook_node {
   vcpu_ept_hook_node* next;
 
@@ -19,6 +22,7 @@ struct vcpu_ept_hook_node {
   uint32_t exec_pfn;
 };
 
+// TODO: refactor this to just use an array instead of a linked list
 struct vcpu_ept_hooks {
   // buffer of nodes (there can be unused nodes in the middle
   // of the buffer if a hook was removed for example)
@@ -30,6 +34,25 @@ struct vcpu_ept_hooks {
 
   // list of unused nodes
   vcpu_ept_hook_node* free_list_head;
+};
+
+// TODO: make this a bitfield instead
+enum mmr_memory_mode {
+  mmr_memory_mode_r = 0b001,
+  mmr_memory_mode_w = 0b010,
+  mmr_memory_mode_x = 0b100
+};
+
+// monitored memory ranges
+struct vcpu_ept_mmr_entry {
+  // start physical address
+  uint64_t start;
+
+  // size of the range in bytes, a value of 0 indicates that this entry isn't being used
+  uint32_t size;
+
+  // the memory access type that we are monitoring for
+  mmr_memory_mode mode;
 };
 
 struct vcpu_ept_data {
@@ -61,6 +84,13 @@ struct vcpu_ept_data {
 
   // EPT hooks
   vcpu_ept_hooks hooks;
+
+  // monitored memory ranges
+  vcpu_ept_mmr_entry mmr[ept_mmr_count];
+
+  // PTE of the page that we should re-enable memory monitoring on
+  ept_pte*        mmr_mtf_pte;
+  mmr_memory_mode mmr_mtf_mode;
 };
 
 // identity-map the EPT paging structures

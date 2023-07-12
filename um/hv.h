@@ -43,7 +43,9 @@ enum hypercall_code : uint64_t {
   hypercall_get_physical_address,
   hypercall_hide_physical_page,
   hypercall_unhide_physical_page,
-  hypercall_get_hv_base
+  hypercall_get_hv_base,
+  hypercall_install_mmr,
+  hypercall_remove_mmr
 };
 
 // hypercall input
@@ -56,6 +58,12 @@ struct hypercall_input {
 
   // rcx, rdx, r8, r9, r10, r11
   uint64_t args[6];
+};
+
+enum mmr_memory_mode {
+  mmr_memory_mode_r = 0b001,
+  mmr_memory_mode_w = 0b010,
+  mmr_memory_mode_x = 0b100
 };
 
 // check if the system is virtualized
@@ -109,6 +117,12 @@ void unhide_physical_page(uint64_t pfn);
 // get the base address of the hypervisor
 void* get_hv_base();
 
+// write to the logger whenever a certain physical memory range is accessed
+void* install_mmr(uint64_t address, uint32_t size, mmr_memory_mode mode);
+
+// remove an existing MMR
+void remove_mmr(void* handle);
+
 // VMCALL instruction, defined in hv.asm
 uint64_t vmx_vmcall(hypercall_input& input);
 
@@ -133,9 +147,9 @@ inline void for_each_cpu(Fn const fn) {
   SYSTEM_INFO info = {};
   GetSystemInfo(&info);
 
-  for (unsigned int i = 0; i < info.dwNumberOfProcessors; ++i) {
+  for (uint32_t i = 0; i < info.dwNumberOfProcessors; ++i) {
     auto const prev_affinity = SetThreadAffinityMask(GetCurrentThread(), 1ull << i);
-    fn();
+    fn(i);
     SetThreadAffinityMask(GetCurrentThread(), prev_affinity);
   }
 }
@@ -286,6 +300,27 @@ inline void* get_hv_base() {
   input.code = hv::hypercall_get_hv_base;
   input.key  = hv::hypercall_key;
   return reinterpret_cast<void*>(hv::vmx_vmcall(input));
+}
+
+// write to the logger whenever a certain physical memory range is accessed
+inline void* install_mmr(uint64_t const address, uint32_t const size,
+                        mmr_memory_mode const mode) {
+  hv::hypercall_input input;
+  input.code    = hv::hypercall_install_mmr;
+  input.key     = hv::hypercall_key;
+  input.args[0] = address;
+  input.args[1] = size;
+  input.args[2] = mode;
+  return reinterpret_cast<void*>(hv::vmx_vmcall(input));
+}
+
+// remove an existing MMR
+inline void remove_mmr(void* const handle) {
+  hv::hypercall_input input;
+  input.code    = hv::hypercall_remove_mmr;
+  input.key     = hv::hypercall_key;
+  input.args[0] = reinterpret_cast<uint64_t>(handle);
+  hv::vmx_vmcall(input);
 }
 
 } // namespace hv

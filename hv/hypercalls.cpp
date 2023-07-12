@@ -495,5 +495,78 @@ void get_hv_base(vcpu* const cpu) {
   skip_instruction();
 }
 
+// write to the logger whenever a certain physical memory range is accessed
+void install_mmr(vcpu* const cpu) {
+  auto const phys = cpu->ctx->rcx;
+  auto const size = static_cast<uint32_t>(cpu->ctx->rdx);
+  auto const mode = static_cast<mmr_memory_mode>(cpu->ctx->r8 & 0b111);
+
+  // return null by default
+  cpu->ctx->rax = 0;
+
+  // TODO: check for overlap with EPT hooking
+
+  vcpu_ept_mmr_entry* entry = nullptr;
+
+  for (auto& e : cpu->ept.mmr) {
+    if (e.size != 0)
+      continue;
+
+    entry = &e;
+    break;
+  }
+
+  // all entries are in use
+  if (!entry) {
+    skip_instruction();
+    return;
+  }
+
+  entry->mode  = mode;
+  entry->start = phys;
+  entry->size  = size;
+
+  for (auto addr = phys; addr < phys + size; addr += 0x1000) {
+    auto const pte = get_ept_pte(cpu->ept, addr, true);
+    if (!pte) {
+      // TODO: properly handle errors, i.e. restore previous PTE permissions
+      skip_instruction();
+      return;
+    }
+
+    pte->read_access    = !(mode & mmr_memory_mode_r);
+    pte->write_access   = !(mode & mmr_memory_mode_w);
+    pte->execute_access = !(mode & mmr_memory_mode_x);
+  }
+
+  vmx_invept(invept_all_context, {});
+
+  cpu->ctx->rax = reinterpret_cast<uint64_t>(entry);
+  skip_instruction();
+}
+
+// remove a monitored memory range
+void remove_mmr(vcpu* cpu) {
+  auto const entry = reinterpret_cast<vcpu_ept_mmr_entry*>(cpu->ctx->rcx);
+
+  for (auto addr = entry->start; addr < entry->start + entry->size; addr += 0x1000) {
+    auto const pte = get_ept_pte(cpu->ept, addr, true);
+    if (!pte) {
+      // TODO: properly handle errors, i.e. restore previous PTE permissions
+      skip_instruction();
+      return;
+    }
+
+    pte->read_access    = 1;
+    pte->write_access   = 1;
+    pte->execute_access = 1;
+  }
+
+  entry->size = 0;
+  vmx_invept(invept_all_context, {});
+
+  skip_instruction();
+}
+
 } // namespace hv::hc
 

@@ -126,6 +126,12 @@ void enable_exit_for_msr_read(vmx_msr_bitmap& bitmap, uint32_t msr, bool enable_
 // enable/disable vm-exits when the guest tries to write to the specified MSR
 void enable_exit_for_msr_write(vmx_msr_bitmap& bitmap, uint32_t msr, bool enable_exiting);
 
+// enable MTF exiting
+void enable_monitor_trap_flag();
+
+// disable MTF exiting
+void disable_monitor_trap_flag();
+
 } // namespace hv
 
 #include "vmx.inl"

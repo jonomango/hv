@@ -325,5 +325,19 @@ inline void enable_exit_for_msr_write(vmx_msr_bitmap& bitmap,
     bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] = (bit << (msr & 0b0111));
 }
 
+// enable MTF exiting
+inline void enable_monitor_trap_flag() {
+  auto control = read_ctrl_proc_based();
+  control.monitor_trap_flag = 1;
+  write_ctrl_proc_based(control);
+}
+
+// disable MTF exiting
+inline void disable_monitor_trap_flag() {
+  auto control = read_ctrl_proc_based();
+  control.monitor_trap_flag = 0;
+  write_ctrl_proc_based(control);
+}
+
 } // namespace hv
 

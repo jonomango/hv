@@ -26,7 +26,9 @@ enum hypercall_code : uint64_t {
   hypercall_get_physical_address,
   hypercall_hide_physical_page,
   hypercall_unhide_physical_page,
-  hypercall_get_hv_base
+  hypercall_get_hv_base,
+  hypercall_install_mmr,
+  hypercall_remove_mmr
 };
 
 // hypercall input
@@ -87,6 +89,12 @@ void unhide_physical_page(vcpu* cpu);
 
 // get the base address of the hypervisor
 void get_hv_base(vcpu* cpu);
+
+// write to the logger whenever a certain physical memory range is accessed
+void install_mmr(vcpu* cpu);
+
+// remove a monitored memory range
+void remove_mmr(vcpu* cpu);
 
 } // namespace hc
 
