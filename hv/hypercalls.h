@@ -28,7 +28,8 @@ enum hypercall_code : uint64_t {
   hypercall_unhide_physical_page,
   hypercall_get_hv_base,
   hypercall_install_mmr,
-  hypercall_remove_mmr
+  hypercall_remove_mmr,
+  hypercall_remove_all_mmrs
 };
 
 // hypercall input
@@ -95,6 +96,9 @@ void install_mmr(vcpu* cpu);
 
 // remove a monitored memory range
 void remove_mmr(vcpu* cpu);
+
+// remove every installed MMR
+void remove_all_mmrs(vcpu* cpu);
 
 } // namespace hc
 

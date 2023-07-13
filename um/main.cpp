@@ -3,10 +3,6 @@
 #include "hv.h"
 #include "dumper.h"
 
-__declspec(noinline) void test_function() {
-  printf("Hello world! %i\n", 69);
-}
-
 int main() {
   if (!hv::is_hv_running()) {
     printf("HV not running.\n");
@@ -32,34 +28,9 @@ int main() {
     }
   });
 
-  auto const phys = hv::get_physical_address(
-    hv::query_process_cr3(GetCurrentProcessId()), &test_function);
-  printf("Physical address: %zX.\n", phys);
-
-  test_function();
-
-  void* handles[64];
-
-  hv::for_each_cpu([&](uint32_t idx) {
-    handles[idx] = hv::install_mmr(phys, 0xC, hv::mmr_memory_mode_x);
-  });
-
-  test_function();
-  test_function();
-  test_function();
-  test_function();
-
-  hv::for_each_cpu([&](uint32_t idx) {
-    hv::remove_mmr(handles[idx]);
-  });
-
-  test_function();
-  test_function();
-  test_function();
-
   printf("Pinged the hypervisor! Flushing logs...\n");
 
-  while (true) {
+  while (!GetAsyncKeyState(VK_ESCAPE)) {
     // flush the logs
     uint32_t count = 512;
     hv::logger_msg msgs[512];
@@ -72,6 +43,8 @@ int main() {
     Sleep(1);
   }
 
-  getchar();
+  hv::for_each_cpu([](uint32_t) {
+    hv::remove_all_mmrs();
+  });
 }
 

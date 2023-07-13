@@ -209,6 +209,7 @@ void emulate_vmcall(vcpu* const cpu) {
   case hypercall_get_hv_base:          hc::get_hv_base(cpu);          return;
   case hypercall_install_mmr:          hc::install_mmr(cpu);          return;
   case hypercall_remove_mmr:           hc::remove_mmr(cpu);           return;
+  case hypercall_remove_all_mmrs:      hc::remove_all_mmrs(cpu);      return;
   }
 
   HV_LOG_VERBOSE("Unhandled VMCALL. RIP=%p.", vmx_vmread(VMCS_GUEST_RIP));
@@ -568,8 +569,20 @@ void handle_ept_violation(vcpu* const cpu) {
     if (physical_address >= entry.start && physical_address < (entry.start + entry.size)) {
       char name[16] = {};
       current_guest_image_file_name(name);
-      HV_LOG_MONITOR_MEMORY_RANGE("%s <%p> accessed memory at address %p.",
-        name, vmx_vmread(VMCS_GUEST_RIP), physical_address);
+
+      char mode[4] = "---";
+      if (qualification.read_access)
+        mode[0] = 'r';
+      if (qualification.write_access)
+        mode[1] = 'w';
+      if (qualification.execute_access)
+        mode[2] = 'x';
+
+      HV_LOG_MMR_ACCESS("[%s] accessed memory at physical address <%p>:", name, physical_address);
+      HV_LOG_MMR_ACCESS("    MODE: %s", mode);
+      HV_LOG_MMR_ACCESS("    PID:  %p", current_guest_pid());
+      HV_LOG_MMR_ACCESS("    CPL:  %i", current_guest_cpl());
+      HV_LOG_MMR_ACCESS("    RIP:  %p", vmx_vmread(VMCS_GUEST_RIP));
     }
 
     cpu->ept.mmr_mtf_pte  = pte;

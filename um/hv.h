@@ -45,7 +45,8 @@ enum hypercall_code : uint64_t {
   hypercall_unhide_physical_page,
   hypercall_get_hv_base,
   hypercall_install_mmr,
-  hypercall_remove_mmr
+  hypercall_remove_mmr,
+  hypercall_remove_all_mmrs
 };
 
 // hypercall input
@@ -122,6 +123,9 @@ void* install_mmr(uint64_t address, uint32_t size, mmr_memory_mode mode);
 
 // remove an existing MMR
 void remove_mmr(void* handle);
+
+// remove every installed MMR
+void remove_all_mmrs();
 
 // VMCALL instruction, defined in hv.asm
 uint64_t vmx_vmcall(hypercall_input& input);
@@ -317,9 +321,17 @@ inline void* install_mmr(uint64_t const address, uint32_t const size,
 // remove an existing MMR
 inline void remove_mmr(void* const handle) {
   hv::hypercall_input input;
-  input.code    = hv::hypercall_remove_mmr;
-  input.key     = hv::hypercall_key;
+  input.code = hv::hypercall_remove_mmr;
+  input.key  = hv::hypercall_key;
   input.args[0] = reinterpret_cast<uint64_t>(handle);
+  hv::vmx_vmcall(input);
+}
+
+// remove every installed MMR
+inline void remove_all_mmrs() {
+  hv::hypercall_input input;
+  input.code = hv::hypercall_remove_all_mmrs;
+  input.key  = hv::hypercall_key;
   hv::vmx_vmcall(input);
 }
 

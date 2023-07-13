@@ -568,5 +568,31 @@ void remove_mmr(vcpu* cpu) {
   skip_instruction();
 }
 
+// remove every installed MMR
+void remove_all_mmrs(vcpu* const cpu) {
+  for (auto& entry : cpu->ept.mmr) {
+    if (entry.size == 0)
+      continue;
+
+    for (auto addr = entry.start; addr < entry.start + entry.size; addr += 0x1000) {
+      auto const pte = get_ept_pte(cpu->ept, addr, true);
+      if (!pte) {
+        // TODO: properly handle errors, i.e. restore previous PTE permissions
+        skip_instruction();
+        return;
+      }
+
+      pte->read_access    = 1;
+      pte->write_access   = 1;
+      pte->execute_access = 1;
+    }
+
+    entry.size = 0;
+  }
+
+  vmx_invept(invept_all_context, {});
+  skip_instruction();
+}
+
 } // namespace hv::hc
 
