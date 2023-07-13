@@ -52,5 +52,7 @@ void emulate_rdtscp(vcpu* cpu);
 
 void handle_monitor_trap_flag(vcpu* cpu);
 
+void handle_ept_misconfiguration(vcpu* cpu);
+
 } // namespace hv
 

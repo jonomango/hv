@@ -185,22 +185,23 @@ static void prepare_external_structures(vcpu* const cpu) {
 // call the appropriate exit-handler for this vm-exit
 static void dispatch_vm_exit(vcpu* const cpu, vmx_vmexit_reason const reason) {
   switch (reason.basic_exit_reason) {
-  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:             handle_exception_or_nmi(cpu);   break;
-  case VMX_EXIT_REASON_EXECUTE_GETSEC:               emulate_getsec(cpu);            break;
-  case VMX_EXIT_REASON_EXECUTE_INVD:                 emulate_invd(cpu);              break;
-  case VMX_EXIT_REASON_NMI_WINDOW:                   handle_nmi_window(cpu);         break;
-  case VMX_EXIT_REASON_EXECUTE_CPUID:                emulate_cpuid(cpu);             break;
-  case VMX_EXIT_REASON_MOV_CR:                       handle_mov_cr(cpu);             break;
-  case VMX_EXIT_REASON_EXECUTE_RDMSR:                emulate_rdmsr(cpu);             break;
-  case VMX_EXIT_REASON_EXECUTE_WRMSR:                emulate_wrmsr(cpu);             break;
-  case VMX_EXIT_REASON_EXECUTE_XSETBV:               emulate_xsetbv(cpu);            break;
-  case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);             break;
-  case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);            break;
-  case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);     break;
-  case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);      break;
-  case VMX_EXIT_REASON_EXECUTE_RDTSC:                emulate_rdtsc(cpu);             break;
-  case VMX_EXIT_REASON_EXECUTE_RDTSCP:               emulate_rdtscp(cpu);            break;
-  case VMX_EXIT_REASON_MONITOR_TRAP_FLAG:            handle_monitor_trap_flag(cpu);  break;
+  case VMX_EXIT_REASON_EXCEPTION_OR_NMI:             handle_exception_or_nmi(cpu);     break;
+  case VMX_EXIT_REASON_EXECUTE_GETSEC:               emulate_getsec(cpu);              break;
+  case VMX_EXIT_REASON_EXECUTE_INVD:                 emulate_invd(cpu);                break;
+  case VMX_EXIT_REASON_NMI_WINDOW:                   handle_nmi_window(cpu);           break;
+  case VMX_EXIT_REASON_EXECUTE_CPUID:                emulate_cpuid(cpu);               break;
+  case VMX_EXIT_REASON_MOV_CR:                       handle_mov_cr(cpu);               break;
+  case VMX_EXIT_REASON_EXECUTE_RDMSR:                emulate_rdmsr(cpu);               break;
+  case VMX_EXIT_REASON_EXECUTE_WRMSR:                emulate_wrmsr(cpu);               break;
+  case VMX_EXIT_REASON_EXECUTE_XSETBV:               emulate_xsetbv(cpu);              break;
+  case VMX_EXIT_REASON_EXECUTE_VMXON:                emulate_vmxon(cpu);               break;
+  case VMX_EXIT_REASON_EXECUTE_VMCALL:               emulate_vmcall(cpu);              break;
+  case VMX_EXIT_REASON_VMX_PREEMPTION_TIMER_EXPIRED: handle_vmx_preemption(cpu);       break;
+  case VMX_EXIT_REASON_EPT_VIOLATION:                handle_ept_violation(cpu);        break;
+  case VMX_EXIT_REASON_EXECUTE_RDTSC:                emulate_rdtsc(cpu);               break;
+  case VMX_EXIT_REASON_EXECUTE_RDTSCP:               emulate_rdtscp(cpu);              break;
+  case VMX_EXIT_REASON_MONITOR_TRAP_FLAG:            handle_monitor_trap_flag(cpu);    break;
+  case VMX_EXIT_REASON_EPT_MISCONFIGURATION:         handle_ept_misconfiguration(cpu); break;
   // VMX instructions (except for VMXON and VMCALL)
   case VMX_EXIT_REASON_EXECUTE_INVEPT:
   case VMX_EXIT_REASON_EXECUTE_INVVPID:

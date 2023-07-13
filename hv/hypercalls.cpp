@@ -537,6 +537,10 @@ void install_mmr(vcpu* const cpu) {
     pte->read_access    = !(mode & mmr_memory_mode_r);
     pte->write_access   = !(mode & mmr_memory_mode_w);
     pte->execute_access = !(mode & mmr_memory_mode_x);
+
+    // write access but no read access will generate an EPT misconfiguration
+    if (pte->write_access && !pte->read_access)
+      pte->write_access = 0;
   }
 
   vmx_invept(invept_all_context, {});

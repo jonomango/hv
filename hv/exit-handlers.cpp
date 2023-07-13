@@ -566,6 +566,10 @@ void handle_ept_violation(vcpu* const cpu) {
     pte->write_access   = 1;
     pte->execute_access = 1;
 
+    auto const is_relevant_mode = (qualification.read_access && (entry.mode & mmr_memory_mode_r))
+      || (qualification.write_access && (entry.mode & mmr_memory_mode_w))
+      || (qualification.execute_access && (entry.mode & mmr_memory_mode_x));
+
     if (physical_address >= entry.start && physical_address < (entry.start + entry.size)) {
       char name[16] = {};
       current_guest_image_file_name(name);
@@ -652,12 +656,22 @@ void handle_monitor_trap_flag(vcpu* const cpu) {
     pte->read_access    = !(mode & mmr_memory_mode_r);
     pte->write_access   = !(mode & mmr_memory_mode_w);
     pte->execute_access = !(mode & mmr_memory_mode_x);
+
+    // write access but no read access will generate an EPT misconfiguration
+    if (pte->write_access && !pte->read_access)
+      pte->write_access = 0;
+
     pte = nullptr;
 
     vmx_invept(invept_all_context, {});
   }
 
   disable_monitor_trap_flag();
+}
+
+void handle_ept_misconfiguration(vcpu*) {
+  auto const phys = vmx_vmread(VMCS_GUEST_PHYSICAL_ADDRESS);
+  HV_LOG_ERROR("Unhandled EPT Misconfiguration: %p", phys);
 }
 
 } // namespace hv
