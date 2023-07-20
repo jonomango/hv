@@ -28,15 +28,6 @@ int main() {
     }
   });
 
-  auto cr3 = hv::query_process_cr3(3012);
-  auto phys = hv::get_physical_address(cr3, (void*)(0x7ff716820000 + 0x1000));
-
-  printf("Physical address: %zX\n", phys);
-
-  hv::for_each_cpu([&](uint32_t) {
-    hv::install_mmr(phys, 0x1, hv::mmr_memory_mode_r);
-  });
-
   printf("Pinged the hypervisor! Flushing logs...\n");
 
   while (!GetAsyncKeyState(VK_RETURN)) {
