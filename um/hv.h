@@ -119,7 +119,7 @@ void unhide_physical_page(uint64_t pfn);
 void* get_hv_base();
 
 // write to the logger whenever a certain physical memory range is accessed
-void* install_mmr(uint64_t address, uint32_t size, mmr_memory_mode mode);
+void* install_mmr(uint64_t address, uint32_t size, uint8_t mode);
 
 // remove an existing MMR
 void remove_mmr(void* handle);
@@ -308,7 +308,7 @@ inline void* get_hv_base() {
 
 // write to the logger whenever a certain physical memory range is accessed
 inline void* install_mmr(uint64_t const address, uint32_t const size,
-                        mmr_memory_mode const mode) {
+                         uint8_t const mode) {
   hv::hypercall_input input;
   input.code    = hv::hypercall_install_mmr;
   input.key     = hv::hypercall_key;

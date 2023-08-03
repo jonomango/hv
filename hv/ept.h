@@ -52,7 +52,7 @@ struct vcpu_ept_mmr_entry {
   uint32_t size;
 
   // the memory access type that we are monitoring for
-  mmr_memory_mode mode;
+  uint8_t mode;
 };
 
 struct vcpu_ept_data {
@@ -89,8 +89,8 @@ struct vcpu_ept_data {
   vcpu_ept_mmr_entry mmr[ept_mmr_count];
 
   // PTE of the page that we should re-enable memory monitoring on
-  ept_pte*        mmr_mtf_pte;
-  mmr_memory_mode mmr_mtf_mode;
+  ept_pte* mmr_mtf_pte;
+  uint8_t  mmr_mtf_mode;
 };
 
 // identity-map the EPT paging structures

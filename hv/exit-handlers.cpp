@@ -186,6 +186,7 @@ void emulate_vmcall(vcpu* const cpu) {
 
   // validate the hypercall key
   if (key != hypercall_key) {
+    HV_LOG_VERBOSE("Invalid VMCALL key. RIP=%p.", vmx_vmread(VMCS_GUEST_RIP));
     inject_hw_exception(invalid_opcode);
     return;
   }
@@ -512,8 +513,6 @@ void handle_nmi_window(vcpu* const cpu) {
   // inject the NMI into the guest
   inject_nmi();
 
-  HV_LOG_VERBOSE("Injecting NMI into guest.");
-
   if (cpu->queued_nmis == 0) {
     // disable NMI-window exiting since we have no more NMIs to inject
     auto ctrl = read_ctrl_proc_based();
@@ -566,11 +565,15 @@ void handle_ept_violation(vcpu* const cpu) {
     pte->write_access   = 1;
     pte->execute_access = 1;
 
-    auto const is_relevant_mode = (qualification.read_access && (entry.mode & mmr_memory_mode_r))
-      || (qualification.write_access && (entry.mode & mmr_memory_mode_w))
+    auto const is_relevant_mode =
+         (qualification.read_access    && (entry.mode & mmr_memory_mode_r))
+      || (qualification.write_access   && (entry.mode & mmr_memory_mode_w))
       || (qualification.execute_access && (entry.mode & mmr_memory_mode_x));
 
-    if (physical_address >= entry.start && physical_address < (entry.start + entry.size)) {
+    if (is_relevant_mode &&
+        physical_address >= entry.start &&
+        physical_address < (entry.start + entry.size)) {
+
       char name[16] = {};
       current_guest_image_file_name(name);
 
@@ -587,6 +590,22 @@ void handle_ept_violation(vcpu* const cpu) {
       HV_LOG_MMR_ACCESS("    PID:  %p", current_guest_pid());
       HV_LOG_MMR_ACCESS("    CPL:  %i", current_guest_cpl());
       HV_LOG_MMR_ACCESS("    RIP:  %p", vmx_vmread(VMCS_GUEST_RIP));
+      HV_LOG_MMR_ACCESS("    RSP:  %p", vmx_vmread(VMCS_GUEST_RSP));
+      HV_LOG_MMR_ACCESS("    RAX:  %p", cpu->ctx->rax);
+      HV_LOG_MMR_ACCESS("    RCX:  %p", cpu->ctx->rcx);
+      HV_LOG_MMR_ACCESS("    RDX:  %p", cpu->ctx->rdx);
+      HV_LOG_MMR_ACCESS("    RBX:  %p", cpu->ctx->rbx);
+      HV_LOG_MMR_ACCESS("    RBP:  %p", cpu->ctx->rbp);
+      HV_LOG_MMR_ACCESS("    RSI:  %p", cpu->ctx->rsi);
+      HV_LOG_MMR_ACCESS("    RDI:  %p", cpu->ctx->rdi);
+      HV_LOG_MMR_ACCESS("    R8:   %p", cpu->ctx->r8);
+      HV_LOG_MMR_ACCESS("    R9:   %p", cpu->ctx->r9);
+      HV_LOG_MMR_ACCESS("    R10:  %p", cpu->ctx->r10);
+      HV_LOG_MMR_ACCESS("    R11:  %p", cpu->ctx->r11);
+      HV_LOG_MMR_ACCESS("    R12:  %p", cpu->ctx->r12);
+      HV_LOG_MMR_ACCESS("    R13:  %p", cpu->ctx->r13);
+      HV_LOG_MMR_ACCESS("    R14:  %p", cpu->ctx->r14);
+      HV_LOG_MMR_ACCESS("    R15:  %p", cpu->ctx->r15);
     }
 
     cpu->ept.mmr_mtf_pte  = pte;

@@ -246,7 +246,7 @@ bool handle_vm_exit(guest_context* const ctx) {
   if (interrupt_info.valid) {
     char name[16] = {};
     current_guest_image_file_name(name);
-    HV_LOG_VERBOSE("Injecting interrupt into guest (%s). BasicExitReason=%i, Vector=%i, Error=%i.",
+    HV_LOG_INJECT_INT("Injecting interrupt into guest (%s). BasicExitReason=%i, Vector=%i, Error=%i.",
       name, reason.basic_exit_reason, interrupt_info.vector, vmx_vmread(VMCS_CTRL_VMENTRY_EXCEPTION_ERROR_CODE));
   }
 
@@ -349,7 +349,7 @@ void handle_host_interrupt(trap_frame* const frame) {
       break;
     }
 
-    HV_LOG_VERBOSE("Handling host exception. RIP=hv.sys+%p. Vector=%u",
+    HV_LOG_HOST_EXCEPTION("Handling host exception. RIP=hv.sys+%p. Vector=%u",
       frame->rip - reinterpret_cast<UINT64>(&__ImageBase), frame->vector);
 
     // jump to the exception handler
