@@ -306,18 +306,18 @@ inline void enable_exit_for_msr_read(vmx_msr_bitmap& bitmap,
 
   if (msr <= MSR_ID_LOW_MAX) {
 	// update the bit in the low bitmap
-    if(enable_exiting)
-	  bitmap.rdmsr_low[msr / 8] |= bit;
+    if (enable_exiting)
+      bitmap.rdmsr_low[msr / 8] |= bit;
     else
-	  bitmap.rdmsr_low[msr / 8] &= ~bit;
+      bitmap.rdmsr_low[msr / 8] &= ~bit;
   }
 
   else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
 	// update the bit in the high bitmap
-    if(enable_exiting)
-	  bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
+    if (enable_exiting)
+      bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
     else
-	  bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] &= ~bit;
+      bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] &= ~bit;
   }
 }
 
@@ -328,18 +328,18 @@ inline void enable_exit_for_msr_write(vmx_msr_bitmap& bitmap,
 
   if (msr <= MSR_ID_LOW_MAX) {
 	// update the bit in the low bitmap
-    if(enable_exiting)
-	  bitmap.wrmsr_low[msr / 8] |= bit;
+    if (enable_exiting)
+      bitmap.wrmsr_low[msr / 8] |= bit;
     else
-	  bitmap.wrmsr_low[msr / 8] &= ~bit;
+      bitmap.wrmsr_low[msr / 8] &= ~bit;
   }
 
   else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
     // update the bit in the high bitmap
-    if(enable_exiting)
-	  bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
+    if (enable_exiting)
+      bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
     else
-	  bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] &= ~bit;
+      bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] &= ~bit;
   }
 }
 
