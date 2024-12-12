@@ -302,27 +302,45 @@ inline void inject_hw_exception(uint32_t const vector, uint32_t const error) {
 // enable/disable vm-exits when the guest tries to read the specified MSR
 inline void enable_exit_for_msr_read(vmx_msr_bitmap& bitmap,
     uint32_t const msr, bool const enable_exiting) {
-  auto const bit = static_cast<uint8_t>(enable_exiting ? 1 : 0);
+  auto const bit = 1 << (msr & 0b0111);
 
-  if (msr <= MSR_ID_LOW_MAX)
-    // set the bit in the low bitmap
-    bitmap.rdmsr_low[msr / 8] = (bit << (msr & 0b0111));
-  else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX)
-    // set the bit in the high bitmap
-    bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] = (bit << (msr & 0b0111));
+  if (msr <= MSR_ID_LOW_MAX) {
+	// update the bit in the low bitmap
+	if(enable_exiting)
+	  bitmap.rdmsr_low[msr / 8] |= bit;
+    else
+	  bitmap.rdmsr_low[msr / 8] &= ~bit;
+  }
+
+  else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
+	// update the bit in the high bitmap
+	if(enable_exiting)
+	  bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
+	else
+	  bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] &= ~bit;
+  }
 }
 
 // enable/disable vm-exits when the guest tries to write to the specified MSR
 inline void enable_exit_for_msr_write(vmx_msr_bitmap& bitmap,
     uint32_t const msr, bool const enable_exiting) {
-  auto const bit = static_cast<uint8_t>(enable_exiting ? 1 : 0);
+  auto const bit = 1 << (msr & 0b0111);
 
-  if (msr <= MSR_ID_LOW_MAX)
-    // set the bit in the low bitmap
-    bitmap.wrmsr_low[msr / 8] = (bit << (msr & 0b0111));
-  else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX)
-    // set the bit in the high bitmap
-    bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] = (bit << (msr & 0b0111));
+  if (msr <= MSR_ID_LOW_MAX) {
+	// update the bit in the low bitmap
+	if(enable_exiting)
+	  bitmap.wrmsr_low[msr / 8] |= bit;
+    else
+	  bitmap.wrmsr_low[msr / 8] &= ~bit;
+  }
+
+  else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
+    // update the bit in the high bitmap
+	if(enable_exiting)
+	  bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
+    else
+	  bitmap.wrmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] &= ~bit;
+  }
 }
 
 // enable MTF exiting
