@@ -305,7 +305,7 @@ inline void enable_exit_for_msr_read(vmx_msr_bitmap& bitmap,
   auto const bit = 1 << (msr & 0b0111);
 
   if (msr <= MSR_ID_LOW_MAX) {
-	// update the bit in the low bitmap
+    // update the bit in the low bitmap
     if (enable_exiting)
       bitmap.rdmsr_low[msr / 8] |= bit;
     else
@@ -313,7 +313,7 @@ inline void enable_exit_for_msr_read(vmx_msr_bitmap& bitmap,
   }
 
   else if (msr >= MSR_ID_HIGH_MIN && msr <= MSR_ID_HIGH_MAX) {
-	// update the bit in the high bitmap
+    // update the bit in the high bitmap
     if (enable_exiting)
       bitmap.rdmsr_high[(msr - MSR_ID_HIGH_MIN) / 8] |= bit;
     else
@@ -327,7 +327,7 @@ inline void enable_exit_for_msr_write(vmx_msr_bitmap& bitmap,
   auto const bit = 1 << (msr & 0b0111);
 
   if (msr <= MSR_ID_LOW_MAX) {
-	// update the bit in the low bitmap
+    // update the bit in the low bitmap
     if (enable_exiting)
       bitmap.wrmsr_low[msr / 8] |= bit;
     else
