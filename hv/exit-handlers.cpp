@@ -642,6 +642,9 @@ void handle_ept_violation(vcpu* const cpu) {
     pte->execute_access    = 0;
     pte->page_frame_number = hook->orig_pfn;
   }
+
+  // invalidate the EPT
+  vmx_invept(invept_all_context, {});
 }
 
 void emulate_rdtsc(vcpu* const cpu) {
