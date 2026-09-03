@@ -75,7 +75,7 @@ ehandler:
 
   ; return value
   shl rdx, 32
-  and rax, rdx
+  or rax, rdx ; and changed to OR every successful read would return garbage. 
 
 ehandler:
   ret
